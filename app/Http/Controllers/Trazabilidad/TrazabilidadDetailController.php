@@ -25,13 +25,31 @@ final class TrazabilidadDetailController extends Controller
         $filters = $request->filters();
         abort_unless($filters->hasAny(), 422, 'Selecciona al menos un filtro.');
 
-        $data = $this->matrix->build($filters->toArray(), $filters->metrica);
+        $data = $this->matrix->build($filters->toArray());
         $html = view('modulos.trazabilidad.resumen._matriz_detalle', [
             ...$data,
             'filtros' => $filters->toArray(),
         ])->render();
 
-        return $this->detailResponse('matrix', $html, [
+        return $this->detailResponse('matrix', $html, self::matrixMeta($data), $startedAt);
+    }
+
+    /**
+     * Datos compactos con los que el navegador arma, al expandir un mes o una
+     * semana, las columnas de semana/día (el HTML solo trae las de mes) y las
+     * filas de artículo/color. Los valores van dispersos: solo índices con valor.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function matrixMeta(array $data): array
+    {
+        $disperso = static fn (array $valores): array => array_filter(
+            $valores,
+            static fn (mixed $valor): bool => $valor !== null,
+        );
+
+        return [
             'areas' => count($data['areas']),
             'periodos' => count($data['columnasPeriodos']),
             'decimales' => $data['decimales'],
@@ -39,16 +57,50 @@ final class TrazabilidadDetailController extends Controller
                 static fn (array $area): array => $area['detalles'],
                 $data['areas'],
             ),
+            'filas' => array_map(
+                static fn (array $area): array => [
+                    'text' => $area['text'],
+                    'tint' => $area['tint'],
+                    'valores' => (object) $disperso($area['valores']),
+                    ...self::heatmap($disperso($area['bgs'])),
+                ],
+                $data['areas'],
+            ),
+            'totales' => (object) $disperso($data['totales']),
             'columnas' => array_map(
                 static fn (array $periodo): array => [
                     'nivel' => $periodo['nivel'],
                     'indices' => $periodo['indices'],
                     'mesClave' => $periodo['mesClave'],
                     'semanaClave' => $periodo['semanaClave'],
+                    'label' => $periodo['label'],
+                    'subLabel' => $periodo['subLabel'],
+                    'destacada' => $periodo['destacada'],
                 ],
                 $data['columnasPeriodos'],
             ),
-        ], $startedAt);
+        ];
+    }
+
+    /**
+     * El heatmap del servicio llega como "rgba(r,g,b,alfa)" por día; al JSON va
+     * el rgb del área una vez y solo el alfa por día (disperso).
+     *
+     * @param  array<int, string>  $bgs
+     * @return array{rgb: string, alfas: object}
+     */
+    private static function heatmap(array $bgs): array
+    {
+        $rgb = '';
+        $alfas = [];
+        foreach ($bgs as $indice => $bg) {
+            if (preg_match('/^rgba\((\d+,\d+,\d+),([\d.]+)\)$/', $bg, $partes) === 1) {
+                $rgb = $partes[1];
+                $alfas[$indice] = (float) $partes[2];
+            }
+        }
+
+        return ['rgb' => $rgb, 'alfas' => (object) $alfas];
     }
 
     public function production(TrazabilidadDetailRequest $request): JsonResponse

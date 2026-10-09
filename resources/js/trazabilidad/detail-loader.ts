@@ -1,5 +1,4 @@
 import { errorMessage, eventElement, queryElement } from './dom';
-import { ScrollManager } from './scroll-manager';
 import type {
     DetailResponse,
     DetailType,
@@ -26,7 +25,7 @@ const CACHE_TTL_MS = 30_000;
 const TITLES: Record<DetailType, string> = {
     flogs: 'Flog',
     trazabilidad: 'Trazabilidad',
-    produccion: 'Producción',
+    produccion: 'Programa tejido',
 };
 
 export class DetailLoader {
@@ -34,31 +33,35 @@ export class DetailLoader {
     private readonly pending = new Map<string, PendingDetail>();
     private activeController: AbortController | null = null;
     private sequence = 0;
+    private activeType: DetailType | null = null;
+    /** El botón "Ver detalle" que abrió el panel: el foco vuelve ahí al cerrar. */
+    private opener: HTMLElement | null = null;
 
     private readonly page: HTMLElement;
     private readonly result: HTMLElement;
     private readonly routes: Partial<Record<DetailType, string>>;
     private readonly hooks: DetailHooks;
-    private readonly scroll: ScrollManager;
 
     public constructor(
         page: HTMLElement,
         result: HTMLElement,
         routes: Partial<Record<DetailType, string>>,
         hooks: DetailHooks,
-        scroll: ScrollManager,
     ) {
         this.page = page;
         this.result = result;
         this.routes = routes;
         this.hooks = hooks;
-        this.scroll = scroll;
         this.bind();
+
+        // El detalle abierto vive en la URL (?detalle=…): recargar o compartir el enlace lo reabre.
+        const inicial = new URL(window.location.href).searchParams.get('detalle') as DetailType | null;
+        if (inicial && inicial in TITLES) void this.open(inicial);
     }
 
     public invalidateAndClose(): void {
         this.cache.clear();
-        this.close();
+        if (!this.result.classList.contains('hidden')) this.close();
     }
 
     private bind(): void {
@@ -67,16 +70,23 @@ export class DetailLoader {
             if (!trigger) return;
 
             const type = trigger.dataset.resumenDetalle as DetailType | undefined;
-            if (type && type in TITLES) void this.open(type);
+            if (type && type in TITLES) {
+                this.opener = trigger;
+                void this.open(type);
+            }
         });
 
         this.result.addEventListener('click', (event) => {
-            if (eventElement(event)?.closest('[data-volver-resumen]')) this.close();
+            const target = eventElement(event);
+            if (target?.closest('[data-volver-resumen]')) this.close();
+            if (target?.closest('[data-detalle-reintentar]') && this.activeType) void this.open(this.activeType);
         });
     }
 
     private async open(type: DetailType): Promise<void> {
         const requestSequence = ++this.sequence;
+        this.activeType = type;
+        this.recordarEnUrl(type);
         this.showShell(TITLES[type]);
 
         try {
@@ -89,15 +99,10 @@ export class DetailLoader {
             if (type === 'flogs') this.hooks.flogs();
             if (type === 'produccion') this.hooks.produccion();
             if (type === 'trazabilidad') this.hooks.trazabilidad(data);
-            this.scroll.restoreInteraction();
         } catch (error) {
             if (requestSequence !== this.sequence || this.wasCancelled(error)) return;
 
-            const errorBox = this.errorBox();
-            if (errorBox) {
-                errorBox.textContent = errorMessage(error, 'No se pudo cargar el detalle.');
-                errorBox.classList.remove('hidden');
-            }
+            this.showError(errorMessage(error, 'No se pudo cargar el detalle.'));
         } finally {
             if (requestSequence === this.sequence) this.loading(false);
         }
@@ -148,45 +153,51 @@ export class DetailLoader {
         this.result.classList.remove('hidden');
 
         const heading = queryElement<HTMLElement>('[data-detalle-titulo]', this.result);
-        if (heading) heading.textContent = title;
+        if (heading) {
+            heading.textContent = title;
+            // Quien navega con teclado o lector de pantalla llega al título del detalle.
+            heading.focus({ preventScroll: true });
+        }
 
         this.content()?.replaceChildren();
-        const errorBox = this.errorBox();
-        if (errorBox) {
-            errorBox.replaceChildren();
-            errorBox.classList.add('hidden');
-        }
+        this.hideError();
         this.loading(true);
     }
 
     private close(): void {
         this.cancelActive();
         this.sequence++;
+        this.activeType = null;
+        this.recordarEnUrl(null);
         this.content()?.replaceChildren();
         this.loading(false);
-        const errorBox = this.errorBox();
-        if (errorBox) {
-            errorBox.replaceChildren();
-            errorBox.classList.add('hidden');
-        }
+        this.hideError();
         this.result.classList.add('hidden');
         queryElement<HTMLElement>('#resultado-resumen-livewire')?.classList.remove('hidden');
-        this.scroll.restoreInteraction();
+
+        if (this.opener?.isConnected) this.opener.focus();
+        this.opener = null;
+    }
+
+    /** replaceState y no pushState: abrir/cerrar el detalle no llena el historial del botón Atrás. */
+    private recordarEnUrl(type: DetailType | null): void {
+        const url = new URL(window.location.href);
+        if (type) {
+            url.searchParams.set('detalle', type);
+        } else {
+            url.searchParams.delete('detalle');
+        }
+        window.history.replaceState(window.history.state, '', url);
     }
 
     private currentFilters(): TrazabilidadFilters {
-        const value = (selector: string): string => {
-            const input = queryElement<HTMLInputElement | HTMLSelectElement>(selector);
-            return input?.value?.trim() || '';
-        };
+        const value = (selector: string): string =>
+            queryElement<HTMLSelectElement>(selector)?.value?.trim() || '';
 
         return {
             flog: value('#filtro-flog'),
             articulo: value('#filtro-articulo'),
             tamano: value('#filtro-tamano'),
-            color: value('#filtro-color'),
-            mes: value('#filtro-mes'),
-            metrica: value('#filtro-metrica') === 'peso' ? 'peso' : 'cantidad',
         };
     }
 
@@ -208,6 +219,16 @@ export class DetailLoader {
         return candidate.name === 'AbortError'
             || candidate.code === 'ERR_CANCELED'
             || candidate.original?.code === 'ERR_CANCELED';
+    }
+
+    private showError(message: string): void {
+        const text = queryElement<HTMLElement>('[data-detalle-error-texto]', this.result);
+        if (text) text.textContent = message;
+        this.errorBox()?.classList.remove('hidden');
+    }
+
+    private hideError(): void {
+        this.errorBox()?.classList.add('hidden');
     }
 
     private loading(show: boolean): void {

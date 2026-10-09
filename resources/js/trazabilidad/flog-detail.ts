@@ -1,57 +1,33 @@
 import { eventElement, queryElement } from './dom';
 
+/** Filtro por estado de las líneas del Flog (botones con aria-pressed). */
 export class FlogDetail {
-    private activeFilter = 'todos';
-
     private readonly result: HTMLElement;
 
     public constructor(result: HTMLElement) {
         this.result = result;
-        this.result.addEventListener('click', (event) => this.handleClick(event));
+        this.result.addEventListener('click', (event) => {
+            const filter = eventElement(event)?.closest<HTMLElement>('[data-flog-linea-filtro]');
+            if (filter) this.applyLineFilter(filter.dataset.flogLineaFiltro || 'todos');
+        });
     }
 
     public render(): void {
         this.applyLineFilter('todos');
     }
 
-    private handleClick(event: MouseEvent): void {
-        const target = eventElement(event);
-        if (!target) return;
-
-        const filter = target.closest<HTMLElement>('.flog-lineas-filtro-btn');
-        if (filter) {
-            this.applyLineFilter(filter.dataset.flogLineaFiltro || 'todos');
-            return;
-        }
-
-        const toggle = target.closest<HTMLElement>('.flog-card__toggle');
-        const card = toggle?.closest<HTMLElement>('.flog-card--collapsible');
-        if (!toggle || !card) return;
-
-        const expanded = card.classList.toggle('is-expanded');
-        toggle.setAttribute('aria-expanded', String(expanded));
-        toggle.title = expanded ? 'Ocultar información general' : 'Mostrar información general';
-    }
-
     private applyLineFilter(filter: string): void {
-        this.activeFilter = filter || 'todos';
         const wrapper = queryElement<HTMLElement>('#flogs-contenido .flog-lineas-wrap', this.result);
         if (!wrapper) return;
 
-        wrapper.querySelectorAll<HTMLElement>('.flog-lineas-filtro-btn').forEach((button) => {
-            button.classList.toggle(
-                'is-active',
-                String(button.dataset.flogLineaFiltro) === this.activeFilter,
-            );
+        wrapper.querySelectorAll<HTMLElement>('[data-flog-linea-filtro]').forEach((button) => {
+            button.setAttribute('aria-pressed', String(button.dataset.flogLineaFiltro === filter));
         });
 
         let visible = 0;
-        const rows = wrapper.querySelectorAll<HTMLTableRowElement>(
-            '.flog-lineas-table tbody tr[data-estado-linea]',
-        );
+        const rows = wrapper.querySelectorAll<HTMLTableRowElement>('.flog-lineas-table tbody tr[data-estado-linea]');
         rows.forEach((row) => {
-            const show = this.activeFilter === 'todos'
-                || String(row.dataset.estadoLinea ?? '') === this.activeFilter;
+            const show = filter === 'todos' || (row.dataset.estadoLinea ?? '') === filter;
             row.hidden = !show;
             if (show) visible++;
         });
@@ -60,4 +36,3 @@ export class FlogDetail {
             ?.classList.toggle('hidden', visible > 0 || rows.length === 0);
     }
 }
-

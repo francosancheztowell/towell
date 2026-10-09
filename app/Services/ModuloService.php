@@ -18,6 +18,14 @@ class ModuloService
     public const RUTA_INICIO = '/produccionProceso';
 
     /**
+     * Padres ya consultados por generarRutaFallback(), por orden. Los hermanos sin Ruta
+     * comparten Dependencia y repetían el mismo SELECT a SYSRoles una vez por submódulo.
+     *
+     * @var array<string, SYSRoles|null>
+     */
+    private array $padresPorOrden = [];
+
+    /**
      * Método genérico para obtener módulos por nivel y usuario
      * Optimizado para aprovechar índices: IX_SYSRoles_Nivel_Dependencia_orden e IX_SYSUsuariosRoles_idrol_idusuario_acceso
      */
@@ -355,9 +363,13 @@ class ModuloService
         // Para nivel 2 y 3, intentar construir desde el padre
         // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
         if ($modulo->Dependencia) {
-            $padre = SYSRoles::where('orden', $modulo->Dependencia)
-                ->select('orden', 'Ruta', 'Nivel')
-                ->first();
+            $dependencia = (string) $modulo->Dependencia;
+            if (! array_key_exists($dependencia, $this->padresPorOrden)) {
+                $this->padresPorOrden[$dependencia] = SYSRoles::where('orden', $dependencia)
+                    ->select('orden', 'Ruta', 'Nivel')
+                    ->first();
+            }
+            $padre = $this->padresPorOrden[$dependencia];
             if ($padre) {
                 // Si el padre tiene ruta, construir desde ahí
                 if ($padre->Ruta) {

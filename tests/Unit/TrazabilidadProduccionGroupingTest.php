@@ -75,6 +75,28 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         );
     }
 
+    public function test_order_out_of_programa_tejido_gets_its_real_daily_rate(): void
+    {
+        $card = $this->card(telar: 'Telar 202', producidas: 3000, kg: 1500);
+        $card['codificados'] = ['diasProduccion' => 10.0, 'fechaInicio' => '01/05/26', 'fechaFinal' => '11/05/26'];
+        $sinFechas = $this->card(telar: 'Telar 203', producidas: 3000, kg: 1500);
+        $sinFechas['grupoKey'] = '36163';
+        $sinFechas['codificados'] = ['diasProduccion' => null];
+
+        $method = new ReflectionMethod(TrazabilidadProduccionService::class, 'agruparCardsCrudo');
+        [$conFechas, $sinDias] = $method->invoke(app(TrazabilidadProduccionService::class), [$card, $sinFechas]);
+
+        $this->assertTrue($conFechas['ritmoReal']);
+        $this->assertSame(300.0, $conFechas['pzasDia']);
+        $this->assertSame(150.0, $conFechas['prodKgDia']);
+        $this->assertFalse($sinDias['ritmoReal']);
+        $this->assertNull($sinDias['pzasDia']);
+
+        $dias = new ReflectionMethod(TrazabilidadProduccionService::class, 'diasEntre');
+        $this->assertSame(2.5, $dias->invoke(app(TrazabilidadProduccionService::class), '2026-05-01 00:00:00', '2026-05-03 12:00:00'));
+        $this->assertNull($dias->invoke(app(TrazabilidadProduccionService::class), null, '2026-05-03'));
+    }
+
     public function test_single_loom_card_uses_trace_production_as_its_visible_total(): void
     {
         $card = $this->card(telar: 'Telar 302', producidas: 500, kg: 225.5);
@@ -90,38 +112,14 @@ class TrazabilidadProduccionGroupingTest extends TestCase
         $this->assertSame(500.0, $orders[0]['producidasTotal']);
     }
 
-    public function test_production_layout_uses_four_card_columns_on_wide_screens(): void
+    public function test_crudo_filters_are_toggle_buttons(): void
     {
-        $content = file_get_contents(resource_path('css/trazabilidad/index.css'));
+        $view = file_get_contents(resource_path('views/modulos/trazabilidad/_produccion.blade.php'));
+        $script = file_get_contents(resource_path('js/trazabilidad/production-detail.ts'));
 
-        $this->assertStringContainsString('@media (min-width: 1280px)', $content);
-        $this->assertStringContainsString(
-            'grid-template-columns: repeat(4, minmax(0, 1fr));',
-            $content
-        );
-    }
-
-    public function test_compact_cards_keep_readable_typography(): void
-    {
-        $content = file_get_contents(resource_path('css/trazabilidad/index.css'));
-
-        $this->assertStringContainsString('--prod-card-title-size: 1.125rem;', $content);
-        $this->assertStringContainsString('--prod-card-meta-size: 0.75rem;', $content);
-        $this->assertStringContainsString('--prod-card-label-size: 0.6875rem;', $content);
-        $this->assertStringContainsString('--prod-card-value-size: 0.875rem;', $content);
-    }
-
-    public function test_summary_card_keeps_normal_width_and_vertical_stats(): void
-    {
-        $content = file_get_contents(resource_path('css/trazabilidad/index.css'));
-
-        $summaryRule = $this->between($content, '.prod-resumen-crudo {', '}');
-        $statsRule = $this->between($content, '.prod-resumen-crudo__stats {', '}');
-
-        $this->assertStringContainsString('grid-column: span 1;', $summaryRule);
-        $this->assertStringContainsString('min-height: 100%;', $summaryRule);
-        $this->assertStringContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $statsRule);
-        $this->assertStringNotContainsString('grid-template-columns: repeat(5, minmax(0, 1fr));', $content);
+        $this->assertStringContainsString('data-prod-filtro=', $view);
+        $this->assertStringContainsString('aria-pressed=', $view);
+        $this->assertStringContainsString("setAttribute('aria-pressed'", $script);
     }
 
     /**
@@ -153,16 +151,5 @@ class TrazabilidadProduccionGroupingTest extends TestCase
             'avance' => 0.0,
             'usarTrazaEnProducido' => $otroTelar,
         ];
-    }
-
-    private function between(string $content, string $start, string $end): string
-    {
-        $startAt = strpos($content, $start);
-        $endAt = strpos($content, $end, $startAt);
-
-        $this->assertNotFalse($startAt);
-        $this->assertNotFalse($endAt);
-
-        return substr($content, $startAt, $endAt - $startAt);
     }
 }

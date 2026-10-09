@@ -2,6 +2,7 @@
 
 namespace App\Models\Planeacion\Catalogos;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -95,4 +96,24 @@ class CatCodificados extends Model
         'FechaArranque' => 'datetime', // DATETIME NULL en SQL Server
         'FechaFinaliza' => 'datetime', // DATETIME NULL en SQL Server
     ];
+
+    /**
+     * Filtra por OrdenTejido (VARCHAR indexado) con parámetros VARCHAR. Un whereIn normal
+     * manda NVARCHAR, la intercalación SQL_* convierte la columna y el índice se recorre
+     * entero (Trazabilidad lo medía en ~700 ms por lote).
+     *
+     * @param  array<int, string>  $ordenes
+     */
+    public function scopeOrdenesTejido(Builder $query, array $ordenes): void
+    {
+        if ($ordenes === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $marcadores = implode(', ', array_fill(0, count($ordenes), 'CAST(? AS varchar(30))'));
+        // Solo marcadores '?': las órdenes viajan como bindings.
+        $query->whereRaw('[OrdenTejido] IN ('.$marcadores.')', array_values($ordenes));
+    }
 }

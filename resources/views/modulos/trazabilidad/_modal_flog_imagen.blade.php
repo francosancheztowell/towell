@@ -1,4 +1,4 @@
-{{-- Modal visor imagen Flog: pantalla completa, zoom y descarga --}}
+{{-- Visor de imágenes del Flog: pantalla completa, zoom y descarga (flog-image-viewer.ts). --}}
 <div id="modal-flog-imagen" class="hidden fixed inset-0" role="dialog" aria-modal="true" aria-labelledby="modal-flog-imagen-titulo">
     <div class="modal-flog-imagen__backdrop absolute inset-0" data-modal-flog-close></div>
     <div class="modal-flog-imagen__shell">
@@ -28,7 +28,7 @@
             <div class="modal-flog-imagen__viewport" data-flog-viewport>
                 <img src="" alt="" data-modal-flog-img draggable="false">
             </div>
-            <p class="modal-flog-imagen__hint">Rueda o botones para zoom · Arrastra la imagen · Click fuera para cerrar</p>
+            <p class="modal-flog-imagen__hint">Acerca con los botones o la rueda · Arrastra para mover · Toca fuera para cerrar</p>
         </div>
     </div>
 </div>

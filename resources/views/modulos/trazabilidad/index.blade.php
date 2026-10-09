@@ -5,21 +5,11 @@
 @endsection
 
 @section('navbar-right')
-    <div class="flex items-center gap-2">
-        <button type="button" id="btn-redbooth"
-            @class([
-                'items-center gap-2 px-2 py-2 text-md font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors',
-                'flex' => $hayFlog,
-                'hidden' => ! $hayFlog,
-            ])>
-            <i class="fas fa-comments"></i>
+    {{-- El contenedor se oculta y no el botón: flux:button trae inline-flex. --}}
+    <div data-redbooth @class(['hidden' => ! $hayFlog])>
+        <flux:button id="btn-redbooth" variant="primary" color="red" icon="chat-bubble-left-right" class="min-h-touch">
             Redbooth
-        </button>
-        <button type="button" id="btn-restablecer"
-                class="flex items-center gap-2 px-2 py-2 text-md font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-            <i class="fas fa-rotate-left"></i>
-            Restablecer
-        </button>
+        </flux:button>
     </div>
 @endsection
 
@@ -41,27 +31,32 @@
         ];
     @endphp
 
-    <div class="w-full min-h-full px-1.5 md:px-2 py-3 trazabilidad-page">
+    <div class="trazabilidad-page mx-auto w-full max-w-[1600px] space-y-4 px-2 py-3 md:px-4">
         <livewire:trazabilidad.index />
 
-        <section id="resultado-detalle" class="hidden space-y-4" aria-live="polite">
-            <header class="flex items-center justify-between gap-3">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Detalle</p>
-                    <h2 class="text-xl font-bold text-slate-800" data-detalle-titulo></h2>
-                </div>
-                <button type="button" data-volver-resumen
-                        class="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:bg-blue-600">
-                    <i class="fa-solid fa-arrow-left"></i>
+        <section id="resultado-detalle" class="hidden space-y-4" aria-labelledby="detalle-titulo">
+            <header class="flex flex-wrap items-center gap-3">
+                <flux:button data-volver-resumen variant="primary" color="blue" icon="arrow-left" class="min-h-touch">
                     Volver al resumen
-                </button>
+                </flux:button>
+                <flux:heading id="detalle-titulo" size="xl" level="2" tabindex="-1" data-detalle-titulo class="outline-none"></flux:heading>
             </header>
 
-            <div data-detalle-cargando class="hidden rounded-2xl border border-blue-100 bg-white px-6 py-16 text-center shadow-sm">
-                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-500"></i>
-                <p class="mt-3 text-sm font-semibold text-slate-600">Cargando detalle…</p>
+            <div data-detalle-cargando class="hidden space-y-3" role="status">
+                <span class="sr-only">Cargando detalle…</span>
+                <flux:skeleton class="h-14 w-full rounded-xl" />
+                <flux:skeleton class="h-64 w-full rounded-xl" />
             </div>
-            <div data-detalle-error class="hidden rounded-2xl border border-red-200 bg-white px-6 py-12 text-center text-red-600"></div>
+
+            <div data-detalle-error class="hidden" role="alert">
+                <flux:callout variant="danger" icon="exclamation-triangle">
+                    <flux:callout.heading data-detalle-error-texto></flux:callout.heading>
+                    <x-slot name="actions">
+                        <flux:button size="sm" icon="arrow-path" data-detalle-reintentar class="min-h-touch">Reintentar</flux:button>
+                    </x-slot>
+                </flux:callout>
+            </div>
+
             <div data-detalle-contenido></div>
         </section>
 

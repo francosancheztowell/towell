@@ -41,6 +41,20 @@ class TrazabilidadFlogsServiceTest extends TestCase
         $this->assertNotSame('', $result['errorMensaje']);
     }
 
+    public function test_errors_are_not_cached(): void
+    {
+        DB::shouldReceive('connection')
+            ->twice()
+            ->with('sqlsrv_ti')
+            ->andThrow(new RuntimeException('Login timeout expired'));
+        Log::shouldReceive('error')->twice();
+
+        $service = app(TrazabilidadFlogsService::class);
+
+        $this->assertSame('error', $service->build('FLOG-2')['estado']);
+        $this->assertSame('timeout', $service->build('FLOG-2')['errorTipo']);
+    }
+
     public function test_line_mapping_includes_invoiced_and_pending_delivery_quantities(): void
     {
         $row = (object) [

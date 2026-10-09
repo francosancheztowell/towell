@@ -18,14 +18,13 @@ class TrazabilidadMatrixLayoutTest extends TestCase
         $this->assertStringNotContainsString('data-pane=', $view);
     }
 
-    public function test_first_summary_card_uses_half_of_the_desktop_grid(): void
+    public function test_summary_cards_share_a_two_column_desktop_grid(): void
     {
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/_resultado.blade.php'));
         $flog = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_flog.blade.php'));
 
         $this->assertStringContainsString('lg:grid-cols-2', $view);
-        $this->assertStringContainsString('min-h-[290px]', $flog);
-        $this->assertStringContainsString('<h3 class="font-bold text-slate-800">Flog</h3>', $flog);
+        $this->assertStringContainsString('<x-trazabilidad.tarjeta titulo="Flog"', $flog);
     }
 
     public function test_date_keys_are_ordered_from_most_recent_to_oldest(): void
@@ -92,19 +91,18 @@ class TrazabilidadMatrixLayoutTest extends TestCase
         ])->render();
         $script = file_get_contents(resource_path('js/trazabilidad/matrix-detail.ts'));
         $styles = file_get_contents(resource_path('css/trazabilidad/index.css'));
-        preg_match('/#resultado \.traza-matriz-periodos \{([^}]*)\}/', $styles, $tableRule);
 
         $this->assertStringContainsString('data-expandir-periodos', $view);
         $this->assertStringContainsString('data-periodo-toggle="mes"', $view);
-        $this->assertStringContainsString('data-periodo-toggle="semana"', $view);
+        // Las semanas/días ya no viajan en el HTML: las arma matrix-detail.ts al expandir.
+        $this->assertStringNotContainsString('data-periodo-toggle="semana"', $view);
+        $this->assertStringContainsString("button.dataset.periodoToggle = 'semana'", $script);
         $this->assertStringContainsString("'[data-expandir-periodos]'", $script);
         $this->assertStringContainsString("'[data-periodo-toggle]'", $script);
         $this->assertStringContainsString('markSubtotal', $script);
         $this->assertStringContainsString('Subtotal mes', $view);
-        $this->assertStringContainsString('Subtotal semana', $view);
+        $this->assertStringContainsString('Subtotal semana', $script);
         $this->assertStringContainsString('.traza-periodo-subtotal-abierto', $styles);
-        $this->assertArrayHasKey(1, $tableRule);
-        $this->assertStringNotContainsString('min-width: 100%;', $tableRule[1]);
     }
 
     public function test_article_color_rows_are_created_lazily_from_compact_metadata(): void

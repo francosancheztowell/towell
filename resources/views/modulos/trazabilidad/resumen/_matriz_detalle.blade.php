@@ -1,12 +1,16 @@
-{{-- ===== Pestaña: Trazabilidad (matriz agrupada por mes, semana y día) ===== --}}
+{{-- Detalle: matriz de piezas por área, agrupada por mes → semana → día.
+     Solo se pintan las columnas de mes: las de semana/día las arma matrix-detail.ts
+     al expandir, con los datos compactos de `meta` (filas, totales, columnas). --}}
 @php
     $columnasPeriodos = $columnasPeriodos ?? [];
+    $hayPeriodos = ! empty($columnasPeriodos);
+    $columnasMes = array_values(array_filter($columnasPeriodos, static fn (array $periodo): bool => $periodo['nivel'] === 'mes'));
     $sumarPeriodo = static function (array $valores, array $indices, int $precision): ?float {
         $tieneValor = false;
         $suma = 0.0;
 
         foreach ($indices as $indice) {
-            if (array_key_exists($indice, $valores) && !is_null($valores[$indice])) {
+            if (array_key_exists($indice, $valores) && ! is_null($valores[$indice])) {
                 $tieneValor = true;
                 $suma += (float) $valores[$indice];
             }
@@ -16,95 +20,59 @@
     };
 @endphp
 
-<div id="trazabilidad-matriz-detalle">
-    <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 class="whitespace-nowrap text-xs font-bold text-slate-600 md:text-sm">
-            Producción por día y área
+<div id="trazabilidad-matriz-detalle" class="space-y-3">
+    <div class="flex flex-wrap items-center gap-2">
+        <flux:heading size="lg" level="3">
+            Piezas por día y área
             @if ($hayFlog)
-                <span class="ml-2 font-semibold normal-case text-blue-600">· {{ $filtros['flog'] }}</span>
+                <span class="text-blue-600">· {{ $filtros['flog'] }}</span>
             @endif
-        </h2>
+        </flux:heading>
 
         @if ($hayFlog && $info)
-            <span class="ml-3 flex flex-wrap items-center gap-2 md:ml-5">
-                @if (filled($info->Tipo))
-                    <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                          style="background-color:#fef3c7;color:#92400e;">
-                        <i class="fa-solid fa-tag"></i>{{ $info->Tipo }}
-                    </span>
-                @endif
-                @if (filled($info->Cliente))
-                    <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                          style="background-color:#dbeafe;color:#1e40af;">
-                        <i class="fa-solid fa-user-tie"></i>{{ $info->Cliente }}
-                    </span>
-                @endif
-                @if (filled($info->Agente))
-                    <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                          style="background-color:#dcfce7;color:#166534;">
-                        <i class="fa-solid fa-id-badge"></i>{{ $info->Agente }}
-                    </span>
-                @endif
-            </span>
+            @if (filled($info->Tipo))
+                <flux:badge size="sm" color="amber" icon="tag">{{ $info->Tipo }}</flux:badge>
+            @endif
+            @if (filled($info->Cliente))
+                <flux:badge size="sm" color="blue" icon="building-office">{{ $info->Cliente }}</flux:badge>
+            @endif
+            @if (filled($info->Agente))
+                <flux:badge size="sm" color="emerald" icon="user">{{ $info->Agente }}</flux:badge>
+            @endif
         @endif
 
-        <span class="h-px flex-1 bg-slate-200"></span>
-
-        @if (!empty($columnasPeriodos))
-            <button type="button" data-expandir-periodos aria-expanded="false"
-                    class="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                <i class="fa-solid fa-expand"></i>
+        @if ($hayPeriodos)
+            <flux:button size="sm" variant="outline" icon="arrows-pointing-out" class="ms-auto min-h-touch"
+                         data-expandir-periodos aria-expanded="false">
                 <span data-expandir-periodos-label>Expandir todo</span>
-            </button>
+            </flux:button>
         @endif
     </div>
 
-    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="overflow-x-auto">
-            <table class="traza-matriz-periodos border-collapse text-[13px]">
+    <flux:card class="overflow-hidden !p-0">
+        <div class="traza-scroll overflow-x-auto">
+            <table class="traza-matriz-periodos border-separate border-spacing-0 text-sm">
                 <thead>
-                    <tr class="bg-slate-50/80">
-                        <th class="traza-col-area sticky left-0 z-30 w-[350px] whitespace-nowrap border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-left font-bold text-slate-500"
-                            style="border-right:2px solid #cbd5e1;">
-                            Área
-                        </th>
-                        <th class="traza-col-total sticky left-[350px] z-[29] min-w-[72px] border-b border-r border-slate-200 bg-blue-50 px-2 py-1.5 text-center font-bold text-blue-800">
-                            Total
-                        </th>
+                    <tr>
+                        <th scope="col" class="traza-col-area text-left">Área</th>
+                        <th scope="col" class="traza-col-total">Total</th>
 
-                        @foreach ($columnasPeriodos as $periodo)
-                            <th @class([
-                                    'traza-periodo-col border-b border-r border-slate-200 text-center',
-                                    'traza-periodo-col--mes' => $periodo['nivel'] === 'mes',
-                                    'traza-periodo-col--semana' => $periodo['nivel'] === 'semana',
-                                    'traza-periodo-col--dia' => $periodo['nivel'] === 'dia',
-                                    'hidden' => $periodo['nivel'] !== 'mes',
-                                ])
-                                data-periodo-nivel="{{ $periodo['nivel'] }}"
-                                data-mes-key="{{ $periodo['mesClave'] }}"
-                                @if ($periodo['semanaClave']) data-semana-key="{{ $periodo['semanaClave'] }}" @endif>
-                                @if (in_array($periodo['nivel'], ['mes', 'semana'], true))
-                                    <button type="button"
-                                            data-periodo-toggle="{{ $periodo['nivel'] }}"
-                                            data-periodo-key="{{ $periodo['clave'] }}"
-                                            aria-expanded="false"
-                                            class="traza-periodo-toggle"
-                                            title="{{ $periodo['nivel'] === 'mes' ? 'Mostrar semanas del mes' : 'Mostrar días de la semana' }}">
-                                        <i class="periodo-caret fa-solid fa-chevron-right"></i>
-                                        <span class="flex flex-col leading-tight">
-                                            <span>{{ $periodo['label'] }}</span>
-                                            <small>{{ $periodo['subLabel'] }}</small>
-                                            <span class="traza-periodo-subtotal">
-                                                {{ $periodo['nivel'] === 'mes' ? 'Subtotal mes' : 'Subtotal semana' }}
-                                            </span>
-                                        </span>
-                                    </button>
-                                @else
-                                    <span class="flex flex-col leading-tight {{ $periodo['destacada'] ? 'font-extrabold text-blue-600' : 'font-semibold text-slate-500' }}">
+                        @foreach ($columnasMes as $periodo)
+                            <th scope="col" class="traza-periodo-col traza-periodo-col--mes"
+                                data-periodo-nivel="mes" data-mes-key="{{ $periodo['mesClave'] }}">
+                                <button type="button"
+                                        data-periodo-toggle="mes"
+                                        data-periodo-key="{{ $periodo['clave'] }}"
+                                        aria-expanded="false"
+                                        class="traza-periodo-toggle"
+                                        title="Mostrar semanas del mes">
+                                    <flux:icon.chevron-right variant="micro" class="periodo-caret shrink-0 transition-transform" />
+                                    <span class="flex flex-col leading-tight">
                                         <span>{{ $periodo['label'] }}</span>
-                                        <small class="font-medium text-slate-400">{{ $periodo['subLabel'] }}</small>
+                                        <small>{{ $periodo['subLabel'] }}</small>
+                                        <span class="traza-periodo-subtotal">Subtotal mes</span>
                                     </span>
-                                @endif
+                                </button>
                             </th>
                         @endforeach
                     </tr>
@@ -112,90 +80,60 @@
 
                 <tbody>
                     @foreach ($areas as $idx => $area)
-                        @php $expandible = !empty($area['detalles']); @endphp
-                        <tr class="group transition-colors hover:bg-slate-50/40 {{ $expandible ? 'area-fila cursor-pointer select-none' : '' }}"
+                        @php
+                            $expandible = ! empty($area['detalles']);
+                            $totalArea = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $area['valores']));
+                        @endphp
+                        <tr @class(['area-fila' => $expandible]) data-area-index="{{ $idx }}"
                             @if ($expandible) data-area-key="{{ $idx }}" data-area-dot="{{ $area['dot'] }}" @endif>
-                            <td class="traza-col-area sticky left-0 z-20 w-[350px] border-b border-slate-100 bg-white px-3 py-3 group-hover:bg-slate-50"
-                                style="box-shadow: inset 4px 0 0 0 {{ $area['dot'] }}; border-right:2px solid #cbd5e1;">
-                                <span class="flex items-center gap-2">
-                                    @if ($expandible)
-                                        <i class="area-caret fa-solid fa-chevron-right flex-shrink-0 text-[10px] text-slate-400 transition-transform"></i>
-                                    @endif
-                                    <span class="inline-block h-2 w-2 flex-shrink-0 rounded-full"
-                                          style="background-color: {{ $area['dot'] }};"></span>
-                                    <span class="whitespace-nowrap text-xs font-semibold"
-                                          style="color: {{ $area['text'] }};">{{ $area['label'] ?? $area['nombre'] }}</span>
-                                    @if ($expandible)
-                                        <span class="whitespace-nowrap text-[10px] font-medium text-slate-400">
-                                            ({{ count($area['detalles']) }})
-                                        </span>
-                                    @endif
-                                </span>
-                            </td>
+                            <th scope="row" class="traza-col-area" style="--area-dot: {{ $area['dot'] }}">
+                                @if ($expandible)
+                                    <button type="button" class="traza-area-toggle" aria-expanded="false"
+                                            aria-label="Desglose de {{ $area['label'] ?? $area['nombre'] }} por artículo y color">
+                                        <flux:icon.chevron-right variant="micro" class="area-caret shrink-0 text-zinc-400 transition-transform" />
+                                        <span class="traza-area-nombre" style="color: {{ $area['text'] }}">{{ $area['label'] ?? $area['nombre'] }}</span>
+                                        <span class="text-xs font-normal text-zinc-500">({{ count($area['detalles']) }})</span>
+                                    </button>
+                                @else
+                                    <span class="traza-area-nombre" style="color: {{ $area['text'] }}">{{ $area['label'] ?? $area['nombre'] }}</span>
+                                @endif
+                            </th>
 
-                            @php $totalArea = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $area['valores'])); @endphp
-                            <td class="traza-col-total sticky left-[350px] z-[19] min-w-[72px] border-b border-r border-slate-200 bg-blue-50 px-2 py-3 text-center font-bold tabular-nums"
-                                style="color: {{ $area['text'] }};">
+                            <td class="traza-col-total" style="color: {{ $area['text'] }}">
                                 {{ $totalArea ? number_format($totalArea, $decimales) : '—' }}
                             </td>
 
-                            @foreach ($columnasPeriodos as $periodo)
-                                @php
-                                    $valor = $sumarPeriodo($area['valores'], $periodo['indices'], $decimales);
-                                    $indiceDia = $periodo['nivel'] === 'dia' ? $periodo['indices'][0] : null;
-                                    $fondo = $periodo['nivel'] === 'dia'
-                                        ? ($area['bgs'][$indiceDia] ?? $area['tint'])
-                                        : $area['tint'];
-                                @endphp
+                            @foreach ($columnasMes as $periodo)
+                                @php $valor = $sumarPeriodo($area['valores'], $periodo['indices'], $decimales); @endphp
                                 <td @class([
-                                        'traza-periodo-col border-b border-r border-slate-200 px-2 py-3 text-center tabular-nums',
-                                        'traza-periodo-col--mes font-extrabold' => $periodo['nivel'] === 'mes',
-                                        'traza-periodo-col--semana font-bold' => $periodo['nivel'] === 'semana',
-                                        'traza-periodo-col--dia font-semibold' => $periodo['nivel'] === 'dia',
-                                        'hidden' => $periodo['nivel'] !== 'mes',
-                                        'text-slate-300 select-none' => is_null($valor),
+                                        'traza-periodo-col traza-periodo-col--mes',
+                                        'traza-vacio' => is_null($valor),
                                     ])
-                                    data-periodo-nivel="{{ $periodo['nivel'] }}"
-                                    data-mes-key="{{ $periodo['mesClave'] }}"
-                                    @if ($periodo['semanaClave']) data-semana-key="{{ $periodo['semanaClave'] }}" @endif
-                                    style="color: {{ is_null($valor) ? '#cbd5e1' : $area['text'] }}; background-color: {{ is_null($valor) ? '#ffffff' : $fondo }};">
-                                    {{ !is_null($valor) ? number_format($valor, $decimales) : '—' }}
+                                    data-periodo-nivel="mes" data-mes-key="{{ $periodo['mesClave'] }}"
+                                    @unless (is_null($valor)) style="color: {{ $area['text'] }}; background-color: {{ $area['tint'] }}" @endunless>
+                                    {{ is_null($valor) ? '—' : number_format($valor, $decimales) }}
                                 </td>
                             @endforeach
                         </tr>
-
                     @endforeach
                 </tbody>
 
                 <tfoot>
-                    <tr class="bg-blue-50/70">
-                        <td class="traza-col-area sticky left-0 z-20 bg-blue-50 px-3 py-1.5 font-bold text-blue-800"
-                            style="border-right:2px solid #cbd5e1;">
-                            Total
-                        </td>
+                    <tr>
                         @php $granTotal = array_sum(array_map(fn ($v) => (float) ($v ?? 0), $totales)); @endphp
-                        <td class="traza-col-total sticky left-[350px] z-[19] min-w-[72px] border-r border-slate-200 bg-blue-100 px-2 py-1.5 text-center font-extrabold text-blue-900 tabular-nums">
-                            {{ $granTotal ? number_format($granTotal, $decimales) : '—' }}
-                        </td>
+                        <th scope="row" class="traza-col-area text-left">Total</th>
+                        <td class="traza-col-total">{{ $granTotal ? number_format($granTotal, $decimales) : '—' }}</td>
 
-                        @foreach ($columnasPeriodos as $periodo)
+                        @foreach ($columnasMes as $periodo)
                             @php $totalPeriodo = $sumarPeriodo($totales, $periodo['indices'], $decimales); @endphp
-                            <td @class([
-                                    'traza-periodo-col border-r border-slate-200 px-2 py-1.5 text-center font-bold text-blue-800 tabular-nums',
-                                    'traza-periodo-col--mes' => $periodo['nivel'] === 'mes',
-                                    'traza-periodo-col--semana' => $periodo['nivel'] === 'semana',
-                                    'traza-periodo-col--dia' => $periodo['nivel'] === 'dia',
-                                    'hidden' => $periodo['nivel'] !== 'mes',
-                                ])
-                                data-periodo-nivel="{{ $periodo['nivel'] }}"
-                                data-mes-key="{{ $periodo['mesClave'] }}"
-                                @if ($periodo['semanaClave']) data-semana-key="{{ $periodo['semanaClave'] }}" @endif>
-                                {{ !is_null($totalPeriodo) ? number_format($totalPeriodo, $decimales) : '—' }}
+                            <td class="traza-periodo-col traza-periodo-col--mes"
+                                data-periodo-nivel="mes" data-mes-key="{{ $periodo['mesClave'] }}">
+                                {{ is_null($totalPeriodo) ? '—' : number_format($totalPeriodo, $decimales) }}
                             </td>
                         @endforeach
                     </tr>
                 </tfoot>
             </table>
         </div>
-    </div>
+    </flux:card>
 </div>

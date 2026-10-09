@@ -10,24 +10,20 @@ use PHPUnit\Framework\TestCase;
 
 class TrazabilidadFiltersTest extends TestCase
 {
-    public function test_it_normalizes_filter_values_and_discards_invalid_months(): void
+    public function test_it_trims_filter_values_and_ignores_unknown_keys(): void
     {
         $filters = TrazabilidadFilters::fromArray([
             'flog' => ' F-100 ',
             'articulo' => ' ART-1 ',
             'tamano' => ' GRANDE ',
             'color' => ' AZUL ',
-            'mes' => '12, 2, 12, 0, 13, texto',
-            'metrica' => 'peso',
+            'mes' => '12',
         ]);
 
         $this->assertSame('F-100', $filters->flog);
         $this->assertSame('ART-1', $filters->articulo);
         $this->assertSame('GRANDE', $filters->tamano);
-        $this->assertSame('AZUL', $filters->color);
-        $this->assertSame('12,2', $filters->mes);
-        $this->assertSame([12, 2], $filters->months());
-        $this->assertSame('peso', $filters->metrica);
+        $this->assertSame(['flog' => 'F-100', 'articulo' => 'ART-1', 'tamano' => 'GRANDE'], $filters->toArray());
         $this->assertTrue($filters->hasAny());
         $this->assertTrue($filters->hasFlog());
     }
@@ -36,13 +32,11 @@ class TrazabilidadFiltersTest extends TestCase
     {
         $filters = TrazabilidadFilters::fromArray([
             'flog' => ['invalid'],
-            'mes' => ['invalid'],
-            'metrica' => 'unsupported',
+            'articulo' => null,
         ]);
 
         $this->assertSame('', $filters->flog);
-        $this->assertSame('', $filters->mes);
-        $this->assertSame('cantidad', $filters->metrica);
+        $this->assertSame('', $filters->articulo);
         $this->assertFalse($filters->hasAny());
         $this->assertFalse($filters->hasFlog());
     }

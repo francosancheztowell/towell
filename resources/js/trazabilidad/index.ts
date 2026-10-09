@@ -5,15 +5,7 @@ import { FlogImageViewer } from './flog-image-viewer';
 import { MatrixDetail } from './matrix-detail';
 import { ProductionDetail } from './production-detail';
 import { RedboothLauncher } from './redbooth';
-import { ScrollManager } from './scroll-manager';
 import type { TrazabilidadConfig } from './types';
-
-function moveToBody(id: string): HTMLElement | null {
-    const element = document.getElementById(id);
-    if (element && element.parentElement !== document.body) document.body.appendChild(element);
-
-    return element;
-}
 
 function readConfig(): TrazabilidadConfig | null {
     const node = document.getElementById('trazabilidad-config');
@@ -31,61 +23,42 @@ function bootstrap(): void {
     const config = readConfig();
     const page = document.querySelector<HTMLElement>('.trazabilidad-page');
     const result = document.getElementById('resultado-detalle');
-    const flogImageModal = moveToBody('modal-flog-imagen');
-    const rollosModal = moveToBody('modal-rollos-maquina');
+    const imageModal = document.getElementById('modal-flog-imagen');
+    const filtersRoot = document.getElementById('trazabilidad-livewire');
 
-    if (!config || !page || !result || !flogImageModal || !rollosModal) return;
+    if (!config || !page || !result || !imageModal || !filtersRoot) return;
 
-    const scroll = new ScrollManager();
-    const filterSelects = new FilterSelects(
-        document.getElementById('trazabilidad-livewire') || page,
-    );
-    const imageViewer = new FlogImageViewer(result, flogImageModal, scroll);
+    // El visor va a <body> para quedar por encima del navbar.
+    document.body.appendChild(imageModal);
+
+    const filterSelects = new FilterSelects(filtersRoot);
+    const imageViewer = new FlogImageViewer(result, imageModal);
     const flogDetail = new FlogDetail(result);
-    const productionDetail = new ProductionDetail(result, rollosModal, scroll);
+    const productionDetail = new ProductionDetail(result);
     const matrixDetail = new MatrixDetail(result);
 
-    const loader = new DetailLoader(
-        page,
-        result,
-        config.rutas?.detalles || {},
-        {
-            flogs: () => {
-                imageViewer.initImages(result);
-                flogDetail.render();
-            },
-            produccion: () => productionDetail.render(),
-            trazabilidad: (response) => matrixDetail.render(response.meta),
+    const loader = new DetailLoader(page, result, config.rutas?.detalles || {}, {
+        flogs: () => {
+            imageViewer.initImages(result);
+            flogDetail.render();
         },
-        scroll,
-    );
+        produccion: () => productionDetail.render(),
+        trazabilidad: (response) => matrixDetail.render(response.meta),
+    });
 
-    const redboothButton = document.querySelector<HTMLButtonElement>('#btn-redbooth');
-    const redbooth = redboothButton
-        ? new RedboothLauncher(
-            redboothButton,
-            config.rutas?.redbooth || '/trazabilidad/redbooth',
-        )
-        : null;
-
-    document.querySelector<HTMLButtonElement>('#btn-restablecer')
-        ?.addEventListener('click', () => {
-            filterSelects.destroy();
-            window.Livewire?.dispatch('trazabilidad-restablecer');
-        });
+    const redbooth = new RedboothLauncher(config.rutas?.redbooth || '/trazabilidad/redbooth');
 
     window.addEventListener('trazabilidad-filtros-actualizados', (event) => {
         const filters = event instanceof CustomEvent
             ? (event.detail?.filtros as { flog?: string } | undefined)
             : undefined;
 
-        redbooth?.toggle(Boolean(filters?.flog));
+        redbooth.toggle(Boolean(filters?.flog));
         loader.invalidateAndClose();
-        window.requestAnimationFrame(() => filterSelects.init());
     });
 
     filterSelects.init();
-    scroll.bindRecovery();
+    filterSelects.bindToLivewire(filtersRoot);
 }
 
 if (document.readyState === 'loading') {

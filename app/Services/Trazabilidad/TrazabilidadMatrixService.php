@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
-use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -41,37 +40,25 @@ final class TrazabilidadMatrixService
     ];
 
     /**
-     * Construye la matriz a partir de los filtros activos y la métrica elegida.
+     * Construye la matriz de piezas a partir de los filtros activos.
      *
-     * @param  array  $filtros  ['flog','articulo','tamano','color','nombrecolor','mes'(CSV de meses)]
-     * @param  string  $metrica  'cantidad' (Material) o 'peso' (Kilos)
+     * @param  array  $filtros  ['flog','articulo','tamano']
      * @return array{fechas:array, columnasPeriodos:array, areas:array, totales:array, info:object|null, metrica:string, decimales:int, hayFlog:bool, dropdown:bool} Dropdown = true si alguna área tiene desglose.
      */
-    public function build(array $filtros, string $metrica = 'cantidad'): array
+    public function build(array $filtros): array
     {
-        $metrica = $metrica === 'peso' ? 'peso' : 'cantidad';
-        $columnaMetrica = $metrica === 'peso' ? 'Peso' : 'Cantidad';
-        $decimales = $metrica === 'peso' ? 1 : 0;
-
-        $mesesSel = TrazabilidadFilters::fromArray($filtros)->months();
+        $metrica = 'cantidad';
+        $columnaMetrica = 'Cantidad';
+        $decimales = 0;
 
         $hayFlog = filled($filtros['flog'] ?? null);
 
-        // El color solo acota Rollos Teñido; las demás áreas pasan sin filtrar.
-        // Se resuelve en la misma consulta para no escanear la tabla dos veces.
         $agrupacion = 'CAST(Fecha AS date), NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor';
 
         // Desglose por artículo+color dentro de cada área (dropdown expandible por fila).
         // Mapa [NombreAlmacen][articulo|color] => ['articulo','nombreArticulo','color','nombreColor','valores'=>[pos=>total]].
         $detalleRaw = TrazaProduccion::query()
-            ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
-            ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
-            ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
-            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'))
-            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where(fn ($sub) => $sub
-                ->where('NombreAlmacen', '<>', 'Rollos Teñido')
-                ->orWhereNull('NombreAlmacen')
-                ->orWhere('Color', $v)))
+            ->filtrados($filtros)
             ->selectRaw("
                 CAST(Fecha AS date) as Fecha,
                 NombreAlmacen,
@@ -79,28 +66,31 @@ final class TrazabilidadMatrixService
                 NombreArticulo,
                 Color,
                 NombreColor,
-                MAX(Tipo) as tipo_info,
-                MAX(Cliente) as cliente_info,
-                MAX(Agente) as agente_info,
                 SUM($columnaMetrica) as total
             ")
             ->whereNotNull('Fecha')
             ->groupByRaw($agrupacion)
             ->orderByRaw('CAST(Fecha AS date)')
+            // Filas agregadas, no modelos: con filtros amplios son ~23 mil grupos y
+            // hidratarlos (más el cast de Fecha a Carbon) costaba segundos.
+            ->toBase()
             ->get();
 
-        $infoRow = $detalleRaw->first();
-        $info = $hayFlog && $infoRow
-            ? (object) [
-                'Tipo' => $infoRow->tipo_info,
-                'Cliente' => $infoRow->cliente_info,
-                'Agente' => $infoRow->agente_info,
-            ]
+        // Tipo/Cliente/Agente solo se muestran con un Flog: una consulta aparte en vez de
+        // tres MAX() sobre cada grupo de la consulta grande.
+        $info = $hayFlog
+            ? TrazaProduccion::query()->filtrados($filtros)
+                ->selectRaw('MAX(Tipo) as Tipo, MAX(Cliente) as Cliente, MAX(Agente) as Agente')
+                ->toBase()
+                ->first()
             : null;
+
+        // CAST(Fecha AS date) llega como 'Y-m-d' (o con hora en algunos drivers): basta cortar.
+        $claveFecha = static fn (mixed $fecha): string => substr((string) $fecha, 0, 10);
 
         // --- Columnas (fechas distintas, ordenadas) ---
         $clavesFechas = $this->ordenarClavesFechas(
-            $detalleRaw->pluck('Fecha')->map(fn ($f) => Carbon::parse($f)->format('Y-m-d'))
+            $detalleRaw->pluck('Fecha')->map($claveFecha)
         );
 
         $mesAnterior = null;
@@ -131,8 +121,7 @@ final class TrazabilidadMatrixService
 
         foreach ($detalleRaw as $fila) {
             $area = $fila->NombreAlmacen ?? '';
-            $clave = Carbon::parse($fila->Fecha)->format('Y-m-d');
-            $pos = $posFecha[$clave] ?? null;
+            $pos = $posFecha[$claveFecha($fila->Fecha)] ?? null;
             if ($pos === null) {
                 continue;
             }
@@ -185,11 +174,10 @@ final class TrazabilidadMatrixService
             $detalles = [];
             if (! empty($detallePorArea[$area['nombre']])) {
                 foreach ($detallePorArea[$area['nombre']] as $d) {
-                    $vals = [];
-                    for ($c = 0; $c < $numCols; $c++) {
-                        $vals[$c] = isset($d['valores'][$c]) ? round($d['valores'][$c], $decimales) : null;
-                    }
-                    $totalFila = round(array_sum(array_map(fn ($x) => (float) ($x ?? 0), $vals)), $decimales);
+                    // Disperso desde el origen: solo los días con valor, sin recorrer todas las columnas.
+                    $vals = array_map(static fn (float $v): float => round($v, $decimales), $d['valores']);
+                    ksort($vals);
+                    $totalFila = round(array_sum($vals), $decimales);
                     if ($totalFila == 0.0) {
                         continue; // sin aporte real en el filtro actual
                     }
@@ -198,7 +186,7 @@ final class TrazabilidadMatrixService
                         'color' => trim(($d['color'] ?? '').(filled($d['nombreColor']) ? ' / '.$d['nombreColor'] : '')),
                         // Disperso (índice => valor): estos detalles viajan en el JSON de
                         // la respuesta y la mayoría de los días vienen vacíos.
-                        'valores' => array_filter($vals, static fn ($v) => ! is_null($v)),
+                        'valores' => $vals,
                         'total' => $totalFila,
                     ];
                 }

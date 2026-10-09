@@ -51,13 +51,11 @@ class TrazabilidadLivewireTest extends TestCase
     {
         Livewire::withQueryParams([
             'flog' => ' F-100 ',
-            'mes' => '12,2,99',
-            'metrica' => 'peso',
+            'tamano' => ' GRANDE ',
         ])
             ->test(TestableTrazabilidadIndex::class)
             ->assertSet('flog', 'F-100')
-            ->assertSet('mes', '12,2')
-            ->assertSet('metrica', 'peso')
+            ->assertSet('tamano', 'GRANDE')
             ->assertSee('Resumen')
             ->assertSee('F-100');
     }
@@ -79,20 +77,18 @@ class TrazabilidadLivewireTest extends TestCase
             ->assertSee('Resumen');
     }
 
-    public function test_reset_clears_filters_and_preserves_the_selected_metric(): void
+    public function test_reset_clears_every_filter(): void
     {
         Livewire::withQueryParams([
             'flog' => 'F-100',
             'articulo' => 'ART-1',
-            'metrica' => 'peso',
         ])
             ->test(TestableTrazabilidadIndex::class)
             ->call('restablecer')
             ->assertSet('flog', '')
             ->assertSet('articulo', '')
-            ->assertSet('metrica', 'peso')
             ->assertDispatched('trazabilidad-filtros-actualizados')
-            ->assertSee('Selecciona al menos un filtro');
+            ->assertSee('Elige un Flog, artículo o tamaño');
     }
 
     public function test_it_rejects_unknown_filter_names(): void

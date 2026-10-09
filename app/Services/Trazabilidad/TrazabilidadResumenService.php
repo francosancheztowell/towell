@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
-use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -15,13 +14,16 @@ class TrazabilidadResumenService
     public function __construct(
         private TrazabilidadMatrixService $matrixService,
         private TrazabilidadProgramaLookupService $programLookup,
+        private TrazabilidadFlogsService $flogsAx,
     ) {}
 
     /**
-     * @param  array{flog?:mixed,articulo?:mixed,tamano?:mixed,color?:mixed,mes?:mixed}  $filtros
+     * @param  array{flog?:mixed,articulo?:mixed,tamano?:mixed}  $filtros
+     * @param  array<int, array<string, mixed>>  $tablaAvance  Filas de la tarjeta "Programa tejido"
+     *                                                         (TrazabilidadProduccionService::buildTablaAvance).
      * @return array<string, mixed>
      */
-    public function build(array $filtros, array $summaryValues): array
+    public function build(array $filtros, array $summaryValues, array $tablaAvance = []): array
     {
         $query = $this->queryBase($filtros);
 
@@ -41,11 +43,21 @@ class TrazabilidadResumenService
         $programas = $this->programLookup->forOrders($ordenes)->values();
         $fechaInicio = $programas->pluck('FechaInicio')->filter()->min();
         $fechaFin = $programas->pluck('FechaFinal')->filter()->max();
-        $pedido = $programas->isNotEmpty()
-            ? (float) $programas->sum(fn ($programa) => (float) ($programa->TotalPedido ?? 0))
-            : null;
-        $facturado = 0.0;
-        $pendienteFacturacion = is_null($pedido) ? null : max(0, $pedido - $facturado);
+        // Pedido, facturado y pendiente salen juntos de AX para que cuadren entre sí.
+        $facturacion = $this->flogsAx->facturacion(
+            $flogs->map(fn ($flog): string => (string) $flog)->all(),
+            trim((string) ($filtros['articulo'] ?? '')),
+            trim((string) ($filtros['tamano'] ?? '')),
+        );
+        // Sin AX: el pedido cae a lo programado de la tarjeta "Programa tejido" y lo
+        // facturado queda sin dato ("—"), no en un 0 que parezca real.
+        $pedido = $facturacion['pedido'] ?? ($tablaAvance !== []
+            ? (float) collect($tablaAvance)->sum(fn (array $fila): float => (float) ($fila['programado'] ?? 0))
+            : ($programas->isNotEmpty()
+                ? (float) $programas->sum(fn ($programa) => (float) ($programa->TotalPedido ?? 0))
+                : null));
+        $facturado = $facturacion['facturado'] ?? null;
+        $pendienteFacturacion = $facturacion['porEntregar'] ?? null;
         $produccionPrograma = $programas->isNotEmpty()
             ? (float) $programas->sum(fn ($programa) => (float) ($programa->Produccion ?? 0))
             : null;
@@ -71,6 +83,8 @@ class TrazabilidadResumenService
             'pedido' => $pedido,
             'facturado' => $facturado,
             'pendienteFacturacion' => $pendienteFacturacion,
+            'cancelado' => $facturacion['cancelado'] ?? null,
+            'lineasCanceladas' => $facturacion['lineasCanceladas'] ?? 0,
             'produccionPrograma' => $produccionPrograma,
             'saldoPedido' => $saldoPedido,
             'avancePedido' => $pedido > 0 && ! is_null($produccionPrograma)
@@ -85,13 +99,7 @@ class TrazabilidadResumenService
     /** @param array<string, mixed> $filtros */
     private function queryBase(array $filtros): Builder
     {
-        $meses = TrazabilidadFilters::fromArray($filtros)->months();
-
-        return TrazaProduccion::query()
-            ->when($filtros['flog'] ?? null, fn ($q, $valor) => $q->where('Flogs', $valor))
-            ->when($filtros['articulo'] ?? null, fn ($q, $valor) => $q->where('Articulo', $valor))
-            ->when($filtros['tamano'] ?? null, fn ($q, $valor) => $q->where('Tamano', $valor))
-            ->when(! empty($meses), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $meses).')'));
+        return TrazaProduccion::query()->filtrados($filtros);
     }
 
     /**
@@ -154,6 +162,9 @@ class TrazabilidadResumenService
             'texto' => $visibles !== ''
                 ? $visibles.($total > 3 ? ' +'.($total - 3) : '')
                 : '—',
+            'visibles' => $visibles !== '' ? $visibles : '—',
+            // La tarjeta despliega la lista completa al tocar "+N más".
+            'todos' => $valores->map(fn ($valor): string => (string) $valor)->values()->all(),
             'total' => $total,
         ];
     }

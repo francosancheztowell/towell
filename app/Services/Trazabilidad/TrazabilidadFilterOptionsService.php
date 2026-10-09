@@ -6,10 +6,8 @@ namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
 use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 
 class TrazabilidadFilterOptionsService
 {
@@ -22,8 +20,8 @@ class TrazabilidadFilterOptionsService
      */
     public function build(TrazabilidadFilters $filters): array
     {
-        $facet = fn (string $column, string $except): Collection => $this
-            ->applyFilters(TrazaProduccion::query(), $filters, $except)
+        $facet = fn (string $column, string $except): Collection => TrazaProduccion::query()
+            ->filtrados($filters->toArray(), $except)
             ->whereNotNull($column)
             ->where($column, '<>', '')
             ->distinct()
@@ -35,7 +33,7 @@ class TrazabilidadFilterOptionsService
             string $nameColumn,
             string $except
         ) use ($filters): Collection {
-            return $this->applyFilters(TrazaProduccion::query(), $filters, $except)
+            return TrazaProduccion::query()->filtrados($filters->toArray(), $except)
                 ->whereNotNull($codeColumn)
                 ->where($codeColumn, '<>', '')
                 ->selectRaw(
@@ -44,6 +42,8 @@ class TrazabilidadFilterOptionsService
                 )
                 ->groupBy($codeColumn)
                 ->orderBy($codeColumn)
+                // Filas agregadas (codigo/nombre), no modelos.
+                ->toBase()
                 ->get()
                 ->map(static fn (object $row): array => [
                     'codigo' => $row->codigo,
@@ -80,22 +80,39 @@ class TrazabilidadFilterOptionsService
     }
 
     /**
-     * Opciones de Flog para la búsqueda remota del selector (select2).
+     * Opciones de Flog para la búsqueda remota del selector (Tom Select).
+     *
+     * El término se busca literal (sin comodines), sin distinguir mayúsculas.
      *
      * @return Collection<int, string>
      */
     public function searchFlogs(TrazabilidadFilters $filters, string $term = '', int $limit = 50): Collection
     {
-        return $this->cleanValues(
-            $this->applyFilters(TrazaProduccion::query(), $filters, 'flog')
-                ->whereNotNull('Flogs')
-                ->where('Flogs', '<>', '')
-                ->when($term !== '', fn (Builder $query): Builder => $query->where('Flogs', 'like', '%'.$term.'%'))
-                ->distinct()
-                ->orderBy('Flogs')
-                ->limit($limit)
-                ->pluck('Flogs')
+        // ponytail: la lista completa de Flogs por (articulo, tamano) es chica (~342 sin
+        // filtros) y se cachea con el mismo TTL que las facetas; cada tecla filtra en PHP en
+        // vez de un LIKE '%x%' sobre 266k filas (medido 430–870 ms por tecla). Sin LIKE no
+        // hay comodines que escapar. Techo: si Flogs distintos llega a decenas de miles,
+        // volver a SQL con LIKE escapado (ESCAPE) y CAST del patrón a varchar.
+        $flogs = Cache::remember(
+            'traza_flog_lista:'.md5($filters->articulo."\0".$filters->tamano),
+            now()->addMinutes(15),
+            fn (): array => $this->cleanValues(
+                TrazaProduccion::query()->filtrados($filters->toArray(), 'flog')
+                    ->whereNotNull('Flogs')
+                    // CAST: pdo_sqlsrv manda NVARCHAR y anularía el índice (ver filtrados()).
+                    ->whereRaw('[Flogs] <> CAST(? AS varchar(100))', [''])
+                    ->distinct()
+                    ->orderBy('Flogs')
+                    ->pluck('Flogs')
+            )->all()
         );
+
+        return collect($flogs)
+            ->when($term !== '', static fn (Collection $list): Collection => $list->filter(
+                static fn (string $flog): bool => mb_stripos($flog, $term) !== false
+            ))
+            ->take($limit)
+            ->values();
     }
 
     /**
@@ -146,31 +163,6 @@ class TrazabilidadFilterOptionsService
             'articulos' => $articleValues,
             'tamanos' => $sizes,
         ];
-    }
-
-    private function applyFilters(
-        Builder $query,
-        TrazabilidadFilters $filters,
-        string $except
-    ): Builder {
-        return $query
-            ->when(
-                $except !== 'flog' && $filters->flog !== '',
-                static fn (Builder $builder): Builder => $builder->where('Flogs', $filters->flog)
-            )
-            ->when(
-                $except !== 'articulo' && $filters->articulo !== '',
-                static fn (Builder $builder): Builder => $builder->where('Articulo', $filters->articulo)
-            )
-            ->when(
-                $except !== 'tamano' && $filters->tamano !== '',
-                static fn (Builder $builder): Builder => $builder->where('Tamano', $filters->tamano)
-            )
-            ->when(
-                $except !== 'mes' && $filters->months() !== [],
-                static fn (Builder $builder): Builder => $builder
-                    ->whereIn(DB::raw('MONTH(Fecha)'), $filters->months())
-            );
     }
 
     /**

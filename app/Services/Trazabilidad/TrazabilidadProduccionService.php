@@ -6,7 +6,6 @@ namespace App\Services\Trazabilidad;
 
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Trazabilidad\TrazaProduccion;
-use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -28,18 +27,16 @@ class TrazabilidadProduccionService
     public function __construct(private TrazabilidadProgramaLookupService $programLookup) {}
 
     /**
-     * @param  array  $filtros  ['flog','articulo','tamano','color','mes'(CSV)]
+     * @param  array  $filtros  ['flog','articulo','tamano']
      * @return array{crudo: array, rollosTenido: array}
      */
     public function build(array $filtros): array
     {
-        $mesesSel = TrazabilidadFilters::fromArray($filtros)->months();
-        $baseCrudo = $this->queryBase($filtros, $mesesSel, applyColor: false);
-        $baseRollos = $this->queryBase($filtros, $mesesSel, applyColor: true);
+        $base = $this->queryBase($filtros);
 
         return [
-            'crudo' => $this->buildCrudo($baseCrudo, $mesesSel),
-            'rollosTenido' => $this->buildRollosTenido($baseRollos),
+            'crudo' => $this->buildCrudo($base),
+            'rollosTenido' => $this->buildRollosTenido($base),
         ];
     }
 
@@ -50,11 +47,7 @@ class TrazabilidadProduccionService
      */
     public function buildTablaAvance(array $filtros): array
     {
-        $mesesSel = TrazabilidadFilters::fromArray($filtros)->months();
-        $crudo = $this->buildCrudo(
-            $this->queryBase($filtros, $mesesSel, applyColor: false),
-            $mesesSel
-        );
+        $crudo = $this->buildCrudo($this->queryBase($filtros));
 
         return collect($crudo['ordenes'] ?? [])
             ->map(function (array $orden): array {
@@ -89,7 +82,7 @@ class TrazabilidadProduccionService
     /**
      * @return array{ordenes: array, noEncontradas: array, resumen: array}
      */
-    private function buildCrudo(callable $base, array $mesesSel): array
+    private function buildCrudo(callable $base): array
     {
         $rawRows = $base()
             ->where('NombreAlmacen', 'Crudo')
@@ -205,6 +198,8 @@ class TrazabilidadProduccionService
                     'saldos' => (float) ($c->Saldos ?? 0),
                     'fechaInicio' => $this->formatearSoloFecha($c->FechaArranque),
                     'fechaFinal' => $this->formatearSoloFecha($c->FechaFinaliza),
+                    // CatCodificados no trae StdDia/ProdKgDia: con estos días se saca el ritmo real.
+                    'diasProduccion' => $this->diasEntre($c->FechaArranque, $c->FechaFinaliza),
                 ];
             }
 
@@ -444,13 +439,21 @@ class TrazabilidadProduccionService
                 $producidasTraza = (float) collect($telares)->sum('producidas');
                 $cantidadTelares = count($telares);
 
+                $pesoTotal = (float) collect($telares)->sum('kg');
+                $dias = $canonica['codificados']['diasProduccion'] ?? null;
+                // Sin estándar (orden ya fuera de Programa Tejido): promedio real de lo producido.
+                $ritmoReal = ($canonica['pzasDia'] ?? null) === null && $dias !== null;
+
                 return array_merge($canonica, [
+                    'pzasDia' => $ritmoReal ? $producidasTraza / $dias : ($canonica['pzasDia'] ?? null),
+                    'prodKgDia' => $ritmoReal ? $pesoTotal / $dias : ($canonica['programa']['prodKgDia'] ?? null),
+                    'ritmoReal' => $ritmoReal,
                     'telares' => $telares,
                     'telaresResumen' => implode(', ', array_column($telares, 'telarNumero')),
                     'cantidadTelares' => $cantidadTelares,
                     'esMultiTelar' => $cantidadTelares > 1,
                     'producidasTotal' => $producidasTraza,
-                    'pesoTotal' => (float) collect($telares)->sum('kg'),
+                    'pesoTotal' => $pesoTotal,
                 ]);
             })
             ->values()
@@ -573,14 +576,9 @@ class TrazabilidadProduccionService
         ];
     }
 
-    private function queryBase(array $filtros, array $mesesSel, bool $applyColor = true): callable
+    private function queryBase(array $filtros): callable
     {
-        return fn () => TrazaProduccion::query()
-            ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
-            ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
-            ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
-            ->when($applyColor && ($filtros['color'] ?? null), fn ($q, $v) => $q->where('Color', $v))
-            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
+        return fn () => TrazaProduccion::query()->filtrados($filtros);
     }
 
     private function formatearTelar(string $localidad, string $numLoc): string
@@ -603,13 +601,25 @@ class TrazabilidadProduccionService
         return Carbon::parse($fecha)->format('d/m/y');
     }
 
+    /** Días de producción entre arranque y finalización (mínimo 1), o null si falta alguna fecha. */
+    private function diasEntre(mixed $inicio, mixed $fin): ?float
+    {
+        if (blank($inicio) || blank($fin)) {
+            return null;
+        }
+
+        $horas = Carbon::parse($inicio)->diffInHours(Carbon::parse($fin), false);
+
+        return $horas > 0 ? max(1.0, $horas / 24) : null;
+    }
+
     private function cargarCodificadosPorOrdenes(Collection $ordenes): Collection
     {
         $filas = collect();
         foreach ($ordenes->chunk(1000) as $lote) {
             $filas = $filas->concat(
                 CatCodificados::query()
-                    ->whereIn('OrdenTejido', $lote->values()->all())
+                    ->ordenesTejido($lote->values()->all())
                     ->orderByDesc('Id')
                     ->get([
                         'OrdenTejido', 'TelarId', 'Pedido', 'Produccion', 'Saldos',

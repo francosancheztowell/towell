@@ -1,22 +1,16 @@
 @unless ($hayFiltro)
-    <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-10 md:p-14 text-center">
-        <div class="mx-auto w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-4">
-            <i class="fa-solid fa-magnifying-glass text-blue-500 text-lg"></i>
-        </div>
-        <p class="text-slate-700 font-semibold">Selecciona al menos un filtro para ver la trazabilidad</p>
-        <p class="text-slate-400 text-sm mt-1">
-            Puedes empezar por Flog, Artículo o Tamaño y combinar los filtros según lo necesites.
-        </p>
-    </div>
+    <flux:card class="flex flex-col items-center gap-2 border-dashed px-6 py-14 text-center">
+        <flux:icon.magnifying-glass class="size-8 text-blue-500" />
+        <flux:heading size="lg" level="2">Elige un Flog, artículo o tamaño</flux:heading>
+        <flux:text class="max-w-md">Con cualquiera de los tres filtros ves el pedido, el programa de tejido y su recorrido por las áreas.</flux:text>
+    </flux:card>
 @else
     @php $resumen = $resumenFlog ?? []; @endphp
 
     <section aria-labelledby="titulo-resumen-trazabilidad">
-        <div class="mb-3">
-            <h2 id="titulo-resumen-trazabilidad" class="text-md font-bold text-slate-800">Resumen</h2>
-        </div>
+        <h2 id="titulo-resumen-trazabilidad" class="sr-only">Resumen</h2>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-2.5 items-stretch">
+        <div class="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-2">
             @include('modulos.trazabilidad.resumen._flog', ['resumen' => $resumen])
             @include('modulos.trazabilidad.resumen._avance', ['resumen' => $resumen])
             @include('modulos.trazabilidad.resumen._trazabilidad', ['resumen' => $resumen])

@@ -166,6 +166,7 @@ Uses `dompdf/dompdf` (v3.1). PDF controllers/views are in `app/Http/Controllers/
   - Query Builder con bindings solo si no hay modelo; AX (`sqlsrv_ti`) va detrás de un repositorio, no en controllers ni Livewire.
   - SQL crudo (`DB::raw`, `*Raw()`, `DB::select`) solo cuando el ORM no lo expresa, siempre parametrizado y con un comentario del porqué.
   - En SQL Server 2008 R2 no se usa `paginate()`, `simplePaginate()`, `skip()`/`offset()` (emiten `OFFSET/FETCH`): usar `App\Support\PaginacionCompat::paginar()`. `SinPaginateNativoTest` lo vigila.
+  - **Parámetros NVARCHAR anulan índices VARCHAR.** `pdo_sqlsrv` manda los strings como NVARCHAR y la BD usa `SQL_Latin1_General_CP1_CI_AS`: contra una columna VARCHAR eso convierte la columna y el índice se recorre entero (medido en `TrazaProduccion.Flogs`: 135 ms vs 31 ms). En igualdad/IN sobre columnas VARCHAR indexadas usar `CAST(? AS varchar(N))` (ver `TrazaProduccion::scopeFiltrados`, `CatCodificados::scopeOrdenesTejido`). No cambiar la codificación de la conexión (rompe acentos y ñ). Las columnas NVARCHAR no tienen el problema. Pendiente revisar el resto de los módulos.
 - Métodos de más de 100 líneas o con complejidad ciclomática ≥ 10: PHPMD los rechaza en archivos cambiados (`phpmd.xml`). La deuda previa lleva `@SuppressWarnings` con su destino; al tocar esos métodos, se parten con tests primero.
 
 - The permission field in `SYSRoles` has a **typo**: it is `reigstrar` (not `registrar`). The corresponding column in `SYSUsuariosRoles` is correctly named `registrar`. Be careful when referencing both.

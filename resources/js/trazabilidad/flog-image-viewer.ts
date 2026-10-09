@@ -1,5 +1,4 @@
 import { errorMessage, eventElement, queryElement } from './dom';
-import { ScrollManager } from './scroll-manager';
 
 interface ViewerState {
     src: string;
@@ -32,16 +31,11 @@ export class FlogImageViewer {
 
     private readonly result: HTMLElement;
     private readonly modal: HTMLElement;
-    private readonly scroll: ScrollManager;
+    private opener: HTMLElement | null = null;
 
-    public constructor(
-        result: HTMLElement,
-        modal: HTMLElement,
-        scroll: ScrollManager,
-    ) {
+    public constructor(result: HTMLElement, modal: HTMLElement) {
         this.result = result;
         this.modal = modal;
-        this.scroll = scroll;
         this.bind();
     }
 
@@ -66,7 +60,8 @@ export class FlogImageViewer {
         this.state.src = '';
         this.state.dragging = false;
         this.stage()?.classList.remove('is-dragging');
-        this.scroll.sync();
+        if (this.opener?.isConnected) this.opener.focus();
+        this.opener = null;
     }
 
     private bind(): void {
@@ -86,6 +81,7 @@ export class FlogImageViewer {
                 || trigger.getAttribute('aria-label')
                 || 'Imagen';
 
+            this.opener = trigger;
             this.open(src, title);
         });
 
@@ -100,10 +96,11 @@ export class FlogImageViewer {
 
         this.modal.addEventListener('click', (event) => this.handleModalClick(event));
         this.modal.addEventListener('wheel', (event) => this.handleWheel(event), { passive: false });
-        this.modal.addEventListener('mousedown', (event) => this.startDrag(event));
-
-        document.addEventListener('mousemove', (event) => this.drag(event));
-        document.addEventListener('mouseup', () => this.stopDrag());
+        // Pointer events: el arrastre funciona igual con ratón, dedo o lápiz (antes solo ratón).
+        this.modal.addEventListener('pointerdown', (event) => this.startDrag(event));
+        document.addEventListener('pointermove', (event) => this.drag(event));
+        document.addEventListener('pointerup', () => this.stopDrag());
+        document.addEventListener('pointercancel', () => this.stopDrag());
         document.addEventListener('keydown', (event) => this.handleKeydown(event));
         window.addEventListener('resize', () => {
             if (!this.modal.classList.contains('hidden')) this.fit();
@@ -154,7 +151,7 @@ export class FlogImageViewer {
         this.zoom(event.deltaY < 0 ? 1.12 : 1 / 1.12);
     }
 
-    private startDrag(event: MouseEvent): void {
+    private startDrag(event: PointerEvent): void {
         if (
             event.button !== 0
             || !(event.target instanceof HTMLImageElement)
@@ -171,7 +168,7 @@ export class FlogImageViewer {
         this.stage()?.classList.add('is-dragging');
     }
 
-    private drag(event: MouseEvent): void {
+    private drag(event: PointerEvent): void {
         if (this.modal.classList.contains('hidden') || !this.state.dragging) return;
 
         this.state.panX = this.state.panStartX + event.clientX - this.state.dragStartX;
@@ -223,7 +220,7 @@ export class FlogImageViewer {
         if (heading) heading.textContent = title;
 
         this.modal.classList.remove('hidden');
-        this.scroll.sync();
+        queryElement<HTMLElement>('button[data-modal-flog-close]', this.modal)?.focus();
     }
 
     private fit(): void {

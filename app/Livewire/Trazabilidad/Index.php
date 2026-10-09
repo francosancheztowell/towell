@@ -15,6 +15,9 @@ use Livewire\Component;
 
 class Index extends Component
 {
+    /** idrol de Trazabilidad: el mismo que exige el router. /livewire/update no pasa por ese middleware. */
+    public const MODULO = 190;
+
     #[Url(except: '')]
     public string $flog = '';
 
@@ -24,14 +27,8 @@ class Index extends Component
     #[Url(except: '')]
     public string $tamano = '';
 
-    #[Url(except: '')]
-    public string $color = '';
-
-    #[Url(except: '')]
-    public string $mes = '';
-
-    #[Url(except: 'cantidad')]
-    public string $metrica = 'cantidad';
+    /** Hubo cambio de filtros en esta request: render() avisa al front una sola vez. */
+    private bool $filtersChanged = false;
 
     private TrazabilidadFilterOptionsService $filterOptions;
 
@@ -60,27 +57,23 @@ class Index extends Component
     public function actualizarFiltro(string $campo, mixed $valor): void
     {
         abort_unless(
-            in_array($campo, ['flog', 'articulo', 'tamano', 'color', 'mes', 'metrica'], true),
+            in_array($campo, ['flog', 'articulo', 'tamano'], true),
             422,
             'Filtro de trazabilidad no válido.'
         );
         abort_unless(is_scalar($valor) || $valor === null, 422, 'Valor de filtro no válido.');
 
-        $text = mb_substr(trim((string) ($valor ?? '')), 0, $campo === 'mes' ? 50 : 100);
         $values = $this->filterValues();
-        $values[$campo] = $text;
+        $values[$campo] = mb_substr(trim((string) ($valor ?? '')), 0, 100);
 
-        $filters = TrazabilidadFilters::fromArray($values);
-        $this->applyNormalizedFilters($filters);
-        $this->dispatchFiltersChanged($filters);
+        $this->applyNormalizedFilters(TrazabilidadFilters::fromArray($values));
+        $this->filtersChanged = true;
     }
 
-    #[On('trazabilidad-restablecer')]
     public function restablecer(): void
     {
-        $filters = TrazabilidadFilters::fromArray(['metrica' => $this->metrica]);
-        $this->applyNormalizedFilters($filters);
-        $this->dispatchFiltersChanged($filters);
+        $this->applyNormalizedFilters(new TrazabilidadFilters);
+        $this->filtersChanged = true;
     }
 
     public function render(): View
@@ -93,6 +86,12 @@ class Index extends Component
         if ($this->discardOutOfScopeFilters($filters, $options)) {
             $filters = $this->filters();
             $options = $this->filterOptions->build($filters);
+            $this->filtersChanged = true;
+        }
+
+        // Después del descarte: el front recibe el estado que de verdad quedó aplicado.
+        if ($this->filtersChanged) {
+            $this->dispatch('trazabilidad-filtros-actualizados', filtros: $filters->toArray());
         }
 
         $hasFilter = $filters->hasAny();
@@ -108,7 +107,7 @@ class Index extends Component
             'hayFlog' => $filters->hasFlog(),
             'opcionesArticulo' => $options['articulo'],
             'opcionesTamano' => $options['tamano'],
-            'resumenFlog' => $hasFilter ? $this->summary->build($filterValues, $summaryValues) : null,
+            'resumenFlog' => $hasFilter ? $this->summary->build($filterValues, $summaryValues, $tableProgress) : null,
             'tablaAvancePedido' => $tableProgress,
         ]);
     }
@@ -116,7 +115,7 @@ class Index extends Component
     protected function authorizeAccess(): void
     {
         abort_unless(
-            userCan('acceso', 'Trazabilidad'),
+            userCan('acceso', self::MODULO),
             403,
             'No tienes acceso al módulo de Trazabilidad.'
         );
@@ -136,9 +135,6 @@ class Index extends Component
             'flog' => $this->flog,
             'articulo' => $this->articulo,
             'tamano' => $this->tamano,
-            'color' => $this->color,
-            'mes' => $this->mes,
-            'metrica' => $this->metrica,
         ];
     }
 
@@ -170,19 +166,5 @@ class Index extends Component
         $this->flog = $filters->flog;
         $this->articulo = $filters->articulo;
         $this->tamano = $filters->tamano;
-        $this->color = $filters->color;
-        $this->mes = $filters->mes;
-        $this->metrica = $filters->metrica;
-    }
-
-    private function dispatchFiltersChanged(TrazabilidadFilters $filters): void
-    {
-        $this->dispatch(
-            'trazabilidad-filtros-actualizados',
-            filtros: [
-                ...$filters->toArray(),
-                'metrica' => $filters->metrica,
-            ],
-        );
     }
 }

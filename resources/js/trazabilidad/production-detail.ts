@@ -1,30 +1,11 @@
 import { eventElement, numberValue, queryElement } from './dom';
-import { ScrollManager } from './scroll-manager';
 import type { RollosRow } from './types';
 
 export class ProductionDetail {
-    private activeFilter = 'todos';
-
     private readonly result: HTMLElement;
-    private readonly rollosModal: HTMLElement;
-    private readonly scroll: ScrollManager;
 
-    public constructor(
-        result: HTMLElement,
-        rollosModal: HTMLElement,
-        scroll: ScrollManager,
-    ) {
+    public constructor(result: HTMLElement) {
         this.result = result;
-        this.rollosModal = rollosModal;
-        this.scroll = scroll;
-        this.bind();
-    }
-
-    public render(): void {
-        this.applyFilter('todos');
-    }
-
-    private bind(): void {
         this.result.addEventListener('click', (event) => {
             const target = eventElement(event);
             if (!target) return;
@@ -35,53 +16,32 @@ export class ProductionDetail {
                 return;
             }
 
-            const filter = target.closest<HTMLElement>('.prod-filter-btn');
-            if (filter) {
-                this.applyFilter(filter.dataset.filter || 'todos');
-                return;
-            }
-
-            if (target.closest('[data-abrir-modal-telares]')) {
-                this.openLoomSummary();
-                return;
-            }
-
-            if (target.closest('[data-modal-resumen-telares-close]')) {
-                this.closeLoomSummary();
-            }
-        });
-
-        this.rollosModal.addEventListener('click', (event) => {
-            if (eventElement(event)?.closest('[data-modal-rollos-close]')) {
-                this.closeRollos();
-            }
-        });
-
-        document.addEventListener('keydown', (event) => {
-            if (event.key !== 'Escape') return;
-            this.closeRollos();
-            this.closeLoomSummary();
+            const filter = target.closest<HTMLElement>('[data-prod-filtro]');
+            if (filter) this.applyFilter(filter.dataset.prodFiltro || 'todos');
         });
     }
 
+    public render(): void {
+        this.applyFilter('todos');
+    }
+
     private applyFilter(filter: string): void {
-        this.activeFilter = filter || 'todos';
-        const area = queryElement<HTMLElement>('#produccion-contenido .prod-area--crudo', this.result);
+        const area = queryElement<HTMLElement>('[data-prod-crudo]', this.result);
         if (!area) return;
 
-        area.querySelectorAll<HTMLElement>('.prod-filter-btn').forEach((button) => {
-            button.classList.toggle('is-active', button.dataset.filter === this.activeFilter);
+        area.querySelectorAll<HTMLElement>('[data-prod-filtro]').forEach((button) => {
+            button.setAttribute('aria-pressed', String(button.dataset.prodFiltro === filter));
         });
 
         let visible = 0;
         const cards = area.querySelectorAll<HTMLElement>('.prod-crudo-card');
         cards.forEach((card) => {
-            const show = this.activeFilter === 'todos' || card.dataset.estado === this.activeFilter;
+            const show = filter === 'todos' || card.dataset.estado === filter;
             card.hidden = !show;
             if (show) visible++;
         });
 
-        queryElement<HTMLElement>('.prod-sin-resultados', area)
+        queryElement<HTMLElement>('[data-prod-sin-resultados]', area)
             ?.classList.toggle('hidden', visible > 0 || cards.length === 0);
     }
 
@@ -108,60 +68,23 @@ export class ProductionDetail {
             totalKg += kg;
 
             const tableRow = document.createElement('tr');
-            tableRow.className = 'border-b border-slate-100 hover:bg-slate-50/80';
-            this.appendCell(tableRow, row.orden || '—', 'px-3 py-2 font-mono font-semibold');
-            this.appendCell(
-                tableRow,
-                [row.articulo, row.nombreArticulo].filter(Boolean).join(' · ') || '—',
-            );
-            this.appendCell(
-                tableRow,
-                [row.color, row.nombreColor].filter(Boolean).join(' · ') || '—',
-            );
-            this.appendCell(tableRow, this.formatNumber(pieces, 0), 'px-3 py-2 text-right tabular-nums');
-            this.appendCell(tableRow, this.formatNumber(kg, 2), 'px-3 py-2 text-right tabular-nums');
+            this.appendCell(tableRow, row.orden || '—', 'px-3 py-3 font-mono font-medium text-zinc-900');
+            this.appendCell(tableRow, [row.articulo, row.nombreArticulo].filter(Boolean).join(' · ') || '—');
+            this.appendCell(tableRow, [row.color, row.nombreColor].filter(Boolean).join(' · ') || '—');
+            this.appendCell(tableRow, this.formatNumber(pieces, 0), 'px-3 py-3 text-right tabular-nums');
+            this.appendCell(tableRow, this.formatNumber(kg, 2), 'px-3 py-3 text-right tabular-nums');
             body.appendChild(tableRow);
         });
 
-        this.setText('#modal-rollos-maquina-titulo', card.dataset.maquina || 'Detalle máquina');
+        this.setText('[data-rollos-maquina]', card.dataset.maquina || '');
         this.setText('#modal-rollos-total-pzas', this.formatNumber(totalPieces, 0));
         this.setText('#modal-rollos-total-kg', this.formatNumber(totalKg, 2));
-        this.rollosModal.classList.remove('hidden');
-        this.rollosModal.style.display = 'flex';
-        this.scroll.sync();
+        this.setText('[data-rollos-ordenes]', this.formatNumber(new Set(rows.map((row) => row.orden)).size, 0));
+        // flux:modal: foco atrapado, Esc y cierre al tocar fuera ya vienen incluidos.
+        window.Flux?.modal('rollos-maquina').show();
     }
 
-    private closeRollos(): void {
-        if (this.rollosModal.classList.contains('hidden')) return;
-
-        this.rollosModal.classList.add('hidden');
-        this.rollosModal.style.display = '';
-        this.scroll.sync();
-    }
-
-    private openLoomSummary(): void {
-        const modal = queryElement<HTMLElement>('#modal-resumen-telares');
-        if (!modal) return;
-
-        modal.classList.remove('hidden');
-        modal.style.display = 'flex';
-        this.scroll.sync();
-    }
-
-    private closeLoomSummary(): void {
-        const modal = queryElement<HTMLElement>('#modal-resumen-telares');
-        if (!modal || modal.classList.contains('hidden')) return;
-
-        modal.classList.add('hidden');
-        modal.style.display = '';
-        this.scroll.sync();
-    }
-
-    private appendCell(
-        row: HTMLTableRowElement,
-        value: string,
-        className = 'px-3 py-2',
-    ): void {
+    private appendCell(row: HTMLTableRowElement, value: string, className = 'px-3 py-3 text-zinc-600'): void {
         const cell = document.createElement('td');
         cell.className = className;
         cell.textContent = value;
@@ -180,4 +103,3 @@ export class ProductionDetail {
         if (element) element.textContent = value;
     }
 }
-

@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Trazabilidad\TrazaProduccion;
 use App\Services\Trazabilidad\TrazabilidadProduccionService;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -44,40 +46,46 @@ class TrazabilidadStructureTest extends TestCase
     {
         $component = file_get_contents(app_path('Livewire/Trazabilidad/Index.php'));
 
-        $this->assertSame(6, substr_count($component, '#[Url('));
-        foreach (['$flog', '$articulo', '$tamano', '$color', '$mes', '$metrica'] as $property) {
+        $this->assertSame(3, substr_count($component, '#[Url('));
+        foreach (['$flog', '$articulo', '$tamano'] as $property) {
             $this->assertStringContainsString("public string {$property}", $component);
         }
         $this->assertStringNotContainsString('history.replaceState', $component);
     }
 
-    public function test_back_to_summary_button_uses_blue_background_and_white_text(): void
+    public function test_hidden_color_month_and_metric_filters_are_gone(): void
+    {
+        $filters = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
+        $loader = file_get_contents(resource_path('js/trazabilidad/detail-loader.ts'));
+
+        foreach (['filtro-color', 'filtro-mes', 'filtro-metrica'] as $id) {
+            $this->assertStringNotContainsString($id, $filters);
+            $this->assertStringNotContainsString($id, $loader);
+        }
+    }
+
+    public function test_loading_indicator_is_not_tied_to_a_named_action(): void
+    {
+        $filters = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
+        $selects = file_get_contents(resource_path('js/trazabilidad/filter-selects.ts'));
+
+        // Los filtros llegan por evento: un wire:target por nombre de acción nunca coincidía.
+        $this->assertStringNotContainsString('wire:target', $filters);
+        $this->assertStringContainsString('wire:loading', $filters);
+        // Tom Select se rearma también cuando la petición falla.
+        $this->assertStringContainsString("hook('commit'", $selects);
+        $this->assertStringContainsString('fail(', $selects);
+    }
+
+    public function test_detail_panel_can_go_back_and_retry_after_an_error(): void
     {
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
+        $loader = file_get_contents(resource_path('js/trazabilidad/detail-loader.ts'));
 
         $this->assertStringContainsString('data-volver-resumen', $view);
-        $this->assertStringContainsString('bg-blue-500', $view);
-        $this->assertStringContainsString('text-white', $view);
-    }
-
-    public function test_initial_filters_do_not_render_the_color_control(): void
-    {
-        $filters = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
-        $result = file_get_contents(resource_path('views/modulos/trazabilidad/_resultado.blade.php'));
-
-        $this->assertStringContainsString('<input type="hidden" id="filtro-color"', $filters);
-        $this->assertStringNotContainsString('<label for="filtro-color"', $filters);
-        $this->assertStringNotContainsString('Artículo, Tamaño, Color o Mes', $result);
-    }
-
-    public function test_metric_bar_and_badges_are_hidden_from_the_filter_form(): void
-    {
-        $filters = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
-
-        $this->assertStringNotContainsString('data-metrica=', $filters);
-        $this->assertStringNotContainsString('id="resumen-conteos"', $filters);
-        $this->assertStringNotContainsString('id="meses-badges"', $filters);
-        $this->assertStringContainsString('<input type="hidden" id="filtro-metrica"', $filters);
+        $this->assertStringContainsString('data-detalle-reintentar', $view);
+        $this->assertStringContainsString("'[data-detalle-reintentar]'", $loader);
+        $this->assertStringContainsString('this.opener.focus()', $loader);
     }
 
     public function test_details_use_dedicated_get_endpoints_without_the_legacy_part_switch(): void
@@ -130,9 +138,7 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringContainsString("@include('modulos.trazabilidad.resumen._avance'", $result);
         $this->assertStringContainsString("@include('modulos.trazabilidad.resumen._trazabilidad'", $result);
         $this->assertStringContainsString("@include('modulos.trazabilidad.resumen._ventas')", $result);
-        $this->assertStringNotContainsString('data-tab="trazabilidad"', $result);
-        $this->assertStringNotContainsString('data-tab="produccion"', $result);
-        $this->assertStringNotContainsString('data-tab="flogs"', $result);
+        $this->assertStringNotContainsString('data-tab=', $result);
     }
 
     public function test_sales_card_is_only_a_coming_soon_placeholder(): void
@@ -142,7 +148,7 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringContainsString('Próximamente', $sales);
         $this->assertStringNotContainsString('$resumen', $sales);
         $this->assertStringNotContainsString('<table', $sales);
-        $this->assertStringNotContainsString('data-resumen-detalle', $sales);
+        $this->assertStringNotContainsString('detalle=', $sales);
         $this->assertStringNotContainsString(
             'ventas',
             file_get_contents(resource_path('js/trazabilidad/detail-loader.ts')),
@@ -153,9 +159,13 @@ class TrazabilidadStructureTest extends TestCase
     {
         $base = resource_path('views/modulos/trazabilidad/resumen');
 
-        $this->assertStringContainsString('data-resumen-detalle="flogs"', file_get_contents($base.'/_flog.blade.php'));
-        $this->assertStringContainsString('data-resumen-detalle="produccion"', file_get_contents($base.'/_avance.blade.php'));
-        $this->assertStringContainsString('data-resumen-detalle="trazabilidad"', file_get_contents($base.'/_trazabilidad.blade.php'));
+        $this->assertStringContainsString('detalle="flogs"', file_get_contents($base.'/_flog.blade.php'));
+        $this->assertStringContainsString('detalle="produccion"', file_get_contents($base.'/_avance.blade.php'));
+        $this->assertStringContainsString('detalle="trazabilidad"', file_get_contents($base.'/_trazabilidad.blade.php'));
+        $this->assertStringContainsString(
+            'data-resumen-detalle="{{ $detalle }}"',
+            file_get_contents(resource_path('views/components/trazabilidad/tarjeta.blade.php')),
+        );
     }
 
     public function test_flog_primary_fields_share_the_first_three_column_row(): void
@@ -174,31 +184,23 @@ class TrazabilidadStructureTest extends TestCase
 
         $this->assertStringContainsString("['Facturado', \$facturado", $flog);
         $this->assertStringContainsString("['Pendiente', \$pendiente", $flog);
-        $this->assertStringContainsString('Distribución de facturación', $flog);
-        $this->assertStringContainsString('bg-emerald-500', $flog);
-        $this->assertStringContainsString('bg-amber-400', $flog);
+        $this->assertStringContainsString('aria-label="Facturado', $flog);
     }
 
-    public function test_second_card_is_the_order_progress_table_shell(): void
+    public function test_second_card_is_the_weaving_program_table(): void
     {
         $advance = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_avance.blade.php'));
 
+        $this->assertStringContainsString('titulo="Programa tejido"', $advance);
         $this->assertStringContainsString('data-tabla-avance-pedido', $advance);
-        foreach (['Flog', 'Orden', 'Tam.', 'Telar', 'Progr.', 'Prod.', 'Rest.', 'Ini.', 'Fin'] as $column) {
-            $this->assertStringContainsString('>'.$column.'</th>', $advance);
+        foreach (['Flog', 'Orden', 'Tam.', 'Telar', 'Progr.', 'Saldo', 'Inicio', 'Fin'] as $column) {
+            $this->assertStringContainsString('>'.$column.'</flux:table.column>', $advance);
         }
-        $this->assertStringContainsString('$tablaAvancePedido', $advance);
-        $this->assertStringContainsString("\$fila['programado']", $advance);
-        $this->assertStringContainsString("\$fila['produccion']", $advance);
-        $this->assertStringContainsString("\$fila['restante']", $advance);
-        $this->assertStringContainsString("\$fila['telar']", $advance);
-        $this->assertStringContainsString("\$fila['enProceso']", $advance);
-        $this->assertLessThan(strpos($advance, '>Tam.</th>'), strpos($advance, '>Orden</th>'));
-        $this->assertStringContainsString('w-full table-auto', $advance);
-        $this->assertStringNotContainsString('w-[32%]', $advance);
-        $this->assertStringNotContainsString('min-w-[1020px]', $advance);
-        $this->assertStringContainsString('overflow-x-hidden', $advance);
-        $this->assertStringContainsString('class="whitespace-nowrap"', $advance);
+        $this->assertStringNotContainsString('>Prod.</flux:table.column>', $advance);
+        foreach (['programado', 'restante', 'telar', 'enProceso'] as $field) {
+            $this->assertStringContainsString("\$fila['{$field}']", $advance);
+        }
+        $this->assertLessThan(strpos($advance, '>Tam.</flux:table.column>'), strpos($advance, '>Orden</flux:table.column>'));
     }
 
     public function test_order_progress_dates_never_include_time(): void
@@ -219,32 +221,11 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringContainsString("ltrim(\$telarDigitos, '0')", $service);
     }
 
-    public function test_order_progress_table_keeps_blue_headers_visible_and_separates_columns(): void
-    {
-        $advance = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_avance.blade.php'));
-
-        $this->assertSame(9, substr_count($advance, 'sticky top-0 z-10'));
-        $this->assertSame(9, substr_count($advance, 'bg-blue-600'));
-        $this->assertStringContainsString('border-r border-blue-100', $advance);
-        $this->assertStringContainsString('even:bg-blue-50/40', $advance);
-    }
-
-    public function test_temporary_billing_rule_uses_zero_and_order_difference(): void
-    {
-        $service = file_get_contents(app_path('Services/Trazabilidad/TrazabilidadResumenService.php'));
-
-        $this->assertStringContainsString('$facturado = 0.0;', $service);
-        $this->assertStringContainsString('max(0, $pedido - $facturado)', $service);
-        $this->assertStringNotContainsString('buildFacturacion(', $service);
-    }
-
     public function test_third_card_uses_traceability_colors_and_fixed_area_order(): void
     {
         $card = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_trazabilidad.blade.php'));
         $service = file_get_contents(app_path('Services/Trazabilidad/TrazabilidadResumenService.php'));
 
-        $this->assertStringContainsString("['tint']", $card);
-        $this->assertStringContainsString("['text']", $card);
         $this->assertStringContainsString("['dot']", $card);
         $this->assertStringContainsString('$this->matrixService->areasFijas', $service);
         $this->assertStringContainsString("['fechaInicio']", $card);
@@ -260,5 +241,27 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringContainsString("!request()->routeIs('trazabilidad.*')", $navbar);
         $this->assertStringContainsString('mantenimiento/nuevo-paro', $navbar);
         $this->assertStringContainsString('$showParoButton', $navbar);
+    }
+
+    public function test_filter_scope_is_the_single_definition_and_skips_empty_and_excepted_filters(): void
+    {
+        $query = TrazaProduccion::query()->filtrados(['flog' => ' F-1 ', 'articulo' => '', 'tamano' => 'MB'], 'tamano');
+
+        // VARCHAR explícito: un parámetro NVARCHAR impedía buscar en el índice de Flogs.
+        $this->assertStringContainsString('[Flogs] = CAST(? AS varchar(100))', $query->toSql());
+        $this->assertStringNotContainsString('Articulo', $query->toSql());
+        $this->assertStringNotContainsString('Tamano', $query->toSql());
+        $this->assertSame(['F-1'], $query->getBindings());
+
+        $ordenes = CatCodificados::query()->ordenesTejido(['36160', '36191']);
+        $this->assertStringContainsString('[OrdenTejido] IN (CAST(? AS varchar(30)), CAST(? AS varchar(30)))', $ordenes->toSql());
+        $this->assertSame(['36160', '36191'], $ordenes->getBindings());
+        $this->assertStringContainsString('1 = 0', CatCodificados::query()->ordenesTejido([])->toSql());
+
+        foreach (['Resumen', 'Matrix', 'Produccion', 'FilterOptions'] as $service) {
+            $code = file_get_contents(app_path("Services/Trazabilidad/Trazabilidad{$service}Service.php"));
+            $this->assertStringContainsString('->filtrados(', $code, $service);
+            $this->assertStringNotContainsString("where('Tamano'", $code, $service);
+        }
     }
 }

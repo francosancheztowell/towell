@@ -27,8 +27,6 @@ final class TrazabilidadController extends Controller
      */
     public function opcionesFlog(Request $request): JsonResponse
     {
-        abort_unless(userCan('acceso', 'Trazabilidad'), 403, 'No tienes acceso al módulo de Trazabilidad.');
-
         $validated = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
         $termino = trim((string) ($validated['q'] ?? ''));
 
@@ -42,8 +40,6 @@ final class TrazabilidadController extends Controller
 
     public function redbooth(Request $request): JsonResponse
     {
-        abort_unless(userCan('acceso', 'Trazabilidad'), 403, 'No tienes acceso al módulo de Trazabilidad.');
-
         $validated = $request->validate([
             'flog' => ['required', 'string', 'max:100'],
         ]);
@@ -53,8 +49,6 @@ final class TrazabilidadController extends Controller
 
     public function index(Request $request): View
     {
-        abort_unless(userCan('acceso', 'Trazabilidad'), 403, 'No tienes acceso al módulo de Trazabilidad.');
-
         return view('modulos.trazabilidad.index', [
             'hayFlog' => TrazabilidadFilters::fromRequest($request)->hasFlog(),
         ]);
@@ -65,8 +59,6 @@ final class TrazabilidadController extends Controller
      */
     public function flogArchivo(Request $request): BinaryFileResponse
     {
-        abort_unless(userCan('acceso', 'Trazabilidad'), 403, 'No tienes acceso al módulo de Trazabilidad.');
-
         $archivo = basename((string) $request->query('file', ''));
         abort_unless($archivo !== '', 404);
 

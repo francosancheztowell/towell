@@ -7,6 +7,7 @@ namespace App\Services\Trazabilidad;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Trazabilidad\TrazaProduccion;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,7 @@ final class TrazabilidadRedboothService
     {
         $flog = trim($flog);
         $ordenesTraza = TrazaProduccion::query()
-            ->where('Flogs', $flog)
+            ->filtrados(['flog' => $flog])
             ->whereNotNull('Orden')
             ->where('Orden', '<>', '')
             ->distinct()
@@ -85,8 +86,13 @@ final class TrazabilidadRedboothService
 
     /**
      * Asigna una tarea a todas las órdenes reconocidas del Flog únicamente cuando
-     * ninguna de ellas tiene ya un vínculo. Así se evita sobrescribir una tarea
-     * existente si dos usuarios operan el mismo Flog casi al mismo tiempo.
+     * ninguna de ellas tiene ya un vínculo.
+     *
+     * Dos usuarios pueden leer "sin vínculo" a la vez: por eso el UPDATE solo toca filas
+     * que siguen sin tarea. El segundo encuentra las filas ya vinculadas (SQL Server lo
+     * hace esperar al commit del primero), actualiza 0 y recibe el vínculo ganador.
+     * ponytail: el WHERE condicional basta para Flogs de hasta 1000 órdenes (un lote);
+     * con más, dos asignaciones simultáneas podrían repartirse lotes. Ahí, UPDLOCK en la lectura.
      *
      * @return array{asignado:bool,ordenesActualizadas:int,programasActualizados:int,catCodificadosActualizados:int,vinculoExistente:array<string, mixed>|null}
      */
@@ -119,16 +125,29 @@ final class TrazabilidadRedboothService
             foreach ($ordenes->chunk(1000) as $lote) {
                 $programasActualizados += ReqProgramaTejido::query()
                     ->whereIn('NoProduccion', $lote->all())
+                    ->where($this->sinVinculo(...))
                     ->update([
                         'IdRedbooth' => $taskId,
                         'NombreRedbooth' => $taskName,
                     ]);
                 $catCodificadosActualizados += CatCodificados::query()
-                    ->whereIn('OrdenTejido', $lote->all())
+                    ->ordenesTejido($lote->values()->all())
+                    ->where($this->sinVinculo(...))
                     ->update([
                         'IdRedbooth' => $taskId,
                         'NombreRedbooth' => $taskName,
                     ]);
+            }
+
+            // Otro usuario asignó entre la lectura y el UPDATE: gana su tarea, no la nuestra.
+            if ($ordenes->isNotEmpty() && $programasActualizados + $catCodificadosActualizados === 0) {
+                return [
+                    'asignado' => false,
+                    'ordenesActualizadas' => 0,
+                    'programasActualizados' => 0,
+                    'catCodificadosActualizados' => 0,
+                    'vinculoExistente' => $this->resolver($flog)['primerVinculo'],
+                ];
             }
 
             return [
@@ -139,6 +158,12 @@ final class TrazabilidadRedboothService
                 'vinculoExistente' => null,
             ];
         });
+    }
+
+    /** Mismo criterio que normalizarRegistro(): IdRedbooth vacío o <= 0 no es vínculo. */
+    private function sinVinculo(Builder $query): void
+    {
+        $query->whereNull('IdRedbooth')->orWhere('IdRedbooth', '<=', 0);
     }
 
     /** @return Collection<int, ReqProgramaTejido> */
@@ -164,7 +189,7 @@ final class TrazabilidadRedboothService
 
         foreach ($ordenesTraza->chunk(1000) as $lote) {
             $codificados = $codificados->concat(
-                CatCodificados::query()->whereIn('OrdenTejido', $lote->all())->get($columnas)
+                CatCodificados::query()->ordenesTejido($lote->values()->all())->get($columnas)
             );
         }
 

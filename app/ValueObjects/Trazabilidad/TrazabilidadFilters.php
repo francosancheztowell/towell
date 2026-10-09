@@ -12,9 +12,6 @@ final readonly class TrazabilidadFilters
         public string $flog = '',
         public string $articulo = '',
         public string $tamano = '',
-        public string $color = '',
-        public string $mes = '',
-        public string $metrica = 'cantidad',
     ) {}
 
     /**
@@ -26,26 +23,16 @@ final readonly class TrazabilidadFilters
             flog: self::stringValue($values['flog'] ?? ''),
             articulo: self::stringValue($values['articulo'] ?? ''),
             tamano: self::stringValue($values['tamano'] ?? ''),
-            color: self::stringValue($values['color'] ?? ''),
-            mes: self::normalizeMonths($values['mes'] ?? ''),
-            metrica: ($values['metrica'] ?? null) === 'peso' ? 'peso' : 'cantidad',
         );
     }
 
     public static function fromRequest(Request $request): self
     {
-        return self::fromArray([
-            'flog' => $request->query('flog'),
-            'articulo' => $request->query('articulo'),
-            'tamano' => $request->query('tamano'),
-            'color' => $request->query('color'),
-            'mes' => $request->query('mes'),
-            'metrica' => $request->query('metrica'),
-        ]);
+        return self::fromArray($request->only(['flog', 'articulo', 'tamano']));
     }
 
     /**
-     * @return array{flog:string,articulo:string,tamano:string,color:string,mes:string}
+     * @return array{flog:string,articulo:string,tamano:string}
      */
     public function toArray(): array
     {
@@ -53,30 +40,14 @@ final readonly class TrazabilidadFilters
             'flog' => $this->flog,
             'articulo' => $this->articulo,
             'tamano' => $this->tamano,
-            'color' => $this->color,
-            'mes' => $this->mes,
         ];
-    }
-
-    /**
-     * @return array<int, int>
-     */
-    public function months(): array
-    {
-        if ($this->mes === '') {
-            return [];
-        }
-
-        return array_map('intval', explode(',', $this->mes));
     }
 
     public function hasAny(): bool
     {
         return $this->flog !== ''
             || $this->articulo !== ''
-            || $this->tamano !== ''
-            || $this->color !== ''
-            || $this->mes !== '';
+            || $this->tamano !== '';
     }
 
     public function hasFlog(): bool
@@ -91,17 +62,5 @@ final readonly class TrazabilidadFilters
         }
 
         return trim((string) $value);
-    }
-
-    private static function normalizeMonths(mixed $value): string
-    {
-        $months = collect(explode(',', self::stringValue($value)))
-            ->map(static fn (string $month): int => (int) trim($month))
-            ->filter(static fn (int $month): bool => $month >= 1 && $month <= 12)
-            ->unique()
-            ->values()
-            ->all();
-
-        return implode(',', $months);
     }
 }

@@ -2,21 +2,18 @@ import { errorMessage, queryElement } from './dom';
 import type { RedboothOrder, RedboothResponse } from './types';
 
 export class RedboothLauncher {
-    private readonly button: HTMLButtonElement;
     private readonly route: string;
+    private busy = false;
 
-    public constructor(
-        button: HTMLButtonElement,
-        route: string,
-    ) {
-        this.button = button;
+    public constructor(route: string) {
         this.route = route;
-        this.button.addEventListener('click', () => void this.openForSelectedFlog());
+        queryElement<HTMLButtonElement>('#btn-redbooth')
+            ?.addEventListener('click', () => void this.openForSelectedFlog());
     }
 
+    /** El botón vive en un contenedor: flux:button trae su propio display. */
     public toggle(hasFlog: boolean): void {
-        this.button.classList.toggle('hidden', !hasFlog);
-        this.button.classList.toggle('flex', hasFlog);
+        queryElement<HTMLElement>('[data-redbooth]')?.classList.toggle('hidden', !hasFlog);
     }
 
     private async openForSelectedFlog(): Promise<void> {
@@ -25,11 +22,11 @@ export class RedboothLauncher {
             window.notify?.warning('Selecciona un Flog para consultar Redbooth.');
             return;
         }
+        if (this.busy) return;
 
-        const icon = queryElement<HTMLElement>('i', this.button);
-        this.button.disabled = true;
-        icon?.classList.remove('fa-comments');
-        icon?.classList.add('fa-circle-notch', 'fa-spin');
+        const button = queryElement<HTMLButtonElement>('#btn-redbooth');
+        this.busy = true;
+        if (button) button.disabled = true;
 
         try {
             const data = await window.http.get<RedboothResponse>(this.route, { params: { flog } });
@@ -62,9 +59,8 @@ export class RedboothLauncher {
                 'error',
             );
         } finally {
-            this.button.disabled = false;
-            icon?.classList.remove('fa-circle-notch', 'fa-spin');
-            icon?.classList.add('fa-comments');
+            this.busy = false;
+            if (button) button.disabled = false;
         }
     }
 
@@ -83,4 +79,3 @@ export class RedboothLauncher {
         });
     }
 }
-

@@ -7,7 +7,9 @@ use App\Models\Sistema\SYSUsuariosRoles;
 use App\Services\ModuloService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use ReflectionMethod;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -99,5 +101,25 @@ class ModuloServiceCacheInvalidationTest extends TestCase
             'idrol' => $modulo->idrol,
             'acceso' => 1,
         ]);
+    }
+
+    public function test_sibling_modules_without_route_look_up_their_parent_once(): void
+    {
+        SYSRoles::create(['orden' => '303', 'modulo' => 'Padre', 'Nivel' => 1, 'Ruta' => '/padre']);
+        $hijos = collect(['Hijo uno', 'Hijo dos', 'Hijo tres'])->map(fn (string $nombre, int $i): SYSRoles => SYSRoles::create([
+            'orden' => '303'.($i + 1), 'modulo' => $nombre, 'Nivel' => 2, 'Dependencia' => '303',
+        ]));
+
+        $servicio = new ModuloService;
+        $fallback = new ReflectionMethod($servicio, 'generarRutaFallback');
+        $consultas = 0;
+        DB::connection('sqlsrv')->listen(function () use (&$consultas): void {
+            $consultas++;
+        });
+
+        $rutas = $hijos->map(fn (SYSRoles $hijo): string => $fallback->invoke($servicio, $hijo))->all();
+
+        $this->assertSame(['/padre/hijo-uno', '/padre/hijo-dos', '/padre/hijo-tres'], $rutas);
+        $this->assertSame(1, $consultas);
     }
 }

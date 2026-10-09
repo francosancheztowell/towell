@@ -4,9 +4,6 @@ export interface TrazabilidadFilters {
     flog: string;
     articulo: string;
     tamano: string;
-    color: string;
-    mes: string;
-    metrica: 'cantidad' | 'peso';
 }
 
 export interface TrazabilidadConfig {
@@ -26,6 +23,21 @@ export interface MatrixPeriod {
     indices: number[];
     mesClave: string;
     semanaClave: string | null;
+    label: string;
+    subLabel: string;
+    destacada: boolean;
+}
+
+/** Valores por índice de día; disperso (solo los días con valor). */
+export type SparseValues = Record<number, number>;
+
+export interface MatrixAreaRow {
+    text: string;
+    tint: string;
+    valores: SparseValues;
+    /** Heatmap por día: fondo `rgba(rgb, alfa)`; alfas disperso. */
+    rgb: string;
+    alfas: Record<number, number>;
 }
 
 export interface MatrixDetailRow {
@@ -33,7 +45,7 @@ export interface MatrixDetailRow {
     color: string;
     total: number;
     /** Disperso: solo llegan los índices de día con valor. */
-    valores: Record<number, number>;
+    valores: SparseValues;
 }
 
 export interface RollosRow {
@@ -62,5 +74,7 @@ export interface RedboothResponse {
 declare global {
     interface Window {
         abrirModalRedboothProgramaTejido?: (order: RedboothOrder) => void;
+        /** flux.js (layout): abre/cierra un flux:modal por su name. */
+        Flux?: { modal(name: string): { show(): void; close(): void } };
     }
 }

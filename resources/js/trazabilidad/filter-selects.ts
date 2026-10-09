@@ -1,6 +1,12 @@
 import { combobox, comboboxDe, destruirCombobox } from '../utils/combobox.ts';
 import type { RemotoCombobox } from '../utils/combobox.ts';
 
+interface CommitHook {
+    component: { el: HTMLElement };
+    succeed: (callback: () => void) => void;
+    fail: (callback: () => void) => void;
+}
+
 export class FilterSelects {
     private readonly root: HTMLElement;
 
@@ -12,11 +18,7 @@ export class FilterSelects {
         const value = select.value || '';
         // Fuera del evento: Tom Select sigue usando su DOM después de emitir `change`.
         window.setTimeout(() => {
-            this.destroy();
-            window.Livewire?.dispatch('trazabilidad-actualizar-filtro', {
-                campo: field,
-                valor: value,
-            });
+            window.Livewire?.dispatch('trazabilidad-actualizar-filtro', { campo: field, valor: value });
         });
     };
 
@@ -26,6 +28,7 @@ export class FilterSelects {
 
     public init(): void {
         this.selects().forEach((select) => {
+            select.disabled = false;
             if (!comboboxDe(select)) {
                 const remoto = this.remoteSource(select);
                 combobox(select, {
@@ -41,6 +44,27 @@ export class FilterSelects {
     }
 
     /**
+     * Livewire reemplaza los <select> al redibujar: Tom Select se retira antes de cada petición
+     * del componente y vuelve después, también si la petición falla (antes quedaba destruido).
+     */
+    public bindToLivewire(component: HTMLElement): void {
+        const bind = (): void => window.Livewire?.hook('commit', ({ component: target, succeed, fail }: CommitHook) => {
+            if (target.el !== component) return;
+
+            // Deshabilitados mientras viaja la petición: un cambio en ese lapso se perdería.
+            this.destroy();
+            succeed(() => queueMicrotask(() => this.init()));
+            fail(() => this.init());
+        });
+
+        if (window.Livewire) {
+            bind();
+        } else {
+            document.addEventListener('livewire:init', bind, { once: true });
+        }
+    }
+
+    /**
      * Los selectores con data-remote-url no llevan sus opciones en el HTML:
      * el combobox las pide al servidor filtradas por los demás filtros activos.
      */
@@ -49,21 +73,21 @@ export class FilterSelects {
         if (!url) return null;
 
         const otherValue = (selector: string): string =>
-            document.querySelector<HTMLInputElement | HTMLSelectElement>(selector)?.value?.trim() || '';
+            this.root.querySelector<HTMLSelectElement>(selector)?.value?.trim() || '';
 
         return {
             url,
             params: () => ({
                 articulo: otherValue('#filtro-articulo'),
                 tamano: otherValue('#filtro-tamano'),
-                mes: otherValue('#filtro-mes'),
             }),
         };
     }
 
-    public destroy(): void {
+    private destroy(): void {
         this.selects().forEach((select) => {
             select.removeEventListener('change', this.onChange);
+            select.disabled = true;
             try {
                 destruirCombobox(select);
             } catch {

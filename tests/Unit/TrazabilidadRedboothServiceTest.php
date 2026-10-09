@@ -174,4 +174,36 @@ final class TrazabilidadRedboothServiceTest extends TestCase
             'NombreRedbooth' => null,
         ]);
     }
+
+    public function test_a_concurrent_assignment_wins_and_is_not_overwritten(): void
+    {
+        DB::connection('sqlsrv')->table('TrazaProduccion')->insert([
+            ['Flogs' => 'FLOG-CARRERA', 'Orden' => '43001'],
+            ['Flogs' => 'FLOG-CARRERA', 'Orden' => '43002'],
+        ]);
+        DB::table('ReqProgramaTejido')->insert([
+            ['NoProduccion' => '43001', 'FlogsId' => 'FLOG-CARRERA', 'IdRedbooth' => null, 'NombreRedbooth' => null],
+            ['NoProduccion' => '43002', 'FlogsId' => 'FLOG-CARRERA', 'IdRedbooth' => null, 'NombreRedbooth' => null],
+        ]);
+
+        // Otro usuario confirma su tarea justo después de que este leyó "sin vínculo":
+        // la última lectura de resolver() es la de CatCodificados.
+        $otroUsuarioAsigno = false;
+        DB::listen(function ($query) use (&$otroUsuarioAsigno): void {
+            if ($otroUsuarioAsigno || ! str_contains($query->sql, 'OrdenTejido') || ! str_starts_with(strtolower($query->sql), 'select')) {
+                return;
+            }
+            $otroUsuarioAsigno = true;
+            DB::table('ReqProgramaTejido')->where('FlogsId', 'FLOG-CARRERA')
+                ->update(['IdRedbooth' => 70001, 'NombreRedbooth' => 'Tarea del otro usuario']);
+        });
+
+        $resultado = app(TrazabilidadRedboothService::class)
+            ->asignarTareaATodasSiNingunaTieneVinculo('FLOG-CARRERA', 99999, 'Llegó tarde');
+
+        $this->assertTrue($otroUsuarioAsigno);
+        $this->assertFalse($resultado['asignado']);
+        $this->assertSame(70001, $resultado['vinculoExistente']['idRedbooth']);
+        $this->assertDatabaseMissing('ReqProgramaTejido', ['IdRedbooth' => 99999]);
+    }
 }
