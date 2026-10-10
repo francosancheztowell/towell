@@ -7,6 +7,10 @@ const ORDER_SELECTOR = '[data-program-order]'
 
 let instances: Sortable[] = []
 let scheduled = false
+// Un destroy() a media arrastre deja vivo el 'dragend' nativo y Sortable truena al soltar
+// (this.el ya es null). El morph de setInteractionPaused llega justo en ese momento.
+let dragging = false
+let pendingInit = false
 
 const componentFor = (element: Element) => {
   const wireRoot = element.closest<HTMLElement>('[wire\\:id]')
@@ -35,11 +39,18 @@ const initializeList = (list: HTMLElement): Sortable => {
     handle: '[data-drag-handle]',
     swapThreshold: 0.65,
     onStart: (event: SortableEvent) => {
+      dragging = true
       originalIds = orderIds(list)
       sourceId = Number(event.item.dataset.orderId)
       void componentFor(list)?.call('setInteractionPaused', true)
     },
     onEnd: (event: SortableEvent) => {
+      dragging = false
+      if (pendingInit) {
+        pendingInit = false
+        scheduleSortableBoard()
+      }
+
       const targetId = event.newIndex === undefined
         ? null
         : Number(originalIds[event.newIndex])
@@ -66,6 +77,11 @@ const initializeList = (list: HTMLElement): Sortable => {
 }
 
 export const initializeSortableBoard = (): void => {
+  if (dragging) {
+    pendingInit = true
+    return
+  }
+
   instances.forEach((instance) => instance.destroy())
   instances = []
 
