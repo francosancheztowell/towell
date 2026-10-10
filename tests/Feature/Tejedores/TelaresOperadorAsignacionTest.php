@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Tejedores;
 
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use Illuminate\Database\Schema\Blueprint;
@@ -10,8 +11,11 @@ use Illuminate\Support\Facades\Schema;
 use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
-/** Editar los telares de un operador guarda el salón del catálogo (URDCatalogoMaquinas, antes ReqTelares). */
-class TelaresOperadorActualizarTest extends TestCase
+/**
+ * Telares por operador: solo se asignan telares que existen en URDCatalogoMaquinas (antes
+ * ReqTelares); un telar dado de baja como el 212 ni se ofrece ni se guarda.
+ */
+class TelaresOperadorAsignacionTest extends TestCase
 {
     use ModuloUrdEng;
 
@@ -21,6 +25,7 @@ class TelaresOperadorActualizarTest extends TestCase
         $this->prepararSqlite();
         $this->tablaDe(TelTelaresOperador::class);
         $this->tablaDe(SYSUsuario::class);
+        $this->tablaDe(ReqProgramaTejido::class);
         Schema::connection('sqlsrv')->create('URDCatalogoMaquinas', function (Blueprint $t): void {
             $t->increments('Id');
             $t->string('MaquinaId', 20)->unique();
@@ -72,5 +77,44 @@ class TelaresOperadorActualizarTest extends TestCase
         $this->actualizar(['201', '212', 'MC1'])->assertStatus(422)->assertJsonFragment(['success' => false]);
 
         $this->assertSame(['201' => 'Jacquard'], $this->asignados());
+    }
+
+    /** @param  array<int, string>  $telares */
+    private function alta(array $telares): mixed
+    {
+        $usuario = $this->usuarioCon([143 => ['acceso', 'crear']], 'Tejido');
+
+        return $this->actingAs($usuario)->postJson('/tel-telares-operador', [
+            'numero_empleado' => '1824', 'nombreEmpl' => 'Operador prueba', 'Turno' => '1', 'SalonTejidoId' => 'JACQUARD', 'telares' => $telares,
+        ]);
+    }
+
+    public function test_alta_rechaza_telares_que_no_existen_y_no_crea_ninguno(): void
+    {
+        $this->alta(['201', '212', 'MC1'])->assertStatus(422)
+            ->assertJson(['success' => false, 'message' => 'Los telares 212, MC1 no existen en el catalogo.']);
+
+        $this->assertSame([], $this->asignados());
+    }
+
+    public function test_alta_con_telares_del_catalogo_los_crea(): void
+    {
+        $this->alta(['201', ' 300 '])->assertOk()->assertJson(['success' => true, 'creados' => 2]);
+
+        $this->assertSame(['201', '300'], array_map('strval', array_keys($this->asignados())));
+    }
+
+    public function test_solo_ofrece_telares_del_programa_que_existen_en_el_catalogo(): void
+    {
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+            ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '201'],
+            ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '212'],
+            ['SalonTejidoId' => 'SMIT', 'NoTelarId' => '305'],
+        ]);
+        $usuario = $this->usuarioCon([143 => ['acceso']], 'Tejido');
+
+        $json = $this->actingAs($usuario)->getJson('/tel-telares-operador/api/salones-y-telares')->assertOk()->json();
+
+        $this->assertSame(['201', '305'], array_column($json['telares'], 'NoTelarId'));
     }
 }

@@ -7,6 +7,8 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -29,16 +31,7 @@ class TelTelaresOperadorController extends Controller
             ->pluck('SalonTejidoId')
             ->values();
 
-        $telares = ReqProgramaTejido::query()
-            ->select('SalonTejidoId', 'NoTelarId')
-            ->whereNotNull('SalonTejidoId')
-            ->where('SalonTejidoId', '!=', '')
-            ->whereNotNull('NoTelarId')
-            ->where('NoTelarId', '!=', '')
-            ->distinct()
-            ->orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
-            ->get()
+        $telares = $this->telaresDelPrograma()
             ->map(fn ($t) => [
                 'SalonTejidoId' => $t->SalonTejidoId,
                 'NoTelarId' => $t->NoTelarId,
@@ -70,14 +63,7 @@ class TelTelaresOperadorController extends Controller
             ->get();
 
         // Usar ReqProgramaTejido como fuente principal (tiene los salones SMIT/JACQUARD reales)
-        $telaresPrograma = ReqProgramaTejido::query()
-            ->select('SalonTejidoId', 'NoTelarId')
-            ->whereNotNull('SalonTejidoId')
-            ->where('SalonTejidoId', '!=', '')
-            ->whereNotNull('NoTelarId')
-            ->where('NoTelarId', '!=', '')
-            ->distinct()
-            ->get()
+        $telaresPrograma = $this->telaresDelPrograma()
             ->map(fn ($t) => (object) [
                 'SalonTejidoId' => $t->SalonTejidoId,
                 'NoTelarId' => $t->NoTelarId,
@@ -119,8 +105,18 @@ class TelTelaresOperadorController extends Controller
             'Supervisor' => ['nullable', 'boolean'],
         ]);
 
+        $telares = collect($request->input('telares', []))
+            ->map(fn ($telar) => trim((string) $telar))
+            ->filter()
+            ->unique()
+            ->values();
+        $telaresInvalidos = $this->telaresFueraDelCatalogo($telares->all(), $this->telaresCatalogo()->keyBy('MaquinaId'));
+        if (! empty($telaresInvalidos)) {
+            return $this->rechazarTelares($request, $telaresInvalidos);
+        }
+
         $usuario = SYSUsuario::where('numero_empleado', $data['numero_empleado'])->first();
-        $telares = $request->input('telares', []);
+        $telares = $telares->all();
         $creados = 0;
         $duplicados = [];
 
@@ -225,19 +221,9 @@ class TelTelaresOperadorController extends Controller
             ->unique()
             ->values();
         $telaresCatalogo = $this->telaresCatalogo()->keyBy(fn (URDCatalogoMaquina $telar) => $telar->MaquinaId);
-        $telaresInvalidos = $telaresSeleccionados
-            ->reject(fn ($telar) => $telaresCatalogo->has($telar))
-            ->values()
-            ->all();
-
+        $telaresInvalidos = $this->telaresFueraDelCatalogo($telaresSeleccionados->all(), $telaresCatalogo);
         if (! empty($telaresInvalidos)) {
-            $message = 'Los telares '.implode(', ', $telaresInvalidos).' no existen en el catalogo.';
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => $message], 422);
-            }
-
-            return back()->withErrors($message)->withInput();
+            return $this->rechazarTelares($request, $telaresInvalidos);
         }
 
         try {
@@ -331,6 +317,54 @@ class TelTelaresOperadorController extends Controller
 
         return redirect()->route('tel-telares-operador.index')
             ->with('success', "Operador {$numeroEmpleado} eliminado correctamente.");
+    }
+
+    /**
+     * Telares del programa (traen los salones reales SMIT/JACQUARD) que existen en el catálogo:
+     * uno dado de baja, como el 212, no se ofrece para asignar.
+     *
+     * @return Collection<int, ReqProgramaTejido>
+     */
+    private function telaresDelPrograma(): Collection
+    {
+        $catalogo = $this->telaresCatalogo()->keyBy('MaquinaId');
+
+        return ReqProgramaTejido::query()
+            ->select('SalonTejidoId', 'NoTelarId')
+            ->whereNotNull('SalonTejidoId')
+            ->where('SalonTejidoId', '!=', '')
+            ->whereNotNull('NoTelarId')
+            ->where('NoTelarId', '!=', '')
+            ->distinct()
+            ->orderBy('SalonTejidoId')
+            ->orderBy('NoTelarId')
+            ->get()
+            ->filter(fn (ReqProgramaTejido $t) => $catalogo->has(trim((string) $t->NoTelarId)))
+            ->values();
+    }
+
+    /**
+     * Telares pedidos que no son telares de URDCatalogoMaquinas (no existen o son de otra área).
+     *
+     * @param  array<int, string>  $telares
+     * @param  Collection<string, URDCatalogoMaquina>  $catalogo  por MaquinaId
+     * @return array<int, string>
+     */
+    private function telaresFueraDelCatalogo(array $telares, Collection $catalogo): array
+    {
+        return array_values(array_filter($telares, fn (string $telar) => ! $catalogo->has($telar)));
+    }
+
+    /** @param  array<int, string>  $telares */
+    private function rechazarTelares(Request $request, array $telares): JsonResponse|RedirectResponse
+    {
+        $message = 'Los telares '.implode(', ', $telares).' no existen en el catalogo.';
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json(['success' => false, 'message' => $message], 422);
+        }
+
+        return back()->withErrors($message)->withInput();
     }
 
     /** @return Collection<int, URDCatalogoMaquina> ordenados por salón y telar */
