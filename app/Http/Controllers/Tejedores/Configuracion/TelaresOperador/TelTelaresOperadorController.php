@@ -258,7 +258,7 @@ class TelTelaresOperadorController extends Controller
                         [
                             'nombreEmpl' => $usuario->nombre ?? '',
                             'Turno' => (string) ($usuario->turno ?? ''),
-                            'SalonTejidoId' => (string) ($telar->SalonTejidoId ?? ''),
+                            'SalonTejidoId' => $telar?->salon() ?? '',
                             'Supervisor' => $request->boolean('Supervisor', false),
                         ]
                     );
