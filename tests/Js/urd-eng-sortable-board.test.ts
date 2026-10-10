@@ -46,10 +46,11 @@ const correrFrames = () => pendientes.splice(0).forEach((fn) => fn())
 
 const tablero = documento.agregar(new Nodo({ 'data-program-board': '' }))
 const lista = tablero.agregar(new Nodo({ 'data-program-lane-list': '' }))
-lista.agregar(new Nodo({ 'data-program-order': '' }))
+const carrilVacio = tablero.agregar(new Nodo({ 'data-program-lane-list': '' }))
+for (const id of ['7', '9']) lista.agregar(new Nodo({ 'data-program-order': '' })).dataset.orderId = id
 documento.querySelector = (sel: string) => (sel === '[data-program-board]' ? tablero : null)
 
-const { initializeSortableBoard, scheduleSortableBoard } = await import('../../resources/js/urd-eng/sortable-board.ts')
+const { destroySortableBoard, initializeSortableBoard, scheduleSortableBoard } = await import('../../resources/js/urd-eng/sortable-board.ts')
 
 const instanciaDe = (el: Nodo): any => Object.values(el).find((v: any) => v?.options?.onStart)
 
@@ -79,4 +80,60 @@ test('al terminar el arrastre se hace la reinicialización que quedó pendiente'
 
   assert.equal(sortable.el, null, 'la instancia vieja se destruyó después de soltar')
   assert.notEqual(instanciaDe(lista), sortable, 'y la lista tiene una instancia nueva')
+})
+
+// Componente Livewire falso: registra lo que el tablero le pide al servidor.
+const llamadas: unknown[][] = []
+const raizWire = new Nodo({ 'wire:id': 'tablero-1' })
+lista.closest = () => raizWire
+;(globalThis as any).Livewire = {
+  find: (id: string) => (id === 'tablero-1' ? { call: async (...args: unknown[]) => { llamadas.push(args) } } : null),
+}
+const arrastrar = (sortable: any, newIndex: number | undefined, to: Nodo = lista) => {
+  llamadas.length = 0
+  sortable.options.onStart({ item: { dataset: { orderId: '7' } } })
+  sortable.options.onEnd({ newIndex, from: lista, to })
+  return llamadas
+}
+
+test('soltar en otra posición pausa el refresco y pide reorder(origen, destino)', () => {
+  assert.deepEqual(arrastrar(instanciaDe(lista), 1), [
+    ['setInteractionPaused', true],
+    ['reorder', 7, 9],
+  ])
+})
+
+test('soltar en el mismo lugar reanuda el refresco sin reordenar', () => {
+  assert.deepEqual(arrastrar(instanciaDe(lista), 0), [
+    ['setInteractionPaused', true],
+    ['setInteractionPaused', false],
+  ])
+})
+
+test('mover a otro carril no reordena', () => {
+  assert.deepEqual(arrastrar(instanciaDe(lista), 1, carrilVacio), [
+    ['setInteractionPaused', true],
+    ['setInteractionPaused', false],
+  ])
+})
+
+test('sin morph a media arrastre, soltar no reinicializa', () => {
+  const sortable = instanciaDe(lista)
+  arrastrar(sortable, 0)
+  correrFrames()
+  assert.equal(sortable.el, lista)
+  assert.equal(instanciaDe(lista), sortable)
+})
+
+test('los carriles sin órdenes no se vuelven Sortable', () => {
+  initializeSortableBoard()
+  assert.ok(instanciaDe(lista))
+  assert.equal(instanciaDe(carrilVacio), undefined)
+})
+
+test('destroySortableBoard destruye todas las instancias', () => {
+  const sortable = instanciaDe(lista)
+  destroySortableBoard()
+  assert.equal(sortable.el, null)
+  assert.equal(instanciaDe(lista), undefined)
 })
