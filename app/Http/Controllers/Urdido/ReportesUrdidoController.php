@@ -10,39 +10,22 @@ use App\Exports\ReportesUrdidoExport;
 use App\Exports\RoturasMillonExport;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProduccionEngomado;
-use App\Models\Urdido\UrdBpmModel;
 use App\Models\Urdido\UrdProduccionUrdido;
+use App\Services\Bpm\BpmReporteFilasService;
 use App\Services\Urdido\PanelControlKmService;
+use App\Support\Bpm\AreaBpm;
+use App\Support\Programas\OperadorPorMetros;
 use App\Support\Programas\ProgramaModulo;
+use App\Support\Reportes\FechaReporte;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 // New import
 
 class ReportesUrdidoController extends Controller
 {
-    private function parseReportDate(string $value): Carbon
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return Carbon::now();
-        }
-
-        foreach (['Y-m-d', 'd/m/Y'] as $format) {
-            try {
-                return Carbon::createFromFormat($format, $value)->startOfDay();
-            } catch (\Throwable $e) {
-                // Intentar con el siguiente formato.
-            }
-        }
-
-        return Carbon::parse($value)->startOfDay();
-    }
-
     private function maquinaLabel(int $num): string
     {
         return $num === 4 ? 'KM' : "MC{$num}";
@@ -175,7 +158,7 @@ class ReportesUrdidoController extends Controller
             }
 
             $kg = (float) ($r->KgNeto ?? 0);
-            $operadores = $this->extraerOperadoresConMetros($r);
+            $operadores = OperadorPorMetros::conMetros($r);
             $primerFila = true;
             foreach ($operadores as $op) {
                 $porMaquina[$label]['filas'][] = [
@@ -195,7 +178,7 @@ class ReportesUrdidoController extends Controller
                         'julio' => $r->NoJulio,
                         'p_neto' => $kg,
                         'metros' => $metros,
-                        'ope' => $this->obtenerOperadorDisplayCompleto($r->NomEmpl1, $r->CveEmpl1),
+                        'ope' => OperadorPorMetros::mostrar($r->NomEmpl1, $r->CveEmpl1),
                     ];
                 }
             }
@@ -507,8 +490,8 @@ class ReportesUrdidoController extends Controller
 
         [$filasEngomado, $filasUrdido] = $this->obtenerDatosKaizen($fechaIni, $fechaFin, $soloFinalizados);
 
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin);
         $filenameDownload = 'kaizen-urd-eng-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new KaizenExport($filasEngomado, $filasUrdido), $filenameDownload);
@@ -666,8 +649,8 @@ class ReportesUrdidoController extends Controller
 
         $filas = $this->obtenerDatosRoturas($fechaIni, $fechaFin, $soloFinalizados);
 
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin);
         $filenameDownload = 'roturas-millon-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         // Solo descarga: Roturas x Millón no se guarda en la carpeta de red.
@@ -692,7 +675,7 @@ class ReportesUrdidoController extends Controller
             ]);
         }
 
-        $filas = $this->filasBpm($fechaIni, $fechaFin, $soloFinalizados);
+        $filas = (new BpmReporteFilasService)->filas(AreaBpm::Urdido, $fechaIni, $fechaFin, $soloFinalizados);
 
         return view('modulos.urdido.reportes-bpm-urdido', [
             'filas' => $filas,
@@ -716,211 +699,13 @@ class ReportesUrdidoController extends Controller
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
 
-        $filas = $this->filasBpm($fechaIni, $fechaFin, $soloFinalizados);
+        $filas = (new BpmReporteFilasService)->filas(AreaBpm::Urdido, $fechaIni, $fechaFin, $soloFinalizados);
 
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin);
         $filenameDownload = 'bpm-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new BpmUrdidoExport($filas), $filenameDownload);
-    }
-
-    /**
-     * Filas del reporte BPM: una por linea de checklist, con la cabecera repetida
-     * (es el formato que consumen la vista y el Excel).
-     *
-     * Cabeceras y lineas se consultan por separado en vez de con un leftJoin: asi los
-     * 11 campos de cabecera viajan una vez por folio y no una vez por linea.
-     */
-    private function filasBpm(string $fechaIni, string $fechaFin, bool $soloFinalizados): Collection
-    {
-        $cabeceras = UrdBpmModel::query()
-            ->from('UrdBPM')
-            // Fecha es datetime: intervalo semiabierto [ini, fin+1dia) para no perder
-            // los registros del ultimo dia capturados despues de medianoche.
-            ->where('Fecha', '>=', $fechaIni)
-            ->where('Fecha', '<', Carbon::parse($fechaFin)->addDay()->toDateString())
-            ->when($soloFinalizados, fn ($q) => $q->whereIn('Status', ['Terminado', 'Autorizado']))
-            ->orderBy('Folio')
-            ->get([
-                'Folio', 'Status', 'Fecha',
-                'CveEmplEnt', 'NombreEmplEnt', 'TurnoEntrega',
-                'CveEmplRec', 'NombreEmplRec', 'TurnoRecibe',
-                'CveEmplAutoriza', 'NombreEmplAutoriza',
-            ]);
-
-        if ($cabeceras->isEmpty()) {
-            return collect();
-        }
-
-        $lineasPorFolio = DB::table('UrdBPMLine')
-            ->whereIn('Folio', $cabeceras->pluck('Folio')->all())
-            ->orderBy('Orden')
-            ->get(['Folio', 'Orden', 'Actividad', 'Valor'])
-            ->groupBy('Folio');
-
-        $filas = collect();
-
-        foreach ($cabeceras as $cabecera) {
-            $base = [
-                'Folio' => $cabecera->Folio,
-                'Status' => $cabecera->Status,
-                'Fecha' => $cabecera->Fecha,
-                'CveEmplEnt' => $this->normalizarClaveNumero($cabecera->CveEmplEnt ?? null),
-                'NombreEmplEnt' => $cabecera->NombreEmplEnt,
-                'TurnoEntrega' => $cabecera->TurnoEntrega,
-                'CveEmplRec' => $this->normalizarClaveNumero($cabecera->CveEmplRec ?? null),
-                'NombreEmplRec' => $cabecera->NombreEmplRec,
-                'TurnoRecibe' => $cabecera->TurnoRecibe,
-                'CveEmplAutoriza' => $this->normalizarClaveNumero($cabecera->CveEmplAutoriza ?? null),
-                'NombreEmplAutoriza' => $cabecera->NombreEmplAutoriza,
-            ];
-
-            // Un folio sin lineas sigue apareciendo una vez, igual que con el leftJoin.
-            $lineas = $lineasPorFolio->get($cabecera->Folio) ?? collect([null]);
-
-            foreach ($lineas as $linea) {
-                $filas->push((object) ($base + [
-                    'Orden' => $linea->Orden ?? null,
-                    'Actividad' => $linea->Actividad ?? null,
-                    'Valor' => $linea->Valor ?? null,
-                    'ValorTexto' => $this->mapearValorBpm((int) ($linea->Valor ?? 0)),
-                ]));
-            }
-        }
-
-        return $this->marcarInicioPorFolio($filas);
-    }
-
-    private function mapearValorBpm(int $valor): string
-    {
-        if ($valor === 1) {
-            return 'CORRECTO';
-        }
-        if ($valor === 2) {
-            return 'INCORRECTO';
-        }
-
-        return 'S/N';
-    }
-
-    private function normalizarClaveNumero(mixed $clave): ?int
-    {
-        if ($clave === null || $clave === '') {
-            return null;
-        }
-
-        $texto = trim((string) $clave);
-        if ($texto === '') {
-            return null;
-        }
-
-        if (is_numeric($texto)) {
-            return (int) $texto;
-        }
-
-        return null;
-    }
-
-    private function marcarInicioPorFolio(Collection $filas): Collection
-    {
-        $folioAnterior = null;
-
-        return $filas->map(function ($fila) use (&$folioAnterior) {
-            $folioActual = (string) ($fila->Folio ?? '');
-            $esInicio = $folioActual !== '' && $folioActual !== $folioAnterior;
-
-            $fila->InicioFolio = $esInicio ? '•' : null;
-            $folioAnterior = $folioActual;
-
-            return $fila;
-        });
-    }
-
-    /**
-     * Obtener texto para mostrar del operador (nombre o clave). Nombre completo.
-     */
-    private function obtenerOperadorDisplayCompleto(?string $nomEmpl, ?string $cveEmpl): string
-    {
-        $nom = trim((string) ($nomEmpl ?? ''));
-        $cve = trim((string) ($cveEmpl ?? ''));
-        if ($nom !== '') {
-            return $nom;
-        }
-        if ($cve !== '') {
-            return $cve;
-        }
-
-        return '';
-    }
-
-    /**
-     * Obtener texto para mostrar del operador (nombre o clave). Trunca para vistas compactas.
-     */
-    private function obtenerOperadorDisplay(?string $nomEmpl, ?string $cveEmpl): string
-    {
-        return $this->obtenerOperadorDisplayCompleto($nomEmpl, $cveEmpl);
-    }
-
-    /**
-     * Extraer 1, 2 o 3 operadores con sus metros del registro.
-     * Retorna array de ['nombre' => string, 'metros' => int].
-     */
-    private function extraerOperadoresConMetros(object $r): array
-    {
-        $ops = [];
-        foreach ([1, 2, 3] as $n) {
-            $nom = $r->{"NomEmpl{$n}"} ?? null;
-            $cve = $r->{"CveEmpl{$n}"} ?? null;
-            $mts = (float) ($r->{"Metros{$n}"} ?? 0);
-            if ($mts <= 0) {
-                continue;
-            }
-            $nombre = $this->obtenerOperadorDisplayCompleto($nom, $cve);
-            $ops[] = ['nombre' => $nombre !== '' ? $nombre : "Turno {$n}", 'metros' => round($mts)];
-        }
-
-        return $ops;
-    }
-
-    /**
-     * Oficial de urdido con mayor Metros1–Metros3 en el registro (misma regla que modales de calificar julios).
-     */
-    private function operadorUrdidoMayorMetros(object $row): string
-    {
-        $slots = [];
-        foreach ([1, 2, 3] as $n) {
-            $slots[] = [
-                'm' => round((float) ($row->{"Metros{$n}"} ?? 0), 4),
-                'nom' => $row->{"NomEmpl{$n}"} ?? null,
-                'cve' => $row->{"CveEmpl{$n}"} ?? null,
-            ];
-        }
-        $maxM = max(array_column($slots, 'm'));
-        if ($maxM > 0) {
-            foreach ($slots as $s) {
-                if ($s['m'] === $maxM) {
-                    $disp = $this->obtenerOperadorDisplayCompleto(
-                        $s['nom'] !== null ? (string) $s['nom'] : null,
-                        $s['cve'] !== null ? (string) $s['cve'] : null
-                    );
-                    if (trim($disp) !== '') {
-                        return $disp;
-                    }
-                }
-            }
-        }
-        foreach ($slots as $s) {
-            $disp = $this->obtenerOperadorDisplayCompleto(
-                $s['nom'] !== null ? (string) $s['nom'] : null,
-                $s['cve'] !== null ? (string) $s['cve'] : null
-            );
-            if (trim($disp) !== '') {
-                return $disp;
-            }
-        }
-
-        return '';
     }
 
     /**
@@ -974,7 +759,7 @@ class ReportesUrdidoController extends Controller
             }
 
             $kg = (float) ($r->KgNeto ?? 0);
-            $operadores = $this->extraerOperadoresConMetros($r);
+            $operadores = OperadorPorMetros::conMetros($r);
             $primerFila = true;
             foreach ($operadores as $op) {
                 $porFecha[$fecha]['porMaquina'][$label]['filas'][] = [
@@ -994,7 +779,7 @@ class ReportesUrdidoController extends Controller
             if (empty($operadores)) {
                 $metros = (float) ($r->Metros1 ?? 0) + (float) ($r->Metros2 ?? 0) + (float) ($r->Metros3 ?? 0);
                 if ($metros > 0) {
-                    $ope = $this->obtenerOperadorDisplayCompleto($r->NomEmpl1, $r->CveEmpl1);
+                    $ope = OperadorPorMetros::mostrar($r->NomEmpl1, $r->CveEmpl1);
                     $opeKey = trim($ope) !== '' ? $ope : 'Sin asignar';
                     $porFecha[$fecha]['porMaquina'][$label]['filas'][] = [
                         'orden' => $r->Folio,
@@ -1051,7 +836,7 @@ class ReportesUrdidoController extends Controller
                 continue;
             }
 
-            $ope = $this->obtenerOperadorDisplay($r->NomEmpl1, $r->CveEmpl1);
+            $ope = OperadorPorMetros::mostrar($r->NomEmpl1, $r->CveEmpl1);
             $kg = (float) ($r->KgNeto ?? 0);
 
             $porFecha[$fecha]['engomado'][$wp]['filas'][] = [
@@ -1073,8 +858,8 @@ class ReportesUrdidoController extends Controller
         ksort($porFecha);
         $defectosData = $this->buildReporte03DefectosData($fechaIni, $fechaFin);
 
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin);
 
         $filenameDownload = 'reporte-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
@@ -1141,8 +926,8 @@ class ReportesUrdidoController extends Controller
 
     private function buildReporte03DateBuckets(string $fechaIni, string $fechaFin): array
     {
-        $inicio = $this->parseReportDate($fechaIni)->startOfDay();
-        $fin = $this->parseReportDate($fechaFin)->startOfDay();
+        $inicio = FechaReporte::parse($fechaIni)->startOfDay();
+        $fin = FechaReporte::parse($fechaFin)->startOfDay();
         $porFecha = [];
 
         for ($fecha = $inicio->copy(); $fecha->lessThanOrEqualTo($fin); $fecha->addDay()) {
@@ -1193,8 +978,8 @@ class ReportesUrdidoController extends Controller
 
     private function fetchReporte03DefectosRegistros(string $fechaIni, string $fechaFin): array
     {
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin)->endOfDay();
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin)->endOfDay();
 
         $registrosUrd = UrdProduccionUrdido::query()
             ->leftJoin('CatDefectosUrdEng as d', 'UrdProduccionUrdido.ClaveDefecto', '=', 'd.Id')
@@ -1288,7 +1073,7 @@ class ReportesUrdidoController extends Controller
             'cinco_s' => trim((string) ($row->CincoS ?? '')),
             'seguridad' => trim((string) ($row->Seguridad ?? '')),
             'ope' => $area === 'URD'
-                ? $this->operadorUrdidoMayorMetros($row)
+                ? OperadorPorMetros::mayorMetros($row)
                 : (string) ($row->OperadorDefecto ?? ''),
             'penalizar' => $penalizacion,
         ];
@@ -1359,8 +1144,8 @@ class ReportesUrdidoController extends Controller
 
         $datosSemanales = $this->buildReporteSemanalDataUrdido($fechaIni, $fechaFin);
 
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin);
         $fileName = 'resumen-semanal-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ReporteResumenSemanalUrdidoExport($datosSemanales), $fileName);
@@ -1430,8 +1215,8 @@ class ReportesUrdidoController extends Controller
 
     private function buildReporteSemanalDataUrdido(string $fechaIni, string $fechaFin): array
     {
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin)->endOfDay();
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin)->endOfDay();
 
         $producciones = UrdProduccionUrdido::query()
             ->with('programa') // Cargar la relación

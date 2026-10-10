@@ -9,11 +9,11 @@ use App\Imports\QueuedCatCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Repositories\Ax\BomCrudoRepository;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
 use App\Services\Planeacion\RevivirOrdenProgramaDesdeCatService;
 use App\Services\Planeacion\SaldoMarbeteCodificacionService;
 use App\Support\Planeacion\CatCodificados\CatCodificadosCache;
-use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -405,56 +405,13 @@ class CatCodificacionController extends Controller
     }
 
     /**
-     * Consulta LMAT (Lista de materiales) en la BD sqlsrv_ti (BOMTABLE + BOMVERSION).
-     * Misma lógica que LiberarOrdenesController: si inventSizeId está vacío, no filtra por tamaño
-     * para devolver todos los BOM disponibles del artículo.
+     * L.Mat CRUDO en sqlsrv_ti. Sin talla no filtra por tamaño.
      *
      * @return array<int, array{bomId: string, bomName: string}>
      */
     private function queryLmatDesdeTi(string $itemId, ?string $inventSizeId = null): array
     {
-        try {
-            $itemId = trim($itemId);
-            if ($itemId === '') {
-                return [];
-            }
-
-            $itemIdWithSuffix = $itemId.'-1';
-            $query = DB::connection('sqlsrv_ti')
-                ->table('BOMTABLE as BT')
-                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-                ->where('BV.ITEMID', $itemIdWithSuffix)
-                ->where('BT.ITEMGROUPID', 'CRUDO')
-                ->where('BT.Vigente', 1)
-                // Todas las formas en que AX escribe los salones ('ITEMA', 'JACUARD', 'KM'...):
-                // con la lista corta, las L.Mat de Karl Mayer y las de ITEMA no se encontraban.
-                ->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx());
-
-            // Solo filtrar por tamaño si viene informado (igual que LiberarOrdenesController)
-            if ($inventSizeId !== null && trim((string) $inventSizeId) !== '') {
-                $query->where('BT.TWINVENTSIZEID', trim($inventSizeId));
-            }
-
-            $results = $query->orderBy('BT.BOMID')->limit(50)->get();
-
-            if ($results->isEmpty()) {
-                return [];
-            }
-
-            return $results->map(fn ($r) => [
-                'bomId' => $r->bomId !== null ? (string) $r->bomId : '',
-                'bomName' => $r->bomName !== null ? (string) $r->bomName : '',
-            ])->values()->all();
-        } catch (\Throwable $e) {
-            Log::warning('CatCodificacionController::queryLmatDesdeTi', [
-                'itemId' => $itemId,
-                'inventSizeId' => $inventSizeId ?? '',
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
-        }
+        return (new BomCrudoRepository)->listarParaCodificacion($itemId, $inventSizeId);
     }
 
     /**

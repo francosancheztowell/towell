@@ -6,13 +6,13 @@ use App\Exports\BpmEngomadoExport;
 use App\Exports\ControlMermaExport;
 use App\Exports\ReporteResumenSemanalEngomadoExport;
 use App\Http\Controllers\Controller;
-use App\Models\Engomado\EngBpmModel;
 use App\Models\Engomado\EngProduccionEngomado;
+use App\Services\Bpm\BpmReporteFilasService;
 use App\Services\Engomado\ControlMermaReportService;
+use App\Support\Bpm\AreaBpm;
+use App\Support\Reportes\FechaReporte;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesEngomadoController extends Controller
@@ -92,8 +92,8 @@ class ReportesEngomadoController extends Controller
 
         $filas = $service->build($fechaIni, $fechaFin);
 
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin);
         $fileName = 'control-merma-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ControlMermaExport($filas), $fileName);
@@ -114,7 +114,7 @@ class ReportesEngomadoController extends Controller
             ]);
         }
 
-        $filas = $this->filasBpm($fechaIni, $fechaFin, $soloFinalizados);
+        $filas = (new BpmReporteFilasService)->filas(AreaBpm::Engomado, $fechaIni, $fechaFin, $soloFinalizados);
 
         return view('modulos.engomado.reportes-bpm-engomado', [
             'filas' => $filas,
@@ -135,124 +135,11 @@ class ReportesEngomadoController extends Controller
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
 
-        $filas = $this->filasBpm($fechaIni, $fechaFin, $soloFinalizados);
+        $filas = (new BpmReporteFilasService)->filas(AreaBpm::Engomado, $fechaIni, $fechaFin, $soloFinalizados);
 
         $fileName = 'bpm-engomado-'.now()->format('Ymd-His').'.xlsx';
 
         return Excel::download(new BpmEngomadoExport($filas), $fileName);
-    }
-
-    /**
-     * Filas del reporte BPM: una por linea de checklist, con la cabecera repetida
-     * (es el formato que consumen la vista y el Excel).
-     *
-     * Cabeceras y lineas se consultan por separado en vez de con un leftJoin: asi los
-     * 11 campos de cabecera viajan una vez por folio y no una vez por linea.
-     */
-    private function filasBpm(string $fechaIni, string $fechaFin, bool $soloFinalizados): Collection
-    {
-        $cabeceras = EngBpmModel::query()
-            ->from('EngBPM')
-            // Fecha es datetime: intervalo semiabierto [ini, fin+1dia) para no perder
-            // los registros del ultimo dia capturados despues de medianoche.
-            ->where('Fecha', '>=', $fechaIni)
-            ->where('Fecha', '<', Carbon::parse($fechaFin)->addDay()->toDateString())
-            ->when($soloFinalizados, fn ($q) => $q->whereIn('Status', ['Terminado', 'Autorizado']))
-            ->orderBy('Folio')
-            ->get([
-                'Folio', 'Status', 'Fecha',
-                'CveEmplEnt', 'NombreEmplEnt', 'TurnoEntrega',
-                'CveEmplRec', 'NombreEmplRec', 'TurnoRecibe',
-                'CveEmplAutoriza', 'NomEmplAutoriza',
-            ]);
-
-        if ($cabeceras->isEmpty()) {
-            return collect();
-        }
-
-        $lineasPorFolio = DB::table('EngBPMLine')
-            ->whereIn('Folio', $cabeceras->pluck('Folio')->all())
-            ->orderBy('Orden')
-            ->get(['Folio', 'Orden', 'Actividad', 'Valor'])
-            ->groupBy('Folio');
-
-        $filas = collect();
-
-        foreach ($cabeceras as $cabecera) {
-            $base = [
-                'Folio' => $cabecera->Folio,
-                'Status' => $cabecera->Status,
-                'Fecha' => $cabecera->Fecha,
-                'CveEmplEnt' => $this->normalizarClaveNumero($cabecera->CveEmplEnt ?? null),
-                'NombreEmplEnt' => $cabecera->NombreEmplEnt,
-                'TurnoEntrega' => $cabecera->TurnoEntrega,
-                'CveEmplRec' => $this->normalizarClaveNumero($cabecera->CveEmplRec ?? null),
-                'NombreEmplRec' => $cabecera->NombreEmplRec,
-                'TurnoRecibe' => $cabecera->TurnoRecibe,
-                'CveEmplAutoriza' => $this->normalizarClaveNumero($cabecera->CveEmplAutoriza ?? null),
-                // La columna se llama NomEmplAutoriza; la vista y el Excel esperan NombreEmplAutoriza.
-                'NombreEmplAutoriza' => $cabecera->NomEmplAutoriza,
-            ];
-
-            // Un folio sin lineas sigue apareciendo una vez, igual que con el leftJoin.
-            $lineas = $lineasPorFolio->get($cabecera->Folio) ?? collect([null]);
-
-            foreach ($lineas as $linea) {
-                $filas->push((object) ($base + [
-                    'Orden' => $linea->Orden ?? null,
-                    'Actividad' => $linea->Actividad ?? null,
-                    'Valor' => $linea->Valor ?? null,
-                    'ValorTexto' => $this->mapearValorBpm((int) ($linea->Valor ?? 0)),
-                ]));
-            }
-        }
-
-        return $this->marcarInicioPorFolio($filas);
-    }
-
-    private function mapearValorBpm(int $valor): string
-    {
-        if ($valor === 1) {
-            return 'CORRECTO';
-        }
-        if ($valor === 2) {
-            return 'INCORRECTO';
-        }
-
-        return 'S/N';
-    }
-
-    private function normalizarClaveNumero(mixed $clave): ?int
-    {
-        if ($clave === null || $clave === '') {
-            return null;
-        }
-
-        $texto = trim((string) $clave);
-        if ($texto === '') {
-            return null;
-        }
-
-        if (is_numeric($texto)) {
-            return (int) $texto;
-        }
-
-        return null;
-    }
-
-    private function marcarInicioPorFolio(Collection $filas): Collection
-    {
-        $folioAnterior = null;
-
-        return $filas->map(function ($fila) use (&$folioAnterior) {
-            $folioActual = (string) ($fila->Folio ?? '');
-            $esInicio = $folioActual !== '' && $folioActual !== $folioAnterior;
-
-            $fila->InicioFolio = $esInicio ? '•' : null;
-            $folioAnterior = $folioActual;
-
-            return $fila;
-        });
     }
 
     public function reporteResumenEngomado(Request $request)
@@ -289,8 +176,8 @@ class ReportesEngomadoController extends Controller
 
         $datosSemanales = $this->buildReporteSemanalData($fechaIni, $fechaFin);
 
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin);
         $fileName = 'resumen-semanal-engomado-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ReporteResumenSemanalEngomadoExport($datosSemanales), $fileName);
@@ -298,8 +185,8 @@ class ReportesEngomadoController extends Controller
 
     private function buildReporteSemanalData(string $fechaIni, string $fechaFin): array
     {
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin)->endOfDay();
+        $fechaIniCarbon = FechaReporte::parse($fechaIni);
+        $fechaFinCarbon = FechaReporte::parse($fechaFin)->endOfDay();
 
         $producciones = EngProduccionEngomado::query()
             ->with('programa') // Cargar la relación
@@ -363,23 +250,5 @@ class ReportesEngomadoController extends Controller
         }
 
         return array_values($porSemana);
-    }
-
-    private function parseReportDate(string $value): Carbon
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return Carbon::now();
-        }
-
-        foreach (['Y-m-d', 'd/m/Y'] as $format) {
-            try {
-                return Carbon::createFromFormat($format, $value)->startOfDay();
-            } catch (\Throwable $e) {
-                // Intentar con el siguiente formato.
-            }
-        }
-
-        return Carbon::parse($value)->startOfDay();
     }
 }

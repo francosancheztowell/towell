@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Planeacion\Liberar;
 
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Repositories\Ax\BomCrudoRepository;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -15,11 +16,9 @@ use Illuminate\Support\Facades\Log;
 /**
  * Resolución de L.Mat CRUDO (BOMTABLE + BOMVERSION en sqlsrv_ti) al liberar.
  *
- * Extraído de LiberarOrdenesController: misma query EXISTS, mismos filtros de
- * salón/talla y la misma precarga por lote. No unifica todavía la consulta
- * privada queryLmatDesdeTi del controller de Catálogo de Codificados
- * (JOIN + limit 50, sin filtro de salón): eso es follow-up de BUG-007; si se
- * comparte, va a un repositorio AX sobre sqlsrv_ti, no a este servicio.
+ * Extraído de LiberarOrdenesController. La query EXISTS vive en
+ * BomCrudoRepository (también la usa el catálogo de codificación). Aquí quedan
+ * el filtro de salón/talla, la precarga por lote y las reglas de ESTAND.
  */
 final class LiberarBomCrudoResolver
 {
@@ -27,39 +26,14 @@ final class LiberarBomCrudoResolver
     private ?array $bomCrudoCache = null;
 
     /**
-     * Query base de L.Mat CRUDO: única fuente de verdad para las búsquedas de BOM
-     * de Liberar. Amarra el L.Mat al ItemId con EXISTS en lugar de JOIN porque un
-     * item puede tener varias versiones del mismo BOMID en BOMVERSION, y el JOIN
-     * devolvía la misma fila 2-3 veces.
+     * Query base de L.Mat CRUDO. La SQL vive en BomCrudoRepository.
      *
      * @param  string|null  $inventSizeId  null u '' = no filtrar por talla
      * @param  string|null  $salon  null u '' = aceptar cualquier variante conocida de AX
      */
     public function query(string $itemId, ?string $inventSizeId = null, ?string $salon = null): Builder
     {
-        $query = DB::connection('sqlsrv_ti')
-            ->table('BOMTABLE as BT')
-            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-            ->where('BT.ITEMGROUPID', 'CRUDO')
-            ->where('BT.Vigente', 1)
-            ->whereExists(function ($sub) use ($itemId) {
-                $sub->select(DB::raw('1'))
-                    ->from('BOMVERSION as BV')
-                    ->whereColumn('BV.BOMID', 'BT.BOMID')
-                    ->where('BV.ITEMID', $itemId.'-1');
-            });
-
-        if ($inventSizeId !== null && trim($inventSizeId) !== '') {
-            $query->where('BT.TWINVENTSIZEID', trim($inventSizeId));
-        }
-
-        if ($salon !== null && trim($salon) !== '') {
-            $query->whereIn('BT.TWSALON', TelarSalonResolver::salonAliasesAx($salon));
-        } else {
-            $query->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx());
-        }
-
-        return $query->orderBy('BT.BOMID');
+        return (new BomCrudoRepository)->consulta($itemId, $inventSizeId, $salon);
     }
 
     /**
