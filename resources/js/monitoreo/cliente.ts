@@ -186,6 +186,10 @@ export function iniciar(op: Opciones): Telemetria | null {
   let timer: number | undefined
   let detenido = false
   let saliendo = false
+  let ultimoLatido = -Infinity
+  // Cambiar de pestaña o bloquear la tablet manda latido, pero no más de uno cada 15 s:
+  // cada latido carga Laravel, la sesión y una conexión a SQL Server.
+  const LATIDO_MIN_MS = 15_000
 
   const programar = (): void => {
     win.clearTimeout(timer)
@@ -194,6 +198,7 @@ export function iniciar(op: Opciones): Telemetria | null {
   }
 
   const latir = async (): Promise<void> => {
+    ultimoLatido = ahora()
     programar()
     try {
       const r = await enviar('/latido', {
@@ -331,7 +336,15 @@ export function iniciar(op: Opciones): Telemetria | null {
       visibleDesde = null
     }
     // Al navegar, el `hidden` llega después del pagehide: la página ya se fue.
-    if (!saliendo) void latir()
+    if (saliendo || detenido) return
+    const espera = LATIDO_MIN_MS - (ahora() - ultimoLatido)
+    if (espera <= 0) {
+      void latir()
+    } else {
+      // Muy pronto: se adelanta el próximo latido en vez de mandarlo ya (lleva el estado al día).
+      win.clearTimeout(timer)
+      timer = win.setTimeout(() => void latir(), espera)
+    }
   }
   const alSalir = (): void => {
     saliendo = true

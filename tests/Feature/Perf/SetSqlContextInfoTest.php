@@ -10,6 +10,7 @@ use Illuminate\Database\Connection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Lottery;
 use Laravel\Pulse\Facades\Pulse;
 use Mockery;
 use Tests\TestCase;
@@ -71,6 +72,7 @@ final class SetSqlContextInfoTest extends TestCase
         config()->set('monitoreo.enabled', true);
         config()->set('pulse.enabled', true);
         $this->conexionSqlsrv();
+        Lottery::alwaysWin(); // se muestrea 1/10
         Pulse::shouldReceive('record')
             ->once()
             ->with(ContextoSql::TIPO, 'livewire', Mockery::type('int'))
@@ -81,6 +83,7 @@ final class SetSqlContextInfoTest extends TestCase
         $request->headers->set('X-Livewire', '1');
 
         $header = $this->correr($request, new Response('ok'))->headers->get('Server-Timing');
+        Lottery::determineResultNormally();
 
         $this->assertMatchesRegularExpression('/^ctx;dur=\d+\.\d$/', $header);
     }

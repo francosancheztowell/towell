@@ -195,11 +195,27 @@ test('respeta el intervalo que devuelve el servidor (acotado a 15–900 s)', asy
 test('visibilitychange manda latido inmediato con visible:false', async () => {
   const env = entorno()
   await arrancar(env)
+  mock.timers.tick(15_000)
   env.doc.visibilityState = 'hidden'
   env.doc.dispatchEvent(new Event('visibilitychange'))
   await flush()
   assert.equal(env.de('/latido').at(-1).body.visible, false)
   assert.equal(env.timers.size, 1)
+})
+
+test('visibilitychange a menos de 15 s del último latido lo adelanta, no lo duplica', async () => {
+  const env = entorno()
+  await arrancar(env)
+  const antes = env.de('/latido').length
+  mock.timers.tick(5_000)
+  env.doc.visibilityState = 'hidden'
+  env.doc.dispatchEvent(new Event('visibilitychange'))
+  env.doc.visibilityState = 'visible'
+  env.doc.dispatchEvent(new Event('visibilitychange'))
+  await flush()
+  assert.equal(env.de('/latido').length, antes, 'no manda nada todavía')
+  assert.equal(env.timers.size, 1)
+  assert.equal(env.ultimoTimerMs(), 10_000)
 })
 
 test('cerrar:true del latido recarga la página (cierre remoto)', async () => {

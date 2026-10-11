@@ -2,6 +2,7 @@
 
 namespace App\Services\Monitoreo;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -112,51 +113,6 @@ class DispositivoService
     }
 
     /**
-     * Actualiza la actividad del dispositivo y de la sesión de monitoreo como
-     * máximo una vez cada touch_cache_seg por dispositivo (candado Cache::add).
-     */
-    public function touch(Request $request, int $usuarioId, ?string $ruta): void
-    {
-        $uuid = self::uuid($request);
-        if ($uuid === null) {
-            return;
-        }
-
-        Monitoreo::seguro('touch de dispositivo', function () use ($request, $uuid, $usuarioId, $ruta): void {
-            $segundos = max(1, (int) config('monitoreo.touch_cache_seg', 30));
-            if (! Cache::add('mon:touch:'.$uuid, 1, $segundos)) {
-                return;
-            }
-
-            $ahora = now();
-            $sesionId = $request->hasSession() ? $request->session()->get(SesionService::LLAVE_SESION) : null;
-
-            $datos = [
-                'UltimaActividad' => $ahora,
-                'UltimaIp' => Monitoreo::ip($request),
-                'UltimoUsuarioId' => $usuarioId,
-            ];
-            if ($ruta !== null) {
-                $datos['UltimaRuta'] = mb_substr($ruta, 0, 150);
-            }
-
-            $actualizados = DB::connection('sqlsrv')->table(self::TABLA)->where('Uuid', $uuid)->update($datos);
-
-            if ($actualizados === 0) {
-                $this->idPorUuid($uuid, $request);
-                DB::connection('sqlsrv')->table(self::TABLA)->where('Uuid', $uuid)->update($datos);
-            }
-
-            if (is_numeric($sesionId)) {
-                DB::connection('sqlsrv')->table('SYSMonSesion')
-                    ->where('Id', (int) $sesionId)
-                    ->whereNull('Fin')
-                    ->update(['UltimaActividad' => $ahora]);
-            }
-        });
-    }
-
-    /**
      * Actualiza columnas del dispositivo por uuid (latido, nombre). Devuelve filas afectadas.
      *
      * @param  array<string, mixed>  $datos
@@ -193,7 +149,7 @@ class DispositivoService
                 'Visible' => true,
                 'InactivoSeg' => 0,
             ], 'Id');
-        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+        } catch (UniqueConstraintViolationException) {
             // Dos requests simultáneas del mismo dispositivo nuevo: la otra ganó.
             $id = DB::connection('sqlsrv')->table(self::TABLA)->where('Uuid', $uuid)->value('Id');
 

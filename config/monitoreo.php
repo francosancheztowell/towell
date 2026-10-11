@@ -1,5 +1,13 @@
 <?php
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
 /*
  * Monitoreo de dispositivos, sesiones, navegación y errores.
  * Contrato: .planning/phases/11-mon-servidor/11-CONTRACT.md (§8).
@@ -12,7 +20,6 @@ return [
     'areas_admin' => array_filter(array_map('trim', explode(',', env('MONITOREO_AREAS_ADMIN', 'Sistemas')))),
 
     'latido_seg' => ['visible' => 60, 'oculta' => 300],
-    'touch_cache_seg' => 30,
     'en_linea_seg' => 150,
     'inactivo_seg' => 600,
     'sesion_expira_min' => 120,
@@ -27,13 +34,13 @@ return [
         'throttle_cliente_min' => 30,
         // Excepciones que no se registran (además del dontReport interno de Laravel).
         'ignorar' => [
-            Illuminate\Validation\ValidationException::class,
-            Illuminate\Auth\AuthenticationException::class,
-            Illuminate\Auth\Access\AuthorizationException::class,
-            Illuminate\Session\TokenMismatchException::class,
-            Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
-            Illuminate\Database\Eloquent\ModelNotFoundException::class,
-            Illuminate\Http\Exceptions\ThrottleRequestsException::class,
+            ValidationException::class,
+            AuthenticationException::class,
+            AuthorizationException::class,
+            TokenMismatchException::class,
+            NotFoundHttpException::class,
+            ModelNotFoundException::class,
+            ThrottleRequestsException::class,
         ],
     ],
 
