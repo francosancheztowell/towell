@@ -34,7 +34,7 @@ interface Respuesta {
     errors?: Record<string, string[]>;
 }
 
-const CLASES_SELECCION = ['selected', 'bg-blue-500', 'text-white', 'hover:bg-blue-600'];
+const CLASES_SELECCION = ['selected', 'bg-blue-500!', 'text-white', 'hover:bg-blue-600'];
 
 /** El servidor responde 4xx con el mismo JSON { ok:false, message }; sin status es fallo de red. */
 async function enviar(url: string, datos: FormData): Promise<Respuesta> {
