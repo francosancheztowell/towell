@@ -1391,7 +1391,7 @@ class OrdenDeCambioFelpaController extends Controller
             $noTelarId = $registro->NoTelarId ?? '';
 
             $catCodificado = CatCodificados::query()
-                ->where('OrdenTejido', $noProduccion)
+                ->ordenesTejido([$noProduccion])
                 ->where('TelarId', $noTelarId)
                 ->first();
 
