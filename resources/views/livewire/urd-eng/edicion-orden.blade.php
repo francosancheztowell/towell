@@ -30,17 +30,25 @@
      @endif
      data-ruta-lote="{{ route('programa.urd.eng.buscar.lote.proveedor') }}"
 >
+    {{-- Diálogos en <dialog> nativo (aspecto de notify.confirm): Esc/fondo cierran y el cierre
+         descarta. wire:ignore.self evita que un refresco le quite `open`. --}}
     @if ($pendiente === 'NoTelas')
-        <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
-            <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true">
-                <h2 class="text-base font-semibold text-gray-900">Confirmar cambio</h2>
-                <p class="mt-2 text-sm text-gray-700">{{ $pendienteMensaje }}</p>
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" wire:click="descartarPendiente" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">Cancelar</button>
-                    <button type="button" wire:click="confirmarNoTelas" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Confirmar</button>
+        <dialog wire:key="pendiente-notelas" wire:ignore.self x-data x-init="$el.showModal()"
+                x-on:close="$wire.descartarPendiente()" x-on:click="if ($event.target === $el) $el.close()"
+                aria-labelledby="pendiente-titulo" class="ui-dialogo">
+            <div class="ui-dialogo__cuerpo">
+                <div class="ui-dialogo__textos">
+                    <h2 id="pendiente-titulo" class="ui-dialogo__titulo">Confirmar cambio</h2>
+                    <p class="ui-dialogo__texto">{{ $pendienteMensaje }}</p>
+                </div>
+                <div class="ui-dialogo__botones">
+                    <button type="button" class="ui-dialogo__boton ui-dialogo__boton--secundario"
+                            x-on:click="$el.closest('dialog').close()">Cancelar</button>
+                    <button type="button" wire:click="confirmarNoTelas" wire:loading.attr="data-ocupado" wire:target="confirmarNoTelas"
+                            class="ui-dialogo__boton ui-dialogo__boton--primario">Confirmar</button>
                 </div>
             </div>
-        </div>
+        </dialog>
     @endif
 
     @unless($puedeEditar)
@@ -60,16 +68,24 @@
     @endif
 
     @if ($avisoTipo === 'error' && $aviso !== '')
-        <div class="fixed inset-0 flex items-center justify-center bg-slate-900/40 p-4" style="z-index: 9999">
-            <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="alertdialog" aria-modal="true">
-                <h2 class="text-base font-semibold text-gray-900">No se guardó</h2>
-                <p class="mt-2 text-sm text-gray-700">{{ $aviso }}</p>
-                <div class="mt-4 flex justify-end">
-                    <button type="button" wire:click="$set('aviso', '')" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Cerrar</button>
+        <dialog wire:key="aviso-error" wire:ignore.self x-data x-init="$el.showModal()"
+                x-on:close="$wire.set('aviso', '')" x-on:click="if ($event.target === $el) $el.close()"
+                role="alertdialog" aria-labelledby="aviso-titulo" class="ui-dialogo">
+            <div class="ui-dialogo__cuerpo">
+                <div class="ui-dialogo__textos">
+                    <h2 id="aviso-titulo" class="ui-dialogo__titulo">No se guardó</h2>
+                    <p class="ui-dialogo__texto">{{ $aviso }}</p>
+                </div>
+                <div class="ui-dialogo__botones">
+                    <button type="button" class="ui-dialogo__boton ui-dialogo__boton--primario" autofocus
+                            x-on:click="$el.closest('dialog').close()">Cerrar</button>
                 </div>
             </div>
-        </div>
+        </dialog>
     @endif
+
+    <p wire:loading.delay role="status"
+       class="fixed bottom-4 right-4 z-50 rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white shadow">Guardando…</p>
 
     @if ($aviso !== '')
         <div class="mb-2 rounded border px-3 py-2 text-sm {{ $avisoTipo === 'error' ? 'border-red-300 bg-red-50 text-red-800' : 'border-green-300 bg-green-50 text-green-800' }}">
