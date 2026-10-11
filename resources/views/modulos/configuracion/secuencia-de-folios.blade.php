@@ -14,7 +14,20 @@
 <div class="w-full px-4 py-4">
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-auto max-h-[calc(100vh-12rem)]">
-            <table class="min-w-full text-base" id="tabla-secuencia">
+            <table class="min-w-full text-base" id="tabla-secuencia"
+                   data-crud='@json([
+                       'store' => route('configuracion.secuencia-folios.store'),
+                       'update' => route('configuracion.secuencia-folios.update', ['id' => ':id']),
+                       'destroy' => route('configuracion.secuencia-folios.destroy', ['id' => ':id']),
+                       'campos' => ['Modulo', 'Prefijo', 'Consecutivo'],
+                       'llaveId' => 'Id',
+                       'tituloNuevo' => 'Nueva secuencia',
+                       'tituloEditar' => 'Editar secuencia',
+                       'tituloEliminar' => '¿Eliminar secuencia?',
+                       'campoNombre' => 'Modulo',
+                       'nombrePorDefecto' => 'esta secuencia',
+                       'vacio' => 'No hay registros de secuencia.',
+                   ])'>
                 <thead class="sticky top-0 z-10 bg-blue-500 text-white shadow-sm">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Id</th>
@@ -72,7 +85,7 @@
                 </div>
                 <div>
                     <label for="Consecutivo" class="block text-sm font-medium text-gray-700 mb-1">Consecutivo <span class="text-red-500">*</span></label>
-                    <input type="number" name="Consecutivo" id="Consecutivo" min="0" required class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0">
+                    <input type="number" name="Consecutivo" id="Consecutivo" value="0" min="0" required class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0">
                 </div>
             </div>
             <div class="mt-6 flex gap-2 justify-end">
@@ -83,173 +96,8 @@
     </div>
 </div>
 
-<script>
-(function(){
-    const modal = document.getElementById('modal-form');
-    const form = document.getElementById('form-secuencia');
-    const modalTitle = document.getElementById('modal-title');
-    const formMethod = document.getElementById('form-method');
-    const tbody = document.getElementById('tbody-secuencia');
-    const trEmpty = document.getElementById('tr-empty');
-    const storeUrl = @json(route('configuracion.secuencia-folios.store'));
-    const updateUrlTpl = @json(route('configuracion.secuencia-folios.update', ['id' => ':id']));
-    const destroyUrlTpl = @json(route('configuracion.secuencia-folios.destroy', ['id' => ':id']));
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-    let selectedRow = null;
-
-    function openModal() {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-    function closeModal() {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-
-    function setActionsState(hasSelection) {
-        document.getElementById('btn-editar').disabled = !hasSelection;
-        document.getElementById('btn-eliminar').disabled = !hasSelection;
-    }
-
-    function clearSelection() {
-        document.querySelectorAll('.seq-row.selected').forEach(r => {
-            r.classList.remove('selected', 'bg-blue-500', 'text-white', 'hover:bg-blue-600');
-            r.classList.add('hover:bg-gray-50');
-        });
-        document.querySelectorAll('.seq-row td').forEach(td => td.classList.remove('text-white'));
-        selectedRow = null;
-        setActionsState(false);
-    }
-
-    function selectRow(tr) {
-        clearSelection();
-        if (!tr || !tr.classList.contains('seq-row')) return;
-        tr.classList.remove('hover:bg-gray-50');
-        tr.classList.add('selected', 'bg-blue-500', 'text-white', 'hover:bg-blue-600');
-        tr.querySelectorAll('td').forEach(td => td.classList.add('text-white'));
-        selectedRow = tr;
-        setActionsState(true);
-    }
-
-    tbody?.addEventListener('click', function(e) {
-        const tr = e.target.closest('tr.seq-row');
-        if (tr) selectRow(tr);
-    });
-
-    document.getElementById('btn-nuevo').addEventListener('click', function(){
-        modalTitle.textContent = 'Nueva secuencia';
-        form.action = storeUrl;
-        formMethod.value = 'POST';
-        form.reset();
-        document.getElementById('Consecutivo').value = '0';
-        openModal();
-    });
-
-    document.getElementById('btn-editar').addEventListener('click', function(){
-        if (!selectedRow) return;
-        modalTitle.textContent = 'Editar secuencia';
-        const id = selectedRow.dataset.id;
-        form.action = updateUrlTpl.replace(':id', id);
-        formMethod.value = 'PUT';
-        document.getElementById('Modulo').value = selectedRow.dataset.modulo || '';
-        document.getElementById('Prefijo').value = selectedRow.dataset.prefijo || '';
-        document.getElementById('Consecutivo').value = selectedRow.dataset.consecutivo || '0';
-        openModal();
-    });
-
-    document.getElementById('btn-eliminar').addEventListener('click', function(){
-        if (!selectedRow) return;
-        const id = selectedRow.dataset.id;
-        const modulo = selectedRow.dataset.modulo || 'esta secuencia';
-        notify.confirm({
-            title: '¿Eliminar secuencia?',
-            text: 'Se eliminará "' + modulo + '".',
-            icon: 'warning',
-            confirmColor: '#dc2626',
-            confirmText: 'Sí, eliminar',
-            cancelText: 'Cancelar'
-        }).then(async function(r) {
-            if (!r) return;
-            try {
-                const fd = new FormData();
-                fd.append('_token', csrf);
-                fd.append('_method', 'DELETE');
-                let data;
-                try { data = await http.post(destroyUrlTpl.replace(':id', id), fd); }
-                catch (e) { if (!e.status) throw e; data = e.data || {}; }
-                if (data.ok) {
-                    selectedRow.remove();
-                    selectedRow = null;
-                    setActionsState(false);
-                    if (tbody.querySelectorAll('tr.seq-row').length === 0) {
-                        const empty = document.createElement('tr');
-                        empty.id = 'tr-empty';
-                        empty.innerHTML = '<td colspan="4" class="px-4 py-8 text-center text-gray-500 text-base">No hay registros de secuencia.</td>';
-                        tbody.appendChild(empty);
-                    }
-                    notify.success(data.message || 'Eliminado');
-                } else {
-                    notify.alert('', data.message || 'No se pudo eliminar', 'error');
-                }
-            } catch (err) {
-                notify.alert('', 'Error de conexión', 'error');
-            }
-        });
-    });
-
-    document.getElementById('modal-cerrar').addEventListener('click', closeModal);
-    document.getElementById('form-cancelar').addEventListener('click', closeModal);
-
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const url = form.action;
-        const isPut = formMethod.value === 'PUT';
-        const body = new FormData(form);
-
-        const submitBtn = document.getElementById('form-submit');
-        submitBtn.disabled = true;
-
-        try {
-            let data;
-            try { data = await http.post(url, body); }
-            catch (e) { if (!e.status) throw e; data = e.data || {}; }
-
-            if (data.ok) {
-                closeModal();
-                const item = data.item || {};
-                if (isPut && selectedRow) {
-                    selectedRow.dataset.modulo = item.Modulo ?? '';
-                    selectedRow.dataset.prefijo = item.Prefijo ?? '';
-                    selectedRow.dataset.consecutivo = String(item.Consecutivo ?? 0);
-                    selectedRow.cells[0].textContent = item.Id ?? '';
-                    selectedRow.cells[1].textContent = item.Modulo ?? '—';
-                    selectedRow.cells[2].textContent = item.Prefijo ?? '—';
-                    selectedRow.cells[3].textContent = item.Consecutivo ?? '—';
-                } else {
-                    if (trEmpty) trEmpty.remove();
-                    const even = tbody.querySelectorAll('tr.seq-row').length % 2 === 0;
-                    const tr = document.createElement('tr');
-                    tr.className = 'seq-row border-b border-gray-100 hover:bg-gray-50 cursor-pointer ' + (even ? 'bg-gray-50/50' : '');
-                    tr.dataset.id = item.Id;
-                    tr.dataset.modulo = item.Modulo ?? '';
-                    tr.dataset.prefijo = item.Prefijo ?? '';
-                    tr.dataset.consecutivo = String(item.Consecutivo ?? 0);
-                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.Modulo ?? '—') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Prefijo ?? '—') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Consecutivo ?? '—') + '</td>';
-                    tbody.appendChild(tr);
-                }
-                notify.success(data.message || 'Guardado');
-            } else {
-                const msg = (data.errors && Object.values(data.errors).flat().length) ? Object.values(data.errors).flat().join(' ') : (data.message || 'No se pudo guardar');
-                notify.alert('', msg, 'error');
-            }
-        } catch (err) {
-            notify.alert('', 'Error de conexión', 'error');
-        }
-        submitBtn.disabled = false;
-    });
-
-    setActionsState(false);
-})();
-</script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/configuracion/catalogo-simple/index.ts')
+@endpush

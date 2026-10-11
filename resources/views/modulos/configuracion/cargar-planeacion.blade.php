@@ -7,7 +7,10 @@
     <!-- Panel principal blanco -->
     <div class="bg-white shadow-xl overflow-hidden rounded-2xl mt-1">
         <div class="p-4">
-            <form id="excelForm" enctype="multipart/form-data" class="max-w-2xl mx-auto">
+            <form id="excelForm" enctype="multipart/form-data" class="max-w-2xl mx-auto"
+                  data-ruta-upload="{{ route('configuracion.cargar.planeacion.upload') }}"
+                  data-ruta-update="{{ route('configuracion.utileria.cargar-planeacion.upload-update') }}"
+                  data-ruta-programa="{{ route('catalogos.req-programa-tejido') }}">
                 @csrf
                 <!-- Zona de carga de archivo -->
                 <div class="mb-4">
@@ -78,7 +81,7 @@
 
                 <!-- Botones -->
                 <div class="flex justify-center space-x-3">
-                    <button type="button" onclick="window.history.back()"
+                    <button type="button" data-volver
                             class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors">
                         <i class="fas fa-arrow-left mr-1"></i>
                         Volver
@@ -102,178 +105,8 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const fileInput = document.getElementById('excel_file');
-    const fileInfo = document.getElementById('file-info');
-    const fileName = document.getElementById('file-name');
-    const fileSize = document.getElementById('file-size');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const form = document.getElementById('excelForm');
-    const progressSection = document.getElementById('progress-section');
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
-
-    // Manejar cambio de modo
-    const modoActualizacion = document.getElementById('modoActualizacion');
-    const modoTexto = document.getElementById('modo-texto');
-    
-    modoActualizacion.addEventListener('change', function() {
-        if (this.checked) {
-            modoTexto.textContent = 'Datos se actualizarán en la tabla ReqProgramaTejido (NO se eliminarán registros existentes)';
-        } else {
-            modoTexto.textContent = 'Datos se importarán a la tabla ReqProgramaTejido (se eliminarán registros existentes)';
-        }
-    });
-
-    // Manejar selección de archivo
-    fileInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            fileName.textContent = file.name;
-            fileSize.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-            fileInfo.classList.remove('hidden');
-            uploadBtn.disabled = false;
-        } else {
-            fileInfo.classList.add('hidden');
-            uploadBtn.disabled = true;
-        }
-    });
-
-    // Manejar envío del formulario
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const file = fileInput.files[0];
-        if (!file) {
-            notify.alert('Por favor selecciona un archivo Excel', 'Archivo requerido', 'warning');
-            return;
-        }
-
-        // Validar tipo de archivo
-        const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
-        if (!allowedTypes.includes(file.type)) {
-            notify.alert('Por favor selecciona un archivo Excel válido (.xlsx o .xls)', 'Tipo de archivo inválido', 'error');
-            return;
-        }
-
-        // Validar tamaño (10MB)
-        const maxSize = 10 * 1024 * 1024;
-        if (file.size > maxSize) {
-            notify.alert('El archivo es demasiado grande. Máximo 10MB permitido.', 'Archivo demasiado grande', 'error');
-            return;
-        }
-
-        // Mostrar progreso
-        progressSection.classList.remove('hidden');
-        uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
-
-        // Crear FormData
-        const formData = new FormData();
-        formData.append('excel_file', file);
-
-        // Obtener token CSRF
-        const csrfToken = document.querySelector('meta[name="csrf-token"]');
-        if (csrfToken) {
-            formData.append('_token', csrfToken.getAttribute('content'));
-        }
-
-        // Simular progreso
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-            progress += Math.random() * 15;
-            if (progress > 90) progress = 90;
-            progressBar.style.width = progress + '%';
-        }, 200);
-
-        // Determinar ruta según modo de actualización
-        const esModoActualizacion = modoActualizacion.checked;
-        const ruta = esModoActualizacion 
-            ? '/configuracion/utileria/cargarplaneacion/upload-update'
-            : '/configuracion/cargar-planeacion/upload';
-
-        // NOTA: se mantiene fetch (no http) a propósito: este handler parsea la
-        // respuesta como texto crudo y tolera respuestas no-JSON (ver abajo).
-        fetch(ruta, {
-            method: 'POST',
-            body: formData
-        })
-        .then(async (response) => {
-            const rawText = await response.text();
-            let parsed = null;
-            try { parsed = rawText ? JSON.parse(rawText) : null; } catch (_) { /* texto plano */ }
-
-            if (!response.ok) {
-                const serverMsg = parsed && (parsed.message || parsed.error) ? (parsed.message || parsed.error) : rawText;
-                throw new Error(`HTTP ${response.status} - ${serverMsg || response.statusText}`);
-            }
-
-            if (!parsed) {
-                throw new Error('Respuesta no es JSON válido: ' + rawText.substring(0, 200));
-                }
-            return parsed;
-        })
-        .then(data => {
-            clearInterval(progressInterval);
-            progressBar.style.width = '100%';
-
-            if (data.success) {
-                progressText.textContent = '¡Archivo procesado exitosamente!';
-                progressBar.classList.remove('bg-blue-600');
-                progressBar.classList.add('bg-green-600');
-
-                setTimeout(() => {
-                    const titulo = esModoActualizacion 
-                        ? '¡Archivo actualizado exitosamente!'
-                        : '¡Archivo procesado exitosamente!';
-                    
-                    const htmlContent = esModoActualizacion
-                        ? `
-                            <div class="text-left">
-                                <p><strong>Registros procesados:</strong> ${data.processed || 0}</p>
-                                <p><strong>Registros actualizados:</strong> ${data.updated || 0}</p>
-                                <p><strong>Registros creados:</strong> ${data.created || 0}</p>
-                                <p><strong>Registros omitidos:</strong> ${data.skipped || 0}</p>
-                                <hr class="my-3">
-                                <p><strong>Total antes:</strong> ${data.total_before || 0}</p>
-                                <p><strong>Total después:</strong> ${data.total_after || 0}</p>
-                                <p class="text-xs text-gray-500 mt-2">Nota: Las fechas y EnProceso fueron recalculadas para cada telar.</p>
-                            </div>
-                        `
-                        : `
-                            <div class="text-left">
-                                <p><strong>Registros eliminados:</strong> ${data.deleted || 0}</p>
-                                <p><strong>Registros procesados:</strong> ${data.processed || 0}</p>
-                                <p><strong>Registros creados:</strong> ${data.created || 0}</p>
-                                <p><strong>Registros omitidos:</strong> ${data.skipped || 0}</p>
-                                <hr class="my-3">
-                                <p><strong>Total antes:</strong> ${data.total_before || 0}</p>
-                                <p><strong>Total después:</strong> ${data.total_after || 0}</p>
-                            </div>
-                        `;
-
-                    notify.html(htmlContent, titulo, 'success').then(() => {
-                        window.location.href = '/planeacion/programa-tejido';
-                    });
-                }, 1000);
-            } else {
-                throw new Error(data.message || 'Error al procesar el archivo');
-            }
-        })
-        .catch(error => {
-            clearInterval(progressInterval);
-            progressText.textContent = 'Error al procesar el archivo';
-            progressBar.classList.remove('bg-blue-600');
-            progressBar.classList.add('bg-red-600');
-
-            notify.alert((error && error.message) ? error.message : 'Error desconocido', 'Error al procesar el archivo', 'error');
-
-            // Resetear botón
-            uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '<i class="fas fa-upload mr-1"></i>Procesar Excel';
-        });
-    });
-});
-</script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/configuracion/cargar-planeacion/index.ts')
+@endpush
