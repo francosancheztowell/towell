@@ -873,10 +873,19 @@ class MarcasController extends Controller
         $tablas = [];
         $telaresSecuencia = $this->obtenerSecuenciaTelares()->pluck('NoTelarId');
 
+        // Folios y líneas de los tres turnos en dos consultas, no seis.
+        $foliosPorTurno = TejMarcas::where('Date', $fechaNorm)
+            ->whereIn('Turno', [1, 2, 3])
+            ->get()
+            ->unique('Turno')
+            ->keyBy('Turno');
+        $lineasPorFolio = TejMarcasLine::whereIn('Folio', $foliosPorTurno->pluck('Folio')->all())
+            ->orderBy('NoTelarId')
+            ->get()
+            ->groupBy(fn ($linea) => trim((string) $linea->Folio));
+
         foreach ([1, 2, 3] as $turno) {
-            $folioTurno = TejMarcas::where('Date', $fechaNorm)
-                ->where('Turno', $turno)
-                ->first();
+            $folioTurno = $foliosPorTurno->get($turno);
 
             if (! $folioTurno) {
                 $tablas[] = [
@@ -891,10 +900,7 @@ class MarcasController extends Controller
                 continue;
             }
 
-            $lineas = TejMarcasLine::where('Folio', $folioTurno->Folio)
-                ->orderBy('NoTelarId')
-                ->get()
-                ->keyBy('NoTelarId');
+            $lineas = $lineasPorFolio->get(trim((string) $folioTurno->Folio), collect())->keyBy('NoTelarId');
 
             $tablas[] = [
                 'turno' => $turno,
