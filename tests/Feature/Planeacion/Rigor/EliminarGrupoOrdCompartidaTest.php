@@ -150,8 +150,8 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
             'EnProceso' => 0, 'Ultimo' => '1',
             // Queda solo: deja de ser grupo (null/null, como desvincular con 2).
             'OrdCompartida' => null, 'OrdCompartidaLider' => null, 'OrdPrincipal' => 50010,
-            // CARACTERIZA: Saldo = (400 + 1000) - Produccion(50) = 1350, ignora %seg=10 (regla: Pedido×1.1−Prod = 1490).
-            'TotalPedido' => 1400.0, 'SaldoPedido' => 1350.0,
+            // Regla del owner: Saldo = Pedido × (1 + %seg/100) − Producción = 1400 × 1.10 − 50.
+            'TotalPedido' => 1400.0, 'SaldoPedido' => 1490.0,
         ], $this->estado(11));
     }
 
@@ -178,32 +178,26 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
         ], $this->estado(21));
     }
 
-    public function test_borrar_al_lider_en_grupo_de_tres_transfiere_al_de_fecha_inicio_mas_reciente(): void
+    public function test_borrar_al_lider_en_grupo_de_tres_transfiere_al_mas_antiguo_con_no_produccion(): void
     {
         $this->borrar(10)->assertOk()->assertJsonPath('success', true)->assertJsonPath('telares_afectados', 2);
 
-        // CARACTERIZA: el receptor es el ÚLTIMO por FechaInicio (C, Id 12, sin NoProduccion),
-        // no el que elegiría OrdCompartida::seleccionarLider (B, Id 11: más antiguo con NoProduccion).
-        $this->assertSame([
-            'NoTelarId' => '303', 'Posicion' => 2,
-            'FechaInicio' => '2026-09-12 08:00:00', 'FechaFinal' => '2026-09-13 08:00:00',
-            'EnProceso' => 0, 'Ultimo' => '1',
-            'OrdCompartida' => self::GRUPO, 'OrdCompartidaLider' => 1, 'OrdPrincipal' => 50010,
-            // CARACTERIZA: 300 + 1000 − 0 = 1300, ignora %seg (con %seg sería 1430).
-            'TotalPedido' => 1300.0, 'SaldoPedido' => 1300.0,
-        ], $this->estado(12));
+        // Regla del owner (la de Dividir/Duplicar/Vincular): el nuevo líder es B (Id 11), el de
+        // FechaInicio más antigua con NoProduccion; C (Id 12) no tiene NoProduccion.
+        $b = $this->estado(11);
+        $this->assertSame(
+            ['OrdCompartida' => self::GRUPO, 'OrdCompartidaLider' => 1, 'OrdPrincipal' => 50010, 'TotalPedido' => 1400.0, 'SaldoPedido' => 1490.0],
+            array_intersect_key($b, array_flip(['OrdCompartida', 'OrdCompartidaLider', 'OrdPrincipal', 'TotalPedido', 'SaldoPedido']))
+        );
+        // Fechas: sin modelo codificado en el fixture la duración sale del HorasProd guardado.
+        $this->assertSame(['2026-09-11 20:00:00', '2026-09-12 20:00:00'], [$b['FechaInicio'], $b['FechaFinal']]);
 
-        // B queda intacto (sigue no-líder) y el grupo conserva OrdCompartida/OrdPrincipal del líder borrado.
-        $this->assertSame([
-            'NoTelarId' => '302', 'Posicion' => 2,
-            'FechaInicio' => '2026-09-11 20:00:00', 'FechaFinal' => '2026-09-12 20:00:00',
-            'EnProceso' => 0, 'Ultimo' => '1',
-            'OrdCompartida' => self::GRUPO, 'OrdCompartidaLider' => 0, 'OrdPrincipal' => 50010,
-            'TotalPedido' => 400.0, 'SaldoPedido' => 390.0,
-        ], $this->estado(11));
+        // C queda igual, como no-líder.
+        $c = $this->estado(12);
+        $this->assertSame([0, 300.0], [$c['OrdCompartidaLider'], $c['TotalPedido']]);
     }
 
-    public function test_el_receptor_al_borrar_al_lider_no_coincide_con_seleccionar_lider(): void
+    public function test_el_receptor_al_borrar_al_lider_coincide_con_seleccionar_lider(): void
     {
         $miembros = ReqProgramaTejido::query()->whereIn('Id', [11, 12])->get();
         $esperadoPorRegla = OrdCompartida::seleccionarLider($miembros);
@@ -212,8 +206,8 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
         $this->borrar(10)->assertOk();
 
         $lideres = DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)->where('OrdCompartidaLider', 1)->pluck('Id')->map(fn ($i) => (int) $i)->all();
-        // CARACTERIZA: queda líder Id 12 (sin NoProduccion: no podría ser líder según seleccionarLider).
-        $this->assertSame([12], $lideres);
+        // Un solo líder y es el que elige OrdCompartida::seleccionarLider.
+        $this->assertSame([(int) $esperadoPorRegla->Id], $lideres);
     }
 
     // ---- borrar a un no-líder -------------------------------------------------------
@@ -230,8 +224,8 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
             'FechaInicio' => '2026-09-11 08:00:00', 'FechaFinal' => '2026-09-12 08:00:00',
             'EnProceso' => 0, 'Ultimo' => '0',
             'OrdCompartida' => self::GRUPO, 'OrdCompartidaLider' => 1, 'OrdPrincipal' => 50010,
-            // CARACTERIZA: (1000 + 400) − Produccion(100) = 1300, ignora %seg (con %seg: 1440).
-            'TotalPedido' => 1400.0, 'SaldoPedido' => 1300.0,
+            // Regla del owner: (1000 + 400) × 1.10 − Produccion(100) = 1440.
+            'TotalPedido' => 1400.0, 'SaldoPedido' => 1440.0,
         ], $this->estado(10));
         $this->assertSame([22], $this->idsTelar('302'));
         $this->assertSame([12], DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)->where('OrdCompartidaLider', 0)->pluck('Id')->map(fn ($i) => (int) $i)->all());

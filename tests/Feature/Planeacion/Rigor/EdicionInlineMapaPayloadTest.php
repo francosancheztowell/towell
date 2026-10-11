@@ -510,7 +510,7 @@ class EdicionInlineMapaPayloadTest extends TestCase
 
     // ------------------------------------------------------------------ reglas de negocio
 
-    public function test_editar_pedido_recalcula_saldo_como_pedido_menos_produccion_sin_porcentaje_de_segundas(): void
+    public function test_editar_pedido_recalcula_saldo_con_porcentaje_de_segundas(): void
     {
         foreach (['off', 'on'] as $modo) {
             $this->modo($modo);
@@ -521,9 +521,8 @@ class EdicionInlineMapaPayloadTest extends TestCase
 
             $fila = $this->fila('ReqProgramaTejido', 2);
             $this->assertEquals(1000, $fila['TotalPedido']);
-            // CARACTERIZA: la regla confirmada es Saldo = Pedido×(1+%seg/100)−Producción = 950;
-            // la edición inline guarda max(0, Pedido − Producción) = 900.
-            $this->assertEquals(900, $fila['SaldoPedido'], $modo);
+            // Regla del owner: Saldo = Pedido × (1 + %seg/100) − Producción = 1000 × 1.05 − 100 = 950.
+            $this->assertEquals(950, $fila['SaldoPedido'], $modo);
         }
     }
 

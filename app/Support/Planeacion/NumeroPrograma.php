@@ -14,6 +14,26 @@ final class NumeroPrograma
         return self::sanitizeNullableNumber($value) ?? 0.0;
     }
 
+    /**
+     * Saldo = Pedido × (1 + %segundas/100) − Producción, sin negativos. Regla confirmada por el
+     * owner (2026-10-10) para TODAS las pantallas: Dividir, Duplicar, Eliminar, Balancear y edición.
+     */
+    public static function saldoDesdePedido(float $pedido, float $produccion, mixed $porcSegundos): float
+    {
+        return max(0.0, round($pedido * self::factorSegundas($porcSegundos) - $produccion, 2));
+    }
+
+    /** Inverso de saldoDesdePedido: el pedido que deja ese saldo pendiente. */
+    public static function pedidoDesdeSaldo(float $saldo, float $produccion, mixed $porcSegundos): float
+    {
+        return round(($saldo + $produccion) / self::factorSegundas($porcSegundos), 2);
+    }
+
+    private static function factorSegundas(mixed $porcSegundos): float
+    {
+        return 1 + max(0.0, self::sanitizeNumber($porcSegundos)) / 100;
+    }
+
     /** Null, '' y lo no numérico valen null. */
     public static function sanitizeNullableNumber($value): ?float
     {

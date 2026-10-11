@@ -33,6 +33,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Planeacion\TelarSalonResolver;
@@ -236,12 +237,14 @@ class FinalizarOrdenesController extends Controller
                             ->first();
 
                         if (! $lider) {
-                            $lider = ReqProgramaTejido::query()
+                            // Mismo criterio que Dividir/Duplicar/Vincular/Eliminar: el más antiguo con NoProduccion.
+                            $restantes = ReqProgramaTejido::query()
                                 ->where('OrdCompartida', $ordCompartida)
                                 ->where('Id', '!=', $registro->Id)
                                 ->orderBy('FechaInicio', 'asc')
                                 ->lockForUpdate()
-                                ->first();
+                                ->get();
+                            $lider = OrdCompartida::seleccionarLider($restantes) ?? $restantes->first();
                             if ($lider) {
                                 $lider->OrdCompartidaLider = 1;
                             }

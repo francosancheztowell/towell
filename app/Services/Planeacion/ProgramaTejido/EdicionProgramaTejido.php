@@ -9,6 +9,7 @@ use App\Services\Planeacion\ProgramaTejido\Edicion\Campos;
 use App\Services\Planeacion\ProgramaTejido\Edicion\ClaveModelo;
 use App\Services\Planeacion\ProgramaTejido\Edicion\Derivados;
 use App\Services\Planeacion\ProgramaTejido\Edicion\Persistencia;
+use App\Support\Planeacion\NumeroPrograma;
 use Carbon\Carbon;
 
 /**
@@ -104,7 +105,7 @@ final class EdicionProgramaTejido
         if (array_key_exists('pedido', $data) && $data['pedido'] !== null) {
             $totalPedido = (float) $data['pedido'];
             $registro->TotalPedido = $totalPedido;
-            $registro->SaldoPedido = max(0, $totalPedido - (float) ($registro->Produccion ?? 0));
+            $registro->SaldoPedido = NumeroPrograma::saldoDesdePedido($totalPedido, (float) ($registro->Produccion ?? 0), $registro->PorcentajeSegundos);
             $flags['afectaDuracion'] = $flags['afectaFormulas'] = true;
         }
 

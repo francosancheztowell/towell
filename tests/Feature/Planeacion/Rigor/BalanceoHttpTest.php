@@ -215,15 +215,14 @@ class BalanceoHttpTest extends TestCase
         $this->assertFila(3, ['TotalPedido' => 700.0, 'SaldoPedido' => 500.0, 'Produccion' => 200.0, 'FechaFinal' => '2026-09-12 10:00:00']);
     }
 
-    public function test_actualizar_pedidos_ignora_el_porcentaje_de_segundas_al_derivar_el_saldo(): void
+    public function test_actualizar_pedidos_incluye_el_porcentaje_de_segundas_en_el_saldo(): void
     {
         DB::table('ReqProgramaTejido')->where('Id', 4)->update(['PorcentajeSegundos' => 10]);
 
         $this->enviar('actualizar-pedidos-balanceo', $this->payload([4 => 400]))->assertOk();
 
-        // CARACTERIZA: la regla confirmada es Saldo = Pedido×(1+%seg/100)−Producción = 440, pero
-        // resolverTotalSaldo() hace Saldo = Pedido − Producción y deja 400 (y 40 h en vez de 44 h).
-        $this->assertFila(4, ['TotalPedido' => 400.0, 'SaldoPedido' => 400.0, 'FechaFinal' => '2026-09-12 22:00:00']);
+        // Regla del owner: Saldo = Pedido × (1 + %seg/100) − Producción = 400 × 1.10 = 440 (44 h, no 40 h).
+        $this->assertFila(4, ['TotalPedido' => 400.0, 'SaldoPedido' => 440.0, 'FechaFinal' => '2026-09-13 02:00:00']);
     }
 
     public function test_actualizar_pedidos_no_exige_que_se_conserve_la_suma_del_grupo(): void

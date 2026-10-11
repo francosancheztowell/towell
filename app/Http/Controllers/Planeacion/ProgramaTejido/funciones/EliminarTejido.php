@@ -8,7 +8,9 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\ProgramaTejidoSecuenciaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
+use App\Support\Planeacion\NumeroPrograma;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -455,16 +457,11 @@ class EliminarTejido
             $totalPedidoAEliminar = (float) ($registro->TotalPedido ?? 0);
 
             if ($esLider) {
-                // Si es el líder, transferir al otro registro o al último
-                if ($registrosCompartidos->count() == 2) {
-                    // Si hay solo 2, transferir al otro
-                    $receptor = $registrosCompartidos->firstWhere('Id', '!=', $registro->Id);
-                } else {
-                    // Si hay más de 2, transferir al último (que no sea el que se elimina)
-                    $receptor = $registrosCompartidos->filter(function ($r) use ($registro) {
-                        return $r->Id !== $registro->Id;
-                    })->last();
-                }
+                // Nuevo líder con la misma regla que Dividir/Duplicar/Vincular: el de FechaInicio más
+                // antigua que tenga NoProduccion (confirmada por el owner 2026-10-10). Si ninguno tiene
+                // NoProduccion, el más antiguo (la consulta viene ordenada por FechaInicio).
+                $restantes = $registrosCompartidos->reject(fn ($r) => $r->Id === $registro->Id)->values();
+                $receptor = OrdCompartida::seleccionarLider($restantes) ?? $restantes->first();
 
                 if (! $receptor || $receptor->Id === $registro->Id) {
                     throw MutacionRechazada::con(['success' => false, 'message' => 'No se encontró el registro receptor para transferir el pedido.']);
@@ -476,7 +473,7 @@ class EliminarTejido
 
                 // Calcular nuevo SaldoPedido considerando la producción
                 $produccionReceptor = (float) ($receptor->Produccion ?? 0);
-                $nuevoSaldoPedido = max(0, $nuevoTotalPedido - $produccionReceptor);
+                $nuevoSaldoPedido = NumeroPrograma::saldoDesdePedido($nuevoTotalPedido, $produccionReceptor, $receptor->PorcentajeSegundos);
 
                 // Actualizar receptor: TotalPedido, SaldoPedido y convertirlo en líder
                 $receptorActualizado = ReqProgramaTejido::find($receptor->Id);
@@ -494,7 +491,7 @@ class EliminarTejido
 
                 // Calcular nuevo SaldoPedido considerando la producción
                 $produccionLider = (float) ($lider->Produccion ?? 0);
-                $nuevoSaldoPedido = max(0, $nuevoTotalPedido - $produccionLider);
+                $nuevoSaldoPedido = NumeroPrograma::saldoDesdePedido($nuevoTotalPedido, $produccionLider, $lider->PorcentajeSegundos);
 
                 // Actualizar líder: TotalPedido y SaldoPedido
                 $liderActualizado = ReqProgramaTejido::find($lider->Id);
