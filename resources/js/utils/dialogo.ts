@@ -238,7 +238,3 @@ export function actualizarDialogo({ titulo, texto, html }: { titulo?: string | u
 export function cerrarDialogo(): void {
     actual?.close('');
 }
-
-export function hayDialogoAbierto(): boolean {
-    return actual !== null;
-}
