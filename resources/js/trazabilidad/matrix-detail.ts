@@ -4,6 +4,7 @@ import type {
     MatrixPeriod,
     SparseValues,
 } from './types';
+import { formatNumber } from '../utils/format.ts';
 
 /**
  * Matriz de piezas por área × mes → semana → día.
@@ -300,7 +301,7 @@ export class MatrixDetail {
 
         cell.style.color = area.text;
         cell.style.backgroundColor = this.cellBackground(area, period);
-        cell.textContent = this.formatNumber(value);
+        cell.textContent = formatNumber(value, this.decimals);
 
         return cell;
     }
@@ -317,7 +318,7 @@ export class MatrixDetail {
     private buildTotalCell(period: MatrixPeriod, visible: boolean): HTMLTableCellElement {
         const cell = this.createPeriodCell('td', period, visible);
         const value = this.sumPeriod(this.totals, period.indices);
-        cell.textContent = value === null ? '—' : this.formatNumber(value);
+        cell.textContent = value === null ? '—' : formatNumber(value, this.decimals);
 
         return cell;
     }
@@ -400,7 +401,7 @@ export class MatrixDetail {
         const totalCell = document.createElement('td');
         totalCell.className = 'traza-col-total';
         totalCell.textContent = detail.total
-            ? this.formatNumber(detail.total)
+            ? formatNumber(detail.total, this.decimals)
             : '—';
         row.appendChild(totalCell);
 
@@ -419,7 +420,7 @@ export class MatrixDetail {
         const cell = this.createPeriodCell('td', period, visible);
         const value = this.sumPeriod(detail.valores, period.indices);
         if (value === null || value === 0) cell.classList.add('traza-vacio');
-        cell.textContent = value !== null && value !== 0 ? this.formatNumber(value) : '—';
+        cell.textContent = value !== null && value !== 0 ? formatNumber(value, this.decimals) : '—';
 
         return cell;
     }
@@ -447,12 +448,5 @@ export class MatrixDetail {
 
         return this.result.querySelector<HTMLElement>(selector)
             ?.getAttribute('aria-expanded') === 'true';
-    }
-
-    private formatNumber(value: number): string {
-        return Number(value).toLocaleString('es-MX', {
-            minimumFractionDigits: this.decimals,
-            maximumFractionDigits: this.decimals,
-        });
     }
 }
