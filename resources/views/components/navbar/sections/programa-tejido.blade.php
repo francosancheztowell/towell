@@ -13,9 +13,11 @@
         <!-- Grupo 1: Controles principales -->
         <div class="flex items-center gap-1">
             <!-- Botón Drag and Drop -->
-            <x-navbar.button-create
+            {{-- Mover exige modificar en el servidor (prioridad/mover, cambiar-telar), no crear. --}}
+            <x-navbar.button-edit
                 icon="fa-arrows-up-down"
                 type="button"
+                :disabled="false"
                 id="btnDragDrop"
                 bg="bg-black"
                 text=""

@@ -15,7 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = PT_BOOT.routes?.recalcularFechas ?? '';
     const icono = () => btn.querySelector('i');
 
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+        // Recalcula las fechas de TODOS los telares: un clic suelto no debe dispararlo.
+        const seguir = await notify.confirm({
+            title: '¿Recalcular fechas de producción?',
+            text: 'Se recalculan las fechas de inicio y fin de todos los telares. La página se recarga al terminar.',
+            confirmText: 'Recalcular',
+        });
+        if (!seguir) return;
+
         btn.disabled = true;
         icono()?.classList.add('fa-spin');
 

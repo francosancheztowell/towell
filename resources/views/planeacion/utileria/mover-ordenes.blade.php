@@ -15,21 +15,22 @@
 --}}
 
 <div id="modalMover" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" style="display: none;">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden" style="min-width: 1200px;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[min(95vw,90rem)] max-h-[92dvh] flex flex-col overflow-hidden">
 
         {{-- ? Header --}}
         <div class="flex items-center justify-between px-6 py-4 ">
             <div class="flex items-center gap-3">
                 <h2 class="text-xl font-bold text-gray-800">Mover Órdenes</h2>
             </div>
-            <button type="button" data-accion-modal="cerrar" aria-label="Cerrar" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
+            <button type="button" data-accion-modal="cerrar" aria-label="Cerrar" class="inline-flex size-touch items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
                 <svg aria-hidden="true" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
 
         {{-- ? Body: Paneles --}}
-        <div class="flex-1 overflow-hidden px-6 py-5 bg-gray-50/30">
-            <div class="flex gap-6 h-full" style="min-height: 450px;">
+        <div class="flex-1 min-h-0 overflow-auto px-4 py-4 lg:px-6 lg:py-5 bg-gray-50/30">
+            {{-- Apilado en tablet; lado a lado desde lg. Sin min-width/min-height fijos: cortaban el modal en 1024 y 650 px de alto. --}}
+            <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full min-h-0">
 
                 {{-- Panel ORIGEN --}}
                 <div class="flex-1 flex flex-col border border-gray-100 rounded-xl overflow-hidden bg-white transition-all duration-200"
@@ -113,10 +114,10 @@
         <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
             <div id="moverResumen" class="text-sm font-medium"></div>
             <div class="flex gap-3">
-                <button type="button" id="btnMoverRevertir" class="hidden px-5 py-2.5 text-md font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shadow-sm">
+                <button type="button" id="btnMoverRevertir" class="hidden px-5 min-h-touch py-2.5 text-base font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shadow-sm">
                     <i class="fas fa-undo mr-1" aria-hidden="true"></i> Revertir
                 </button>
-                <button type="button" id="btnMoverConfirm" disabled class="px-5 py-2.5 text-md font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center gap-2">
+                <button type="button" id="btnMoverConfirm" disabled class="px-5 min-h-touch py-2.5 text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center gap-2">
                     Guardar
                 </button>
             </div>

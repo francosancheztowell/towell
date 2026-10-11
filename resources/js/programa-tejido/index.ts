@@ -10,6 +10,7 @@ import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccio
 import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
 import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 import { abrirDuplicar as ptAbrirDuplicar, escucharGuardado as ptEscucharDuplicarGuardado } from './duplicar.ts';
+import { chipsDe as ptChipsDe, guardarEnUrl as ptGuardarFiltrosEnUrl, leerDeUrl as ptLeerFiltrosDeUrl, pintarBarra as ptPintarBarraFiltros, deserializar as ptDeserializarFiltros, serializar as ptSerializarFiltros } from './barra-filtros.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
 import './balancear.ts';
@@ -1764,15 +1765,7 @@ function applyProgramaTejidoFilters() {
         }, 50);
     });
 
-    const totalFilters = filters.length + Object.values(quickFilters).filter(Boolean).length +
-                        (hasDateFilters ? 1 : 0);
-    if (typeof showToast === 'function') {
-        if (totalFilters > 0) {
-            showToast(`${visibleRows} resultado(s) encontrado(s)`, visibleRows > 0 ? 'success' : 'warning');
-        } else {
-            showToast('Mostrando todas las filas', 'info');
-        }
-    }
+    // ponytail: sin toast de "N resultado(s)": la barra de filtros ya muestra "N de M registros".
 
     if (typeof window.onFiltersApplied === 'function') {
         window.onFiltersApplied(filters);
@@ -1989,6 +1982,11 @@ function openProgramaTejidoFilterModal() {
                 });
             });
 
+            modalEl.addEventListener('click', (e: Event) => {
+                const quitar = (e.target as HTMLElement).closest<HTMLElement>('[data-quitar-indice]');
+                if (quitar) removeFilter(Number(quitar.dataset.quitarIndice));
+            });
+
             // Agregar filtro - aplica automáticamente
             modalEl.querySelector('[data-action="add"]')?.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -2054,7 +2052,7 @@ function renderActiveFilters() {
                 <div class="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 bg-blue-50 rounded-full text-[11px] text-blue-800">
                     <span class="font-medium">${colLabel}:</span>
                     <span class="text-blue-600">${escapedValue}</span>
-                    <button onclick="removeFilter(${i})"
+                    <button type="button" data-quitar-indice="${i}" aria-label="Quitar filtro"
                             class="flex h-4 w-4 items-center justify-center rounded-full hover:bg-blue-100 text-blue-500 transition-colors">
                         <i class="fa-solid fa-xmark text-[9px]"></i>
                     </button>
@@ -2196,6 +2194,7 @@ window.resetAllFilters = resetAllFilters;
 function resetAllFilters() {
     // Limpiar arrays
     filters = [];
+    window.filters = filters;
     quickFilters = {
         ultimos: false,
         divididos: false,
@@ -2231,6 +2230,7 @@ function resetAllFilters() {
 // ===== Badge de filtros en navbar =====
 window.updateFilterUI = updateFilterUI;
 function updateFilterUI() {
+    refrescarBarraFiltros();
     const badge = document.getElementById('filterCount');
     if (!badge) return;
 
@@ -2246,6 +2246,63 @@ function updateFilterUI() {
         badge.classList.add('hidden');
     }
 }
+
+// ===== Barra de filtros activos + persistencia (barra-filtros.ts) =====
+const CLAVE_SESION_FILTROS = 'pt:filtros:' + location.pathname;
+
+function estadoFiltros() {
+    return { filters, quick: quickFilters, fechas: dateRangeFilters };
+}
+
+function refrescarBarraFiltros() {
+    const estado = estadoFiltros();
+    const barra = document.getElementById('ptFiltrosBarra');
+    if (barra) {
+        const filas = Array.from(tbodyEl()?.querySelectorAll<HTMLElement>('.selectable-row') ?? []);
+        const visibles = filas.filter((r) => !r.classList.contains('filter-hidden')).length;
+        const chips = ptChipsDe(
+            estado,
+            (campo) => columnsData.find((c: any) => c.field === campo)?.label || campo,
+            (clave) => quickFilterConfig[clave]?.label || clave,
+        );
+        ptPintarBarraFiltros(barra, chips, visibles, filas.length);
+    }
+    ptGuardarFiltrosEnUrl(estado);
+    try { sessionStorage.setItem(CLAVE_SESION_FILTROS, ptSerializarFiltros(estado)); } catch { /* modo privado */ }
+}
+
+function quitarDesdeBarra(tipo: string, clave: string) {
+    if (tipo === 'todo') { resetAllFilters(); return; }
+    if (tipo === 'columna') filters = filters.filter((f) => f.column !== clave);
+    if (tipo === 'rapido') quickFilters[clave] = false;
+    if (tipo === 'fecha' && (clave === 'fechaInicio' || clave === 'fechaFinal')) dateRangeFilters[clave] = { desde: null, hasta: null };
+    window.filters = filters;
+    lastFilterState = null;
+    applyProgramaTejidoFilters();
+    window.updateColumnFilterIcons?.();
+}
+
+/** Recupera lo filtrado: primero la URL (enlace compartido o recarga), si no, la sesión. */
+function restaurarFiltros() {
+    const rapidos = Object.keys(quickFilterConfig);
+    let estado = ptLeerFiltrosDeUrl(rapidos);
+    if (!estado) {
+        try { estado = ptDeserializarFiltros(sessionStorage.getItem(CLAVE_SESION_FILTROS), rapidos); } catch { estado = null; }
+    }
+    if (!estado) return;
+    filters = estado.filters;
+    window.filters = filters;
+    quickFilters = estado.quick;
+    dateRangeFilters = estado.fechas;
+    lastFilterState = null;
+    applyProgramaTejidoFilters();
+    window.updateColumnFilterIcons?.();
+}
+
+document.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('#ptFiltrosBarra [data-quitar-tipo]');
+    if (btn) quitarDesdeBarra(btn.dataset.quitarTipo!, btn.dataset.quitarClave ?? '');
+});
 
 // ===== Exponer funciones globalmente =====
 window.openProgramaTejidoFilterModal = openProgramaTejidoFilterModal;
@@ -6431,7 +6488,11 @@ const uiInlineEditableFields: Record<string, any> = {
         }
 
         if (!targetRow || targetRow === state.draggedRow) {
+          // Volver sobre la propia fila cancela: sin esto onDrop usaba el último vecino rozado.
           state.blockedReason = null;
+          state.lastOverRow = null;
+          state.lastOverTelar = null;
+          state.lastOverIsBefore = false;
           return false;
         }
 
@@ -6479,6 +6540,12 @@ const uiInlineEditableFields: Record<string, any> = {
         const targetTelar = decideTargetTelarFromDOM();
         const targetRow = state.lastOverRow;
         const isBefore = !!state.lastOverIsBefore;
+
+        // Soltar sin destino (sobre la propia fila o fuera de la grilla) no mueve nada.
+        if (!targetRow) {
+          clearVisualRows();
+          return false;
+        }
 
         if (state.blockedReason) {
           toast(state.blockedReason, 'error');
@@ -7849,9 +7916,10 @@ const uiInlineEditableFields: Record<string, any> = {
     }
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => { buildPTFilterIndex(); });
+      document.addEventListener('DOMContentLoaded', () => { buildPTFilterIndex(); restaurarFiltros(); });
     } else {
       buildPTFilterIndex();
+      restaurarFiltros();
     }
 
     // Exponer para invalidación desde inline-edit y operaciones
