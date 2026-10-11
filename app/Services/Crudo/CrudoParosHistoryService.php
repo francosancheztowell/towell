@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Crudo;
 
+use App\Support\Crudo\CrudoProductionDay;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,7 @@ final class CrudoParosHistoryService
         }
 
         $dias = max(1, $dias);
-        $minutos = (int) config('crudo.production_day_start_minutes', 390);
+        $minutos = CrudoProductionDay::startMinutes();
         // Ventana de días productivos que termina en $to: de las 06:30 del día
         // ($dias - 1) previo a $from hasta las 06:30 del día siguiente a $to.
         $inicio = CarbonImmutable::instance($from)->startOfDay()->subDays($dias - 1)->addMinutes($minutos);

@@ -121,16 +121,9 @@ class UsuarioService
      */
     public function delete(int $id): bool
     {
-        // Eliminar permisos primero
-        \App\Models\Sistema\SYSUsuariosRoles::porUsuario($id)->delete();
+        SYSUsuariosRoles::porUsuario($id)->delete();
 
-        // Eliminar usuario
-        $eliminado = $this->usuarioRepository->delete($id);
-
-        if ($eliminado) {
-        }
-
-        return $eliminado;
+        return $this->usuarioRepository->delete($id);
     }
 
     /**

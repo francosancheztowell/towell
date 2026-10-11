@@ -72,27 +72,4 @@ class CatalogoTramaService
             ])
             ->all();
     }
-
-    /** @return array<int, string> */
-    public function nombresColor(string $search = ''): array
-    {
-        $search = trim($search);
-
-        $query = DB::table('TejTramaConsumos')
-            ->select('ColorTrama')
-            ->whereNotNull('ColorTrama')
-            ->where('ColorTrama', '!=', '')
-            ->distinct();
-
-        if ($search !== '') {
-            $query->whereRaw('ColorTrama LIKE ?', ['%'.$search.'%']);
-        }
-
-        return $query->orderBy('ColorTrama')
-            ->limit(50)
-            ->pluck('ColorTrama')
-            ->unique()
-            ->values()
-            ->all();
-    }
 }
