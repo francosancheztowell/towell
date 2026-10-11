@@ -1,4 +1,5 @@
 import { eventElement, numberValue, queryElement } from './dom';
+import { formatNumber } from '../utils/format.ts';
 import type { RollosRow } from './types';
 
 export class ProductionDetail {
@@ -71,15 +72,15 @@ export class ProductionDetail {
             this.appendCell(tableRow, row.orden || '—', 'px-3 py-3 font-mono font-medium text-zinc-900');
             this.appendCell(tableRow, [row.articulo, row.nombreArticulo].filter(Boolean).join(' · ') || '—');
             this.appendCell(tableRow, [row.color, row.nombreColor].filter(Boolean).join(' · ') || '—');
-            this.appendCell(tableRow, this.formatNumber(pieces, 0), 'px-3 py-3 text-right tabular-nums');
-            this.appendCell(tableRow, this.formatNumber(kg, 2), 'px-3 py-3 text-right tabular-nums');
+            this.appendCell(tableRow, formatNumber(pieces, 0), 'px-3 py-3 text-right tabular-nums');
+            this.appendCell(tableRow, formatNumber(kg, 2), 'px-3 py-3 text-right tabular-nums');
             body.appendChild(tableRow);
         });
 
         this.setText('[data-rollos-maquina]', card.dataset.maquina || '');
-        this.setText('#modal-rollos-total-pzas', this.formatNumber(totalPieces, 0));
-        this.setText('#modal-rollos-total-kg', this.formatNumber(totalKg, 2));
-        this.setText('[data-rollos-ordenes]', this.formatNumber(new Set(rows.map((row) => row.orden)).size, 0));
+        this.setText('#modal-rollos-total-pzas', formatNumber(totalPieces, 0));
+        this.setText('#modal-rollos-total-kg', formatNumber(totalKg, 2));
+        this.setText('[data-rollos-ordenes]', formatNumber(new Set(rows.map((row) => row.orden)).size, 0));
         // flux:modal: foco atrapado, Esc y cierre al tocar fuera ya vienen incluidos.
         window.Flux?.modal('rollos-maquina').show();
     }
@@ -89,13 +90,6 @@ export class ProductionDetail {
         cell.className = className;
         cell.textContent = value;
         row.appendChild(cell);
-    }
-
-    private formatNumber(value: number, decimals: number): string {
-        return value.toLocaleString('es-MX', {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals,
-        });
     }
 
     private setText(selector: string, value: string): void {

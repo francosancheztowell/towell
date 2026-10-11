@@ -116,8 +116,3 @@ export function exitoYRecargar(mensaje: string, ms = 1200): void {
     notify.success(mensaje);
     window.setTimeout(() => window.location.reload(), ms);
 }
-
-/** Ícono de "Restablecer" girando mientras navega (antes animarRestablecer* del componente). */
-export function girar(boton: HTMLElement): void {
-    boton.querySelector('i')?.classList.add('fa-spin');
-}
