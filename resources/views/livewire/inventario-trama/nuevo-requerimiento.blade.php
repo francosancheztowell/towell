@@ -129,13 +129,8 @@
             </div>
         </div>
     @empty
-        <div class="text-center py-12">
-            <div class="bg-gray-100 rounded-2xl p-8 max-w-md mx-auto">
-                <i class="fas fa-trash text-2xl mb-2"></i>
-                <h3 class="text-lg font-semibold text-gray-600 mb-2">No hay requerimientos disponibles</h3>
-                <p class="text-gray-500">No se encontraron requerimientos que coincidan con los filtros seleccionados</p>
-            </div>
-        </div>
+        <x-empty.empty-state icon="fa-inbox" title="No hay requerimientos disponibles"
+                             message="No se encontraron requerimientos que coincidan con los filtros seleccionados" />
     @endforelse
 
     {{-- Sin botón Guardar: todo cambio (cantidad, agregar, eliminar) se persiste solo --}}
@@ -147,8 +142,8 @@
             <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                 <div class="bg-blue-500 px-6 py-4 rounded-t-lg flex justify-between items-center">
                     <h3 class="text-lg font-semibold text-white">Agregar Nuevo Requerimiento — Telar {{ $telarModal }}</h3>
-                    <button wire:click="cerrarModal" class="text-white hover:text-gray-200 transition-colors ml-4">
-                        <i class="fas fa-times text-xl"></i>
+                    <button type="button" wire:click="cerrarModal" aria-label="Cerrar" class="inline-flex size-touch items-center justify-center text-white hover:text-gray-200 transition-colors ml-4">
+                        <i class="fas fa-times text-xl" aria-hidden="true"></i>
                     </button>
                 </div>
                 <div class="p-6">
@@ -191,11 +186,10 @@
                         </div>
                     </div>
                     <div class="mt-6">
-                        <button wire:click="agregarRequerimiento" wire:loading.attr="disabled"
-                            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                            <span wire:loading.remove>Agregar</span>
-                            <span wire:loading><i class="fas fa-spinner fa-spin"></i> Agregando...</span>
-                        </button>
+                        {{-- flux:button pone su spinner solo mientras corre su wire:click (antes cualquier wire:model.live lo mostraba). --}}
+                        <flux:button variant="primary" color="blue" icon="plus" class="min-h-touch w-full" wire:click="agregarRequerimiento">
+                            Agregar
+                        </flux:button>
                     </div>
                 </div>
             </div>
