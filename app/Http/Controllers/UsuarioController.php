@@ -271,16 +271,10 @@ class UsuarioController extends Controller
                 ->update([$campo => $valor, 'assigned_at' => now()]);
 
             if ($actualizados === 0) {
-                SYSUsuariosRoles::create([
-                    'idusuario' => $id,
-                    'idrol' => $idrol,
-                    'acceso' => $campo === 'acceso' ? $valor : 0,
-                    'crear' => $campo === 'crear' ? $valor : 0,
-                    'modificar' => $campo === 'modificar' ? $valor : 0,
-                    'eliminar' => $campo === 'eliminar' ? $valor : 0,
-                    'registrar' => $campo === 'registrar' ? $valor : 0,
-                    'assigned_at' => now(),
-                ]);
+                SYSUsuariosRoles::create(array_merge(
+                    array_fill_keys(['acceso', 'crear', 'modificar', 'eliminar', 'registrar'], 0),
+                    [$campo => $valor, 'idusuario' => $id, 'idrol' => $idrol, 'assigned_at' => now()],
+                ));
             }
 
             $this->moduloService->limpiarCacheUsuario($id);
