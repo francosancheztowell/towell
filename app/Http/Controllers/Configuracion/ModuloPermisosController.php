@@ -89,10 +89,14 @@ class ModuloPermisosController extends Controller
             $nuevos = array_diff($ids, $existentes);
             if ($nuevos !== []) {
                 $base = array_fill_keys(self::CAMPOS, 0);
-                SYSUsuariosRoles::insert(array_map(
-                    fn ($idusuario) => ['idusuario' => $idusuario, 'idrol' => $id] + $cambios + $base + ['assigned_at' => now()],
-                    array_values($nuevos)
-                ));
+                // Lotes de 200 filas x 8 columnas: SQL Server no admite más de 2100 parámetros
+                // y con 500 usuarios nuevos un solo INSERT llegaba a 4000.
+                foreach (array_chunk(array_values($nuevos), 200) as $lote) {
+                    SYSUsuariosRoles::insert(array_map(
+                        fn ($idusuario) => ['idusuario' => $idusuario, 'idrol' => $id] + $cambios + $base + ['assigned_at' => now()],
+                        $lote
+                    ));
+                }
             }
         });
 

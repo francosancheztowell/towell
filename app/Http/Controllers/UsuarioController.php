@@ -145,7 +145,8 @@ class UsuarioController extends Controller
     public function obtenerEmpleados(string $area)
     {
         try {
-            return Usuario::where('area', $area)->get();
+            // Los selects de Atadores solo leen clave y nombre: no viajan correo, teléfono ni foto.
+            return Usuario::where('area', $area)->get(['numero_empleado', 'nombre']);
         } catch (\Throwable $e) {
             return [];
         }
@@ -260,23 +261,17 @@ class UsuarioController extends Controller
             $campo = $request->input('campo'); // 'acceso', 'crear', 'modificar', 'eliminar', 'registrar'
             $valor = $request->input('valor') ? 1 : 0;
 
-            // Buscar el registro existente
-            $permiso = SYSUsuariosRoles::where('idusuario', $id)
-                ->where('idrol', $idrol)
-                ->first();
+            // $campo llega como nombre de columna: solo se aceptan los cinco permisos.
+            if (! in_array($campo, ['acceso', 'crear', 'modificar', 'eliminar', 'registrar'], true)) {
+                return response()->json(['success' => false, 'message' => 'Permiso no válido'], 422);
+            }
 
-            if ($permiso) {
-                // Si existe, solo actualizar el campo específico usando DB directo
-                DB::connection('sqlsrv')
-                    ->table('SYSUsuariosRoles')
-                    ->where('idusuario', $id)
-                    ->where('idrol', $idrol)
-                    ->update([
-                        $campo => $valor,
-                        'assigned_at' => now(),
-                    ]);
-            } else {
-                // Si no existe, crear con todos los campos inicializados
+            // Un solo UPDATE; si no tocó filas, el permiso no existía y se crea.
+            $actualizados = SYSUsuariosRoles::where('idusuario', $id)
+                ->where('idrol', $idrol)
+                ->update([$campo => $valor, 'assigned_at' => now()]);
+
+            if ($actualizados === 0) {
                 SYSUsuariosRoles::create([
                     'idusuario' => $id,
                     'idrol' => $idrol,
@@ -288,6 +283,8 @@ class UsuarioController extends Controller
                     'assigned_at' => now(),
                 ]);
             }
+
+            $this->moduloService->limpiarCacheUsuario($id);
 
             return response()->json([
                 'success' => true,
