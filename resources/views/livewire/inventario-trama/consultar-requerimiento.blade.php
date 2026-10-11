@@ -112,12 +112,7 @@
                                         <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">{{ $consumo['Cantidad'] ? number_format((float) $consumo['Cantidad'], 0) : '0' }}</td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="8" class="px-4 py-4 text-center text-gray-500 bg-white">
-                                            <i class="fas fa-inbox text-2xl mb-2"></i>
-                                            <p>No hay consumos registrados</p>
-                                        </td>
-                                    </tr>
+                                    <x-ui.table-empty colspan="8" message="No hay consumos registrados" />
                                 @endforelse
                             </tbody>
                         </table>
