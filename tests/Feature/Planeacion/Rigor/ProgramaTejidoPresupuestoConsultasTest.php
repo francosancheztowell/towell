@@ -3,6 +3,9 @@
 namespace Tests\Feature\Planeacion\Rigor;
 
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Observers\ReqProgramaTejidoObserver;
+use App\Services\Planeacion\ProgramaTejido\HorasProduccion;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
@@ -36,17 +39,20 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
     private const MAX_BYTES_POR_REGISTRO = 9_500;   // medido: ~8 900
 
     // Mutaciones: techo a 9 registros por telar y pendiente por registro de la cascada.
-    private const MAX_MOVER_9 = 62;                 // medido: 3 → 25, 9 → 60
+    // Bajados tras quitar el N+1 del observer (StdToaHra + modelo memoizado) y de Vincular.
+    private const MAX_MOVER_9 = 45;                 // medido: 3 → 20, 9 → 43 (antes 60)
 
-    private const MAX_CAMBIAR_9 = 120;              // medido: 3 → 48, 9 → 120
+    private const MAX_CAMBIAR_9 = 88;               // medido: 3 → 37, 9 → 85 (antes 120)
 
-    private const MAX_ELIMINAR_9 = 72;              // medido: 3 → 27, 9 → 69
+    private const MAX_ELIMINAR_9 = 56;              // medido: 3 → 24, 9 → 54 (antes 69)
 
-    private const MAX_UPDATE_9 = 66;                // medido: 3 → 27, 9 → 63
+    private const MAX_UPDATE_9 = 48;                // medido: 3 → 22, 9 → 46 (antes 63)
 
-    private const MAX_VINCULAR_5 = 50;              // medido: 2 → 26, 5 → 47
+    private const MAX_VINCULAR_5 = 30;              // medido: 2 → 19, 5 → 28 (antes 47)
 
-    private const MAX_PENDIENTE_CASCADA = 7.5;      // medido: ~6 consultas por registro recalculado
+    // Lo que queda por registro son escrituras propias: UPDATE de eficiencia + DELETE/INSERT de
+    // líneas (3), más el UPDATE de fechas de la cascada donde lo hay.
+    private const MAX_PENDIENTE_CASCADA = 5.5;      // medido: 3.0 – 5.0 (antes ~6 – 7)
 
     protected function setUp(): void
     {
@@ -114,11 +120,6 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
         $this->refreshApplication();
         $this->setUp();
         $this->sembrarTelares($porTelar, $telares);
-    }
-
-    private function posiciones(string $telar): array
-    {
-        return DB::table('ReqProgramaTejido')->where('NoTelarId', $telar)->orderByRaw('CAST(Posicion AS INTEGER)')->pluck('Id')->map(fn ($v) => (int) $v)->all();
     }
 
     /** Programa fuera de los telares tocados + Muestras completa (cabecera y líneas) + CatCodificados. */
@@ -242,7 +243,6 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
 
         $r9->assertOk()->assertJsonPath('success', true)->assertJsonPath('registro_id', 109)->assertJsonPath('cascaded_records', 9);
         $this->assertLessThanOrEqual(self::MAX_MOVER_9, $con9, implode("\n", $sql));
-        // CARACTERIZA: la cascada es O(n) en consultas (~6 por registro). Ver bug N+1 del observer.
         $this->assertLessThanOrEqual(self::MAX_PENDIENTE_CASCADA, $pendiente);
     }
 
@@ -405,7 +405,7 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
         $this->assertEquals($antes, $this->fotoSuperficies());
     }
 
-    public function test_la_cascada_relee_stdtoahra_y_el_modelo_una_vez_por_registro(): void
+    public function test_la_cascada_no_relee_stdtoahra_y_busca_el_modelo_una_sola_vez(): void
     {
         [, $r, $sql] = $this->mover(9);
         $r->assertOk();
@@ -413,12 +413,56 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
         $releeStd = count(array_filter($sql, fn ($s) => str_starts_with($s, 'select "StdToaHra" from "ReqProgramaTejido"')));
         $releeModelo = count(array_filter($sql, fn ($s) => str_contains($s, 'from "ReqModelosCodificados" where "TamanoClave" = ?')));
 
-        // CARACTERIZA (N+1): ReqProgramaTejidoObserver::calcularFormulasEficiencia vuelve a leer
-        // StdToaHra de la BD por cada registro (ya cargado con select * ... where Id in (...)) y
-        // HorasProduccion::buscarModelo busca ReqModelosCodificados por la misma TamanoClave
-        // sin caché, una vez por registro. Con 9 registros del mismo modelo: 9 + 10 lecturas.
-        $this->assertSame(9, $releeStd, 'una relectura de StdToaHra por registro de la cascada');
-        $this->assertGreaterThanOrEqual(9, $releeModelo, 'una búsqueda del mismo modelo por registro');
-        $this->assertLessThanOrEqual(10, $releeModelo);
+        // StdToaHra sale del modelo ya cargado; ReqModelosCodificados se memoiza por (TamanoClave, salón).
+        $this->assertSame(0, $releeStd, 'el observer no relee StdToaHra de un registro ya cargado');
+        $this->assertSame(1, $releeModelo, 'el mismo modelo/salón se busca una sola vez en toda la cascada');
+    }
+
+    public function test_el_modelo_sin_callback_prefiere_el_del_salon_del_registro_y_es_determinista(): void
+    {
+        DB::table('ReqModelosCodificados')->insert([
+            ['TamanoClave' => 'MOD2', 'SalonTejidoId' => 'JACQUARD', 'Total' => 10, 'FechaTejido' => '2026-09-01 00:00:00'],
+            ['TamanoClave' => 'MOD2', 'SalonTejidoId' => 'SMIT', 'Total' => 20, 'FechaTejido' => '2026-08-01 00:00:00'],
+            ['TamanoClave' => 'MOD2', 'SalonTejidoId' => 'SMIT', 'Total' => 30, 'FechaTejido' => '2026-09-05 00:00:00'],
+        ]);
+        $total = fn (string $salon) => HorasProduccion::obtenerModeloParams(new ReqProgramaTejido(['TamanoClave' => 'MOD2', 'SalonTejidoId' => $salon]))['total'];
+
+        $this->assertSame(30.0, $total('SMIT'), 'del salón del registro, el más reciente');
+        $this->assertSame(10.0, $total('JACQUARD'), 'no el de otro salón');
+        $this->assertSame(30.0, $total('ITEMA'), 'sin modelo en su salón: el más reciente de cualquiera');
+
+        [$consultas] = $this->contar(fn () => $total('SMIT'));
+        $this->assertSame(0, $consultas, 'memoizado por (TamanoClave, salón)');
+        ReqProgramaTejidoObserver::flushCaches();
+        [$consultas] = $this->contar(fn () => $total('SMIT'));
+        $this->assertSame(1, $consultas, 'flushCaches del observer vacía la memoria del modelo');
+    }
+
+    public function test_vincular_no_crece_en_consultas_salvo_las_escrituras_propias_de_cada_registro(): void
+    {
+        $esEscrituraPorRegistro = fn (string $s) => str_contains($s, '"ReqProgramaTejidoLine"') || str_contains($s, 'set "StdToaHra"');
+        $resto = fn (array $sql) => count(array_filter($sql, fn ($s) => ! $esEscrituraPorRegistro($s)));
+
+        [, $r2, $sql2] = $this->vincular(2);
+        $r2->assertOk();
+        [, $r5, $sql5] = $this->vincular(5);
+        $r5->assertOk()->assertJsonPath('registros_vinculados', 5);
+
+        // Sin Rule::exists (un count por Id) ni fresh() por fila: validar, vincular y sincronizar
+        // CatCodificados cuesta lo mismo con 2 que con 5 registros.
+        $this->assertSame($resto($sql2), $resto($sql5), implode("\n", $sql5));
+        $this->assertSame([], array_values(array_filter($sql5, fn ($s) => str_contains($s, 'count(*)'))), 'sin exists por elemento');
+        $this->assertSame(5 * 3, count($sql5) - $resto($sql5), 'por registro solo UPDATE de eficiencia + DELETE/INSERT de líneas');
+    }
+
+    public function test_vincular_con_un_id_inexistente_responde_422_sin_escribir(): void
+    {
+        $this->sembrarTelares(3, 2);
+        $antes = $this->fotoSuperficies();
+
+        $this->como()->postJson('/planeacion/programa-tejido/vincular-registros-existentes', ['registros_ids' => [102, 999999]])
+            ->assertStatus(422)->assertJsonPath('success', false);
+
+        $this->assertEquals($antes, $this->fotoSuperficies());
     }
 }

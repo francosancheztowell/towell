@@ -82,9 +82,10 @@ final class SincronizadorCatCodificados
             // filas de los otros: hay órdenes repartidas en dos telares y cada una tiene sus propias
             // métricas. Si el registro no trae telar se conserva el update masivo, que es el caso de
             // Balanceo (varias filas de la misma orden sin telar propio).
-            $noTelarId = trim((string) ($programa->NoTelarId ?? ''));
+            $noTelarId = $this->telarEnCat($programa);
 
-            $query = $programa->getConnection()->table($tabla)->where('OrdenTejido', $noProduccion);
+            // CAST varchar: OrdenTejido es VARCHAR indexada (ver CatCodificados::scopeOrdenesTejido).
+            $query = CatCodificados::query()->ordenesTejido([$noProduccion])->toBase();
             if ($noTelarId !== '' && in_array('TelarId', $columnasExistentes, true)) {
                 $query->where('TelarId', $noTelarId);
             }
@@ -143,6 +144,19 @@ final class SincronizadorCatCodificados
         }
 
         return $queryCat->update($updateCat);
+    }
+
+    /**
+     * Telar con el que la fila está hoy en CatCodificados: si este save cambió el telar, la
+     * fila todavía tiene el viejo (filtrar por el nuevo no la encontraba).
+     */
+    private function telarEnCat(ReqProgramaTejido $programa): string
+    {
+        $telar = $programa->wasChanged('NoTelarId')
+            ? ($programa->getPrevious()['NoTelarId'] ?? '')
+            : $programa->NoTelarId;
+
+        return trim((string) $telar);
     }
 
     /**

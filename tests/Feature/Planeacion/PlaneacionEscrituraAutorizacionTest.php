@@ -25,10 +25,6 @@ class PlaneacionEscrituraAutorizacionTest extends TestCase
      */
     private const SIN_PERMISO_DE_MODULO = [
         'POST planeacion/lmat/api/matriz-calibre/lote' => 'lookup en lote (SELECT)',
-        'POST planeacion/programa-tejido/preview-fechas-balanceo' => 'preview de fechas, no persiste',
-        'POST planeacion/muestras/preview-fechas-balanceo' => 'preview de fechas, no persiste',
-        'POST planeacion/programa-tejido/{id}/verificar-cambio-telar' => 'validación previa, no persiste',
-        'POST planeacion/muestras/{id}/verificar-cambio-telar' => 'validación previa, no persiste',
         'POST programa-tejido/columnas' => 'preferencia del propio usuario (usuario_id ajeno → 403)',
         'POST muestras/columnas' => 'preferencia del propio usuario (usuario_id ajeno → 403)',
     ];

@@ -23,6 +23,9 @@ use Tests\TestCase;
  *  - la columna cambia en BD (no se ignora en silencio);
  *  - qué columnas de la fila editada cambian (las derivadas documentadas, nada más);
  *  - ningún otro renglón, telar, línea ajena ni la superficie Muestras cambia.
+ *
+ * @SuppressWarnings("PHPMD.ExcessiveClassComplexity") Un caso por campo editable del mapa del
+ * front: la complejidad es la tabla de casos, partirla separaría el proveedor de su verificación.
  */
 class EdicionInlineMapaPayloadTest extends TestCase
 {
@@ -300,10 +303,9 @@ class EdicionInlineMapaPayloadTest extends TestCase
             $r = $this->como()->putJson('/planeacion/programa-tejido/2', [$campo => $vacio]);
 
             if (in_array($columna, ['NoTiras', 'PesoCrudo'], true)) {
-                // CARACTERIZA: sin NoTiras o PesoCrudo las fórmulas de rollos no se pueden
-                // calcular (recalcularFormulasProduccion → false) y la edición entera se
-                // revierte con un 500 genérico, no con un 422 que diga qué falta.
-                $r->assertStatus(500)->assertJsonPath('success', false);
+                // Sin NoTiras o PesoCrudo las fórmulas de rollos no se calculan: la regla
+                // lo rechaza con 422 sobre el campo en vez de revertir todo con 500.
+                $r->assertStatus(422)->assertJsonValidationErrors([$campo]);
                 $this->assertEquals($antes, $this->fila('ReqProgramaTejido', 2), "{$columna} vacío no revirtió");
 
                 continue;
@@ -338,6 +340,11 @@ class EdicionInlineMapaPayloadTest extends TestCase
             'luchaje texto' => ['luchaje', 'x'],
             'peso_crudo texto' => ['peso_crudo', 'x'],
             'ancho negativo' => ['ancho', -0.5],
+            'largo_crudo negativo' => ['largo_crudo', -1],
+            'luchaje negativo' => ['luchaje', -1],
+            'peine negativo' => ['peine', -1],
+            'peso_crudo negativo' => ['peso_crudo', -1],
+            'no_tiras negativo' => ['no_tiras', -1],
             'ancho_toalla negativo' => ['ancho_toalla', -1],
             'pt_vs_cte texto' => ['pt_vs_cte', 'x'],
             'programar_prod no fecha' => ['programar_prod', 'no-es-fecha'],
@@ -575,12 +582,9 @@ class EdicionInlineMapaPayloadTest extends TestCase
 
             $r->assertStatus(500)->assertJsonPath('success', false);
             $this->assertEquals($antes, $this->fotoSinLineasPrograma(), "{$version}: no revirtió todo");
-            if ($modo === 'off') {
-                // CARACTERIZA: el legacy concatena $e->getMessage() en el JSON (detalle SQL al usuario).
-                $this->assertStringContainsString('SQLSTATE', (string) $r->json('message'));
-            } else {
-                $this->assertSame('No se pudo actualizar el programa de tejido. Los cambios se revirtieron.', $r->json('message'));
-            }
+            // Legacy y v2 dan el mismo mensaje fijo: el detalle SQL se queda en el log.
+            $this->assertStringNotContainsString('SQLSTATE', (string) $r->json('message'));
+            $this->assertSame('No se pudo actualizar el programa de tejido. Los cambios se revirtieron.', $r->json('message'));
         }
     }
 
@@ -608,30 +612,34 @@ class EdicionInlineMapaPayloadTest extends TestCase
         }
     }
 
-    public function test_no_tiras_o_peso_crudo_en_cero_revierte_toda_la_edicion_con_500(): void
+    public function test_no_tiras_o_peso_crudo_en_cero_o_negativo_responde_422_sobre_el_campo(): void
     {
         foreach (['off', 'on'] as $modo) {
             $this->modo($modo);
             foreach (['no_tiras', 'peso_crudo'] as $campo) {
-                $antes = $this->fotoSuperficies();
+                foreach ([0, -1] as $valor) {
+                    $antes = $this->fotoSuperficies();
 
-                // CARACTERIZA: la regla 'numeric' acepta 0, pero las fórmulas de rollos no;
-                // el usuario recibe 500 genérico en vez de un 422 sobre el campo.
-                $this->como()->putJson('/planeacion/programa-tejido/2', [$campo => 0])
-                    ->assertStatus(500)->assertJsonPath('success', false);
+                    // Las fórmulas de rollos necesitan > 0: 422 sobre el campo, no 500 genérico.
+                    $this->como()->putJson('/planeacion/programa-tejido/2', [$campo => $valor])
+                        ->assertStatus(422)->assertJsonValidationErrors([$campo]);
 
-                $this->assertEquals($antes, $this->fotoSuperficies(), "{$modo} {$campo}");
+                    $this->assertEquals($antes, $this->fotoSuperficies(), "{$modo} {$campo}={$valor}");
+                }
             }
         }
     }
 
-    public function test_decimales_en_columnas_enteras_pasan_la_validacion(): void
+    public function test_decimales_en_columnas_enteras_responden_422(): void
     {
-        // CARACTERIZA: NoTiras y Peine son int (cast 'integer') pero la regla es 'numeric';
-        // en sqlite se guarda 52.7 tal cual. En SQL Server el binding llega como texto a una
-        // columna int y puede fallar la conversión (500) o truncar.
-        $this->como()->putJson('/planeacion/programa-tejido/2', ['peine' => 52.7])->assertOk();
-        $this->assertEquals(52.7, $this->fila('ReqProgramaTejido', 2)['Peine']);
+        // NoTiras y Peine son int en SQL Server: un decimal se rechaza en la regla en vez de
+        // fallar la conversión (500) o truncar.
+        foreach (['no_tiras', 'peine'] as $campo) {
+            $antes = $this->fotoSuperficies();
+            $this->como()->putJson('/planeacion/programa-tejido/2', [$campo => 52.7])
+                ->assertStatus(422)->assertJsonValidationErrors([$campo]);
+            $this->assertEquals($antes, $this->fotoSuperficies(), $campo);
+        }
     }
 
     public function test_guardar_dos_veces_el_mismo_calendario_mueve_la_fecha_final_si_horas_prod_no_cuadraba(): void

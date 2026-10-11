@@ -235,7 +235,7 @@ class BalanceoHttpTest extends TestCase
         $this->assertEqualsWithDelta(5400, $this->sumaTotalGrupo(), 0.001);
     }
 
-    public function test_actualizar_pedidos_deja_traslapado_a_un_miembro_del_grupo_que_va_despues_en_el_mismo_telar(): void
+    private function insertarTercerMiembroEnTelar203(): void
     {
         // Tercer miembro del grupo en el telar 203, después del Id 8.
         DB::table('ReqProgramaTejido')->insert(self::PARAMS_PRODUCCION + [
@@ -244,16 +244,37 @@ class BalanceoHttpTest extends TestCase
             'FechaInicio' => '2026-09-13 08:00:00', 'FechaFinal' => '2026-09-13 18:00:00', 'Ultimo' => '1',
         ]);
         DB::table('ReqProgramaTejido')->where('Id', 8)->update(['Ultimo' => '0']);
+    }
+
+    public function test_actualizar_pedidos_reencadena_a_un_miembro_del_grupo_que_va_despues_en_el_mismo_telar(): void
+    {
+        $this->insertarTercerMiembroEnTelar203();
 
         $this->enviar('actualizar-pedidos-balanceo', $this->payload([3 => 500, 4 => 500, 9 => 100]))->assertOk();
 
         $this->assertSame('2026-09-13 08:00:00', (string) $this->fila(4)->FechaFinal);
         $this->assertSame('2026-09-13 08:00:00', (string) $this->fila(8)->FechaInicio);
         $this->assertSame('2026-09-13 18:00:00', (string) $this->fila(8)->FechaFinal);
-        // CARACTERIZA: el 9 (Posicion 3) también estaba en cambios, así que la cascada lo salta y
-        // conserva su FechaInicio vieja: arranca a la misma hora que el 8 (Posicion 2) → traslape.
-        $this->assertSame('2026-09-13 08:00:00', (string) $this->fila(9)->FechaInicio);
-        $this->assertSame('2026-09-13 18:00:00', (string) $this->fila(9)->FechaFinal);
+        // El 9 (Posicion 3) también viene en cambios: arranca donde termina el 8, sin traslape (100 pz = 10 h).
+        $this->assertSame('2026-09-13 18:00:00', (string) $this->fila(9)->FechaInicio);
+        $this->assertSame('2026-09-14 04:00:00', (string) $this->fila(9)->FechaFinal);
+    }
+
+    public function test_preview_y_guardado_coinciden_cuando_un_miembro_en_cambios_va_despues_de_uno_que_no(): void
+    {
+        $this->insertarTercerMiembroEnTelar203();
+        $payload = $this->payload([3 => 500, 4 => 600, 9 => 100]);
+
+        $preview = $this->enviar('preview-fechas-balanceo', $payload)->assertOk()->json('data');
+        $this->enviar('actualizar-pedidos-balanceo', $payload)->assertOk();
+
+        foreach ($preview as $p) {
+            $f = $this->fila($p['id']);
+            $this->assertSame($p['fecha_inicio'], (string) $f->FechaInicio, "FechaInicio #{$p['id']}");
+            $this->assertSame($p['fecha_final'], (string) $f->FechaFinal, "FechaFinal #{$p['id']}");
+        }
+        // 4: 600 pz = 60 h → 09-13 18:00; 8: 10 h → 09-14 04:00; 9: 10 h → 09-14 14:00.
+        $this->assertSame(['2026-09-14 04:00:00', '2026-09-14 14:00:00'], [$preview[2]['fecha_inicio'], $preview[2]['fecha_final']]);
     }
 
     // ---- preview == guardado ----------------------------------------------------------------
@@ -329,31 +350,25 @@ class BalanceoHttpTest extends TestCase
         $this->assertEquals($antes, $this->fotoSuperficies());
     }
 
-    public function test_preview_no_exige_permiso_modificar(): void
+    public function test_preview_exige_permiso_modificar(): void
     {
-        // CARACTERIZA: preview-fechas-balanceo no lleva module.permission; un usuario con sólo
-        // "acceso" (o sin fila de permisos del módulo) puede leer fechas/saldos simulados.
-        $this->enviar('preview-fechas-balanceo', $this->payload([3 => 700, 4 => 300]), [2 => ['acceso']])->assertOk();
-        $this->enviar('preview-fechas-balanceo', $this->payload([3 => 700, 4 => 300]), [])->assertOk();
+        // Mismo permiso que actualizar-pedidos-balanceo: con sólo "acceso" o sin permisos es 403.
+        $this->enviar('preview-fechas-balanceo', $this->payload([3 => 700, 4 => 300]), [2 => ['acceso']])->assertForbidden();
+        $this->enviar('preview-fechas-balanceo', $this->payload([3 => 700, 4 => 300]), [])->assertForbidden();
     }
 
     // ---- payload inválido ----------------------------------------------------------------------
 
-    public function test_payload_invalido_a_actualizar_pedidos_responde_500_en_vez_de_422(): void
+    public function test_payload_invalido_a_actualizar_pedidos_responde_422_como_el_preview(): void
     {
         $antes = $this->fotoSuperficies();
 
-        // CARACTERIZA: validate() está dentro del try/catch(\Throwable): la ValidationException se
-        // traga y sale 500 con el mensaje en texto, sin 'errors'. Debería ser 422 como el preview.
-        $this->enviar('actualizar-pedidos-balanceo', ['cambios' => 'x', 'ord_compartida' => 7])
-            ->assertStatus(500)
-            ->assertExactJson(['success' => false, 'message' => 'Error al actualizar los pedidos: The cambios field must be an array.']);
-        $this->enviar('actualizar-pedidos-balanceo', ['cambios' => [['id' => 3]], 'ord_compartida' => 7])
-            ->assertStatus(500)->assertJsonMissingPath('errors');
-
-        // El preview, con el mismo payload, sí responde 422 de validación.
-        $this->enviar('preview-fechas-balanceo', ['cambios' => 'x', 'ord_compartida' => 7])
-            ->assertStatus(422)->assertJsonValidationErrors(['cambios']);
+        foreach (['actualizar-pedidos-balanceo', 'preview-fechas-balanceo'] as $accion) {
+            $this->enviar($accion, ['cambios' => 'x', 'ord_compartida' => 7])
+                ->assertStatus(422)->assertJsonValidationErrors(['cambios']);
+            $this->enviar($accion, ['cambios' => [['id' => 3]], 'ord_compartida' => 7])
+                ->assertStatus(422)->assertJsonValidationErrors(['cambios.0.total_pedido']);
+        }
 
         $this->assertEquals($antes, $this->fotoSuperficies());
     }

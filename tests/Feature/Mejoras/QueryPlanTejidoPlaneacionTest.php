@@ -120,7 +120,7 @@ class QueryPlanTejidoPlaneacionTest extends TestCase
      * pedido (ids como string, como llegan del JSON), los del telar que no se mueven siguen con
      * el bump y un id que ya no existe se salta sin romper el resto.
      */
-    public function test_mover_ordenes_asigna_posiciones_en_el_orden_pedido_con_una_lectura(): void
+    public function test_mover_ordenes_asigna_posiciones_en_el_orden_pedido_con_lecturas_fijas(): void
     {
         $a = $this->programa(['NoProduccion' => 'A', 'NoTelarId' => '201', 'SalonTejidoId' => 'JACQUARD', 'Posicion' => 1]);
         $b = $this->programa(['NoProduccion' => 'B', 'NoTelarId' => '201', 'SalonTejidoId' => 'JACQUARD', 'Posicion' => 2]);
@@ -156,14 +156,15 @@ class QueryPlanTejidoPlaneacionTest extends TestCase
         $selectsDelMovimiento = $selects;
 
         $pos = DB::connection('sqlsrv')->table('ReqProgramaTejido')->pluck('Posicion', 'Id')->map(fn ($p) => (int) $p)->all();
+        // Z (sin orden en la lista) conserva su lugar relativo: iba detrás de C y sigue detrás de C.
+        // El id inexistente ocupa su índice, como antes: B queda en 5.
         $this->assertSame(1, $pos[$c]);
-        $this->assertSame(2, $pos[$a]);
-        // índice 2 es el id inexistente: B queda en 4, como antes (la posición es el índice + 1).
-        $this->assertSame(4, $pos[$b]);
-        $this->assertSame(10004, $pos[$fuera], 'el que no se mueve conserva el bump');
+        $this->assertSame(2, $pos[$fuera], 'el no enviado ya no se queda atascado en 10000+');
+        $this->assertSame(3, $pos[$a]);
+        $this->assertSame(5, $pos[$b]);
         $this->assertSame(1, $pos[$otroTelar], 'otro telar no se toca');
-        $this->assertSame([$c, $a, $b], $idsAfectados['JACQUARD|201']);
+        $this->assertSame([$c, $fuera, $a, $b], $idsAfectados['JACQUARD|201'], 'Z cambió de posición: también se regeneran sus líneas');
         $this->assertSame([], $idsCambioSalon);
-        $this->assertSame(1, $selectsDelMovimiento, 'una sola lectura de ReqProgramaTejido para el telar');
+        $this->assertSame(2, $selectsDelMovimiento, 'el telar a mover + su orden original (filas no enviadas), no una por orden');
     }
 }

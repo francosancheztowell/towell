@@ -2,27 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Models\Sistema\Usuario;
+use Tests\Feature\Planeacion\Concerns\ConPermisosPlaneacion;
 use Tests\TestCase;
 
 class ProgramaTejidoBalanceoPreviewTest extends TestCase
 {
-    private function usuario(): Usuario
-    {
-        $u = new Usuario([
-            'idusuario' => 1,
-            'nombre' => 'Test',
-            'contrasenia' => 'x',
-            'numero_empleado' => '1',
-            'area' => 'X',
-        ]);
-        $u->idusuario = 1;
-        return $u;
-    }
+    use ConPermisosPlaneacion;
 
     public function test_preview_fechas_balanceo_requiere_cambios(): void
     {
-        $res = $this->actingAs($this->usuario())
+        $res = $this->actingAs($this->usuarioConPermisos([2 => ['modificar']]))
             ->postJson(route('programa-tejido.preview-fechas-balanceo'), []);
 
         // Without 'cambios', should return 422 validation error
@@ -31,7 +20,7 @@ class ProgramaTejidoBalanceoPreviewTest extends TestCase
 
     public function test_preview_fechas_balanceo_retorna_json(): void
     {
-        $res = $this->actingAs($this->usuario())
+        $res = $this->actingAs($this->usuarioConPermisos([2 => ['modificar']]))
             ->postJson(route('programa-tejido.preview-fechas-balanceo'), [
                 'cambios' => [
                     ['id' => 99999999, 'total_pedido' => 100, 'modo' => 'total'],

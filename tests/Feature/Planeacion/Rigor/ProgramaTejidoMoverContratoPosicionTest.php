@@ -140,6 +140,17 @@ class ProgramaTejidoMoverContratoPosicionTest extends TestCase
         $this->assertSame($antes, $this->fotoSuperficies());
     }
 
+    public function test_fallo_de_bd_al_mover_es_500_con_mensaje_fijo_y_revierte(): void
+    {
+        DB::statement("CREATE TRIGGER no_mover_10 BEFORE UPDATE ON ReqProgramaTejido WHEN OLD.Id = 10 BEGIN SELECT RAISE(ABORT, 'falla simulada'); END");
+        $antes = $this->fotoSuperficies();
+
+        $r = $this->mover(10, 2)->assertStatus(500)->assertJsonPath('success', false);
+
+        $this->assertSame('No se pudo mover el registro. Intente de nuevo.', $r->json('message'));
+        $this->assertSame($antes, $this->fotoSuperficies());
+    }
+
     public function test_respuesta_de_mover_tiene_forma_estable(): void
     {
         $r = $this->mover(13, 2)->assertOk();

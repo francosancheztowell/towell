@@ -3,7 +3,6 @@
 namespace Tests\Feature\Planeacion\Rigor;
 
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Planeacion\Concerns\ConPermisosPlaneacion;
@@ -123,11 +122,11 @@ class ProgramaTejidoRepasoRigorTest extends TestCase
         $antesResto = $this->fotoSalvo(['ReqProgramaTejido', 'ReqProgramaTejidoLine']);
         $lineasAntes = DB::table('ReqProgramaTejidoLine')->orderBy('Id')->get()->map(fn ($r) => (array) $r)->all();
 
-        $this->como()->postJson(self::URL_PROGRAMA, $this->payload())->assertOk()->assertJsonPath('ok', true);
+        $id = (int) $this->como()->postJson(self::URL_PROGRAMA, $this->payload())->assertOk()->assertJsonPath('ok', true)->json('id');
 
         $this->assertSame($antesOtros, $otros());
         $this->assertSame($antesResto, $this->fotoSalvo(['ReqProgramaTejido', 'ReqProgramaTejidoLine']), 'MuestrasPrograma, sus líneas y CatCodificados intactos');
-        $this->assertSame($lineasAntes, DB::table('ReqProgramaTejidoLine')->orderBy('Id')->get()->map(fn ($r) => (array) $r)->all());
+        $this->assertSame($lineasAntes, DB::table('ReqProgramaTejidoLine')->where('ProgramaId', '!=', $id)->orderBy('Id')->get()->map(fn ($r) => (array) $r)->all(), 'solo se agregan las líneas del repaso');
     }
 
     public function test_crear_repaso_en_muestras_escribe_solo_en_muestras_programa(): void
@@ -204,7 +203,7 @@ class ProgramaTejidoRepasoRigorTest extends TestCase
         $this->como()->postJson(self::URL_PROGRAMA, $this->payload())
             ->assertStatus(500)
             ->assertJsonPath('ok', false)
-            ->assertJsonPath('message', fn ($m) => str_starts_with($m, 'Error al crear repaso: '));
+            ->assertJsonPath('message', 'Error al crear repaso. Intente de nuevo.');
 
         $this->assertSame($antes, $this->fotoSuperficies(), 'ni fila nueva ni Ultimo=0 del anterior');
         $this->assertSame('1', (string) $this->fila('ReqProgramaTejido', 3)['Ultimo']);
@@ -343,7 +342,7 @@ class ProgramaTejidoRepasoRigorTest extends TestCase
         $this->assertSame(3, (int) $this->fila('ReqProgramaTejido', 7)['Posicion']);
     }
 
-    public function test_el_repaso_no_genera_lineas_diarias(): void
+    public function test_el_repaso_genera_lineas_diarias(): void
     {
         DB::table('ReqProgramaTejido')->where('Id', 3)->update(['CalendarioId' => 'Calendario Tej1']);
         DB::table('dbo.ReqCalendarioLine')->insert([
@@ -352,15 +351,7 @@ class ProgramaTejidoRepasoRigorTest extends TestCase
 
         $id = (int) $this->como()->postJson(self::URL_PROGRAMA, $this->payload())->assertOk()->json('id');
 
-        // CARACTERIZA: createrepaso llama al observer con el registro recién leído por find()
-        // (wasRecentlyCreated=false, sin cambios), así que shouldRegenerateLines() es false y
-        // nunca se generan líneas diarias, pese al comentario que dice lo contrario.
-        $this->assertSame(0, DB::table('ReqProgramaTejidoLine')->where('ProgramaId', $id)->count());
-
-        // Contraste: el mismo registro marcado como recién creado sí pasa por el generador.
-        $registro = ReqProgramaTejido::find($id);
-        $registro->wasRecentlyCreated = true;
-        app(ReqProgramaTejidoObserver::class)->saved($registro);
+        // createrepaso marca el registro como recién creado antes del observer: genera sus líneas.
         $this->assertSame(1, DB::table('ReqProgramaTejidoLine')->where('ProgramaId', $id)->count(), '06:30-18:30 del 2 de sept = una línea');
     }
 }

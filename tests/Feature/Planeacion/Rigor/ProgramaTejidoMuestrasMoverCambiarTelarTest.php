@@ -206,11 +206,10 @@ class ProgramaTejidoMuestrasMoverCambiarTelarTest extends TestCase
         Schema::table('MuestrasPrograma', fn (Blueprint $t) => $t->dropColumn('CambioHilo'));
         $antes = $this->fotoSuperficies();
 
-        // CARACTERIZA: QueryException hereda de RuntimeException (vía PDOException), así que
-        // DragAndDropTejido::mover lo responde como 422 "de negocio" con el SQL crudo en message.
-        $r = $this->como()->postJson('/planeacion/muestras/6/prioridad/mover', ['new_position' => 1])
-            ->assertStatus(422)->assertJsonPath('success', false);
-        $this->assertStringContainsString('CambioHilo', $r->json('message'));
+        // Un fallo de BD es 500 con mensaje fijo: ni 422 "de negocio" ni el SQL crudo.
+        $this->como()->postJson('/planeacion/muestras/6/prioridad/mover', ['new_position' => 1])
+            ->assertStatus(500)->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'No se pudo mover el registro. Intente de nuevo.');
 
         $this->assertSame($antes, $this->fotoSuperficies(), 'ni el +10000 temporal ni ninguna fecha deben quedar');
         $this->assertSame([1, 2, 3], $this->valoresPosicion('MuestrasPrograma', '201'));
@@ -292,8 +291,8 @@ class ProgramaTejidoMuestrasMoverCambiarTelarTest extends TestCase
             'nuevo_salon' => 'SMIT', 'nuevo_telar' => '204', 'target_position' => 1,
         ])->assertStatus(500)->assertJsonPath('success', false);
 
-        // CARACTERIZA: el 500 devuelve al navegador el texto de la excepción SQL.
-        $this->assertStringStartsWith('Error al cambiar de telar: ', $r->json('message'));
+        // Sin el texto de la excepción SQL: mensaje fijo, el detalle va al log.
+        $this->assertSame('Error al cambiar de telar.', $r->json('message'));
         $this->assertSame($antes, $this->fotoSuperficies());
         $this->assertSame([1, 2, 6], $this->posiciones('MuestrasPrograma', '201'));
         $this->assertSame([1, 2, 3], $this->valoresPosicion('MuestrasPrograma', '201'));
@@ -312,14 +311,15 @@ class ProgramaTejidoMuestrasMoverCambiarTelarTest extends TestCase
             ->assertOk()->assertJsonPath('puede_mover', false)->assertJsonPath('clave_modelo', 'SOLO-PROGRAMA');
     }
 
-    public function test_verificar_cambio_telar_en_muestras_no_exige_permiso_del_modulo(): void
+    public function test_verificar_cambio_telar_en_muestras_exige_modificar_de_muestras(): void
     {
-        // CARACTERIZA: la ruta no lleva module.permission (solo lee), así que un usuario sin
-        // ningún permiso en Muestras recibe el diagnóstico (clave modelo, telar) igual.
+        // Sin permisos, o con modificar sólo de Programa, Muestras no entrega el diagnóstico.
         $antes = $this->fotoSuperficies();
 
         $this->como([])->postJson('/planeacion/muestras/2/verificar-cambio-telar', ['nuevo_salon' => 'JACQUARD', 'nuevo_telar' => '210'])
-            ->assertOk()->assertJsonPath('puede_mover', true);
+            ->assertForbidden();
+        $this->como([2 => ['modificar']])->postJson('/planeacion/muestras/2/verificar-cambio-telar', ['nuevo_salon' => 'JACQUARD', 'nuevo_telar' => '210'])
+            ->assertForbidden();
 
         $this->assertSame($antes, $this->fotoSuperficies());
     }

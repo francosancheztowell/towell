@@ -285,18 +285,16 @@ class RecalcularFechasTest extends TestCase
         $this->assertFechas(2, self::AHORA, '2026-09-10 10:00:00');
     }
 
-    public function test_sin_parametros_de_modelo_el_comando_ignora_horas_prod_guardadas_y_usa_30_dias(): void
+    public function test_sin_parametros_de_modelo_el_comando_usa_horas_prod_guardadas_como_la_cascada(): void
     {
-        // CARACTERIZA: Id 2 trae HorasProd=2 pero sin TamanoClave no hay horas calculables.
-        // La cascada (SecuenciaFechasTelar) sí usa HorasProd guardado (2 h), pero luego el comando
-        // procesa el propio Id 2 con RecalcularRegistroPorProduccion, que ignora HorasProd y le
-        // pone DEFAULT_DURACION_DIAS (30 días). El resultado final depende de qué paso corre al último.
+        // Id 2 trae HorasProd=2 pero sin TamanoClave no hay horas calculables: tanto la cascada
+        // como el propio recálculo del registro usan las 2 h guardadas (no 30 días por defecto).
         DB::table('ReqProgramaTejido')->where('Id', 2)->update(['TamanoClave' => null, 'HorasProd' => 2]);
 
         $this->como()->postJson(self::URL_PROGRAMA)->assertOk();
 
-        $this->assertFechas(2, '2026-09-10 18:00:00', '2026-10-10 18:00:00');
-        $this->assertFechas(3, '2026-10-10 18:00:00', '2026-10-10 23:00:00');
+        $this->assertFechas(2, '2026-09-10 18:00:00', '2026-09-10 20:00:00');
+        $this->assertFechas(3, '2026-09-10 20:00:00', '2026-09-11 01:00:00');
         $this->assertEquals(2.0, (float) DB::table('ReqProgramaTejido')->where('Id', 2)->value('HorasProd'));
     }
 
@@ -316,31 +314,29 @@ class RecalcularFechasTest extends TestCase
         $this->assertFechas(5, '2026-09-10 12:00:00', '2026-09-10 13:00:00');
     }
 
-    public function test_un_en_proceso_marcado_ultimo_por_error_corta_la_cascada_y_rompe_la_cadena(): void
+    public function test_un_en_proceso_marcado_ultimo_por_error_igual_encadena_a_sus_posteriores(): void
     {
-        // CARACTERIZA: RecalcularRegistroPorProduccion solo encadena si ! esUltimo(). Con el flag
-        // Ultimo='1' mal puesto en el EnProceso, Id 2 conserva su FechaInicio vieja (1-sep) y
-        // empieza ANTES de que arranque el EnProceso (10-sep): la cadena del telar queda cruzada.
+        // La cascada se decide por si hay posteriores reales en el telar (Posicion mayor), no por
+        // el flag Ultimo: con Ultimo='1' mal puesto en el EnProceso la cadena sigue encadenada.
         DB::table('ReqProgramaTejido')->where('Id', 1)->update(['Ultimo' => '1']);
 
         $this->como()->postJson(self::URL_PROGRAMA)->assertOk();
 
         $this->assertFechas(1, self::AHORA, '2026-09-10 18:00:00');
-        $this->assertFechas(2, '2026-09-01 16:30:00', '2026-09-01 18:30:00');
-        $this->assertFechas(3, '2026-09-01 18:30:00', '2026-09-01 23:30:00');
-        $this->assertSame('1', (string) DB::table('ReqProgramaTejido')->where('Id', 1)->value('Ultimo'), 'nadie corrige el flag');
+        $this->assertFechas(2, '2026-09-10 18:00:00', '2026-09-10 20:00:00');
+        $this->assertFechas(3, '2026-09-10 20:00:00', '2026-09-11 01:00:00');
     }
 
-    public function test_al_terminar_deja_apagados_los_eventos_de_todos_los_modelos_eloquent(): void
+    public function test_al_terminar_restaura_el_dispatcher_de_eventos_eloquent(): void
     {
-        // CARACTERIZA: el comando hace ReqProgramaTejido::unsetEventDispatcher() (estático, global
-        // para TODOS los modelos) y en el finally solo llama observe(), que sin dispatcher no
-        // registra nada. Lo que corra después en el mismo proceso no dispara observers ni eventos.
-        $this->assertNotNull(Model::getEventDispatcher());
+        // El comando suprime los observers y en el finally restaura el MISMO dispatcher:
+        // lo que corra después en el mismo proceso sigue disparando observers y eventos.
+        $antes = Model::getEventDispatcher();
+        $this->assertNotNull($antes);
 
         $this->como()->postJson(self::URL_PROGRAMA)->assertOk();
 
-        $this->assertNull(Model::getEventDispatcher());
+        $this->assertSame($antes, Model::getEventDispatcher());
     }
 
     public function test_programa_propaga_formulas_de_rollos_a_cat_codificados_de_su_orden(): void

@@ -170,22 +170,23 @@ class UtileriaMoverOrdenesTest extends TestCase
             ->assertOk()
             ->assertExactJson(['success' => true, 'message' => 'Se guardaron los cambios correctamente.']);
 
-        $this->assertSame([1, 7, 6, 2], $this->idsDe('201'));
+        // Id 2 (sin orden) sigue detrás de Id 1, la fila enviada que la precedía.
+        $this->assertSame([1, 2, 7, 6], $this->idsDe('201'));
         $this->assertSame(
             ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 1, 'FechaInicio' => '2026-09-10 08:00:00', 'FechaFinal' => '2026-09-11 08:00:00', 'EnProceso' => 1, 'Ultimo' => '0'],
             $this->estado(1)
         );
         $this->assertSame(
-            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 2, 'FechaInicio' => '2026-09-11 08:00:00', 'FechaFinal' => '2026-09-11 14:00:00', 'EnProceso' => 0, 'Ultimo' => '0'],
+            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 2, 'FechaInicio' => '2026-09-11 08:00:00', 'FechaFinal' => '2026-09-11 18:00:00', 'EnProceso' => 0, 'Ultimo' => '0'],
+            $this->estado(2)
+        );
+        $this->assertSame(
+            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 3, 'FechaInicio' => '2026-09-11 18:00:00', 'FechaFinal' => '2026-09-12 00:00:00', 'EnProceso' => 0, 'Ultimo' => '0'],
             $this->estado(7)
         );
         $this->assertSame(
-            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 3, 'FechaInicio' => '2026-09-11 14:00:00', 'FechaFinal' => '2026-09-12 02:00:00', 'EnProceso' => 0, 'Ultimo' => '0'],
+            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 4, 'FechaInicio' => '2026-09-12 00:00:00', 'FechaFinal' => '2026-09-12 12:00:00', 'EnProceso' => 0, 'Ultimo' => '1'],
             $this->estado(6)
-        );
-        $this->assertSame(
-            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 4, 'FechaInicio' => '2026-09-12 02:00:00', 'FechaFinal' => '2026-09-12 12:00:00', 'EnProceso' => 0, 'Ultimo' => '1'],
-            $this->estado(2)
         );
 
         $this->assertSame($fuera, $this->filasFuera(['201']), 'otros telares intactos');
@@ -193,7 +194,7 @@ class UtileriaMoverOrdenesTest extends TestCase
         $this->assertEquals($cat, DB::table('CatCodificados')->orderBy('Id')->get()->all(), 'un reorden no toca CatCodificados');
     }
 
-    public function test_reordenar_manda_al_final_los_registros_sin_orden_que_la_ui_no_muestra(): void
+    public function test_reordenar_conserva_en_su_lugar_los_registros_sin_orden_que_la_ui_no_muestra(): void
     {
         // La UI solo lista filas con NoProduccion (getRegistrosByTelar).
         $listado = $this->como()->getJson('/planeacion/utileria/mover/registros?salon=SMIT&telar=201')->assertOk();
@@ -202,13 +203,13 @@ class UtileriaMoverOrdenesTest extends TestCase
         // Se guarda el MISMO orden que mostraba la pantalla.
         $this->reordenarOrigen([1, 6, 7])->assertOk();
 
-        // CARACTERIZA: Id 2 (sin orden, pos 2) no estaba en pantalla y el usuario no movió nada,
-        // pero el bump +10000 la deja detrás de todas las enviadas: pasa de pos 2 a pos 4 y su
-        // FechaInicio queda detrás de 30006 y 30007. Parece bug: guardar el orden que se veía
-        // en pantalla reprograma filas que la pantalla no muestra.
-        $this->assertSame([1, 6, 7, 2], $this->idsDe('201'));
-        $this->assertSame('1', $this->estado(2)['Ultimo']);
-        $this->assertSame('2026-09-12 02:00:00', $this->estado(2)['FechaInicio']);
+        // Id 2 (sin orden, pos 2) no estaba en pantalla y el usuario no movió nada: sigue en pos 2,
+        // detrás de Id 1, y no queda como último.
+        $this->assertSame([1, 2, 6, 7], $this->idsDe('201'));
+        $this->assertSame(2, $this->estado(2)['Posicion']);
+        $this->assertSame('0', $this->estado(2)['Ultimo']);
+        $this->assertSame('2026-09-11 08:00:00', $this->estado(2)['FechaInicio']);
+        $this->assertSame('1', $this->estado(7)['Ultimo']);
     }
 
     public function test_el_registro_en_proceso_del_telar_se_reancla_a_now_al_guardar(): void
@@ -235,7 +236,7 @@ class UtileriaMoverOrdenesTest extends TestCase
         $this->mover([1, 7], [6], '205')
             ->assertOk()->assertJsonPath('success', true);
 
-        $this->assertSame([1, 7, 2], $this->idsDe('201'));
+        $this->assertSame([1, 2, 7], $this->idsDe('201'));
         $this->assertSame([6], $this->idsDe('205'));
 
         // Regla del controller: en cada telar afectado solo Posicion 1 queda EnProceso.
@@ -246,8 +247,8 @@ class UtileriaMoverOrdenesTest extends TestCase
         $this->assertSame('SMI 205', DB::table('ReqProgramaTejido')->where('Id', 6)->value('Maquina'));
 
         $this->assertSame(['201', 1, '2026-09-10 08:00:00', '2026-09-11 08:00:00', 1, '0'], array_values(array_diff_key($this->estado(1), ['SalonTejidoId' => 1])));
-        $this->assertSame([2, '2026-09-11 08:00:00', '2026-09-11 14:00:00', 0, '0'], [$this->estado(7)['Posicion'], $this->estado(7)['FechaInicio'], $this->estado(7)['FechaFinal'], $this->estado(7)['EnProceso'], $this->estado(7)['Ultimo']]);
-        $this->assertSame([3, '2026-09-11 14:00:00', '2026-09-12 00:00:00', 0, '1'], [$this->estado(2)['Posicion'], $this->estado(2)['FechaInicio'], $this->estado(2)['FechaFinal'], $this->estado(2)['EnProceso'], $this->estado(2)['Ultimo']]);
+        $this->assertSame([2, '2026-09-11 08:00:00', '2026-09-11 18:00:00', 0, '0'], [$this->estado(2)['Posicion'], $this->estado(2)['FechaInicio'], $this->estado(2)['FechaFinal'], $this->estado(2)['EnProceso'], $this->estado(2)['Ultimo']]);
+        $this->assertSame([3, '2026-09-11 18:00:00', '2026-09-12 00:00:00', 0, '1'], [$this->estado(7)['Posicion'], $this->estado(7)['FechaInicio'], $this->estado(7)['FechaFinal'], $this->estado(7)['EnProceso'], $this->estado(7)['Ultimo']]);
 
         $this->assertSame($fuera, $this->filasFuera(['201', '205']));
         $this->assertSame($muestras, $this->fotoMuestras());
@@ -263,7 +264,7 @@ class UtileriaMoverOrdenesTest extends TestCase
         // Id 7 detrás de Id 5 (el que corre en 204).
         $this->mover([1, 6], [5, 7], '204')->assertOk();
 
-        $this->assertSame([1, 6, 2], $this->idsDe('201'));
+        $this->assertSame([1, 2, 6], $this->idsDe('201'));
         $this->assertSame([5, 7], $this->idsDe('204'));
         $this->assertSame(
             ['NoTelarId' => '204', 'SalonTejidoId' => 'SMIT', 'Posicion' => 1, 'FechaInicio' => self::AHORA, 'FechaFinal' => '2026-09-10 13:00:00', 'EnProceso' => 1, 'Ultimo' => '0'],
@@ -273,6 +274,19 @@ class UtileriaMoverOrdenesTest extends TestCase
             ['NoTelarId' => '204', 'SalonTejidoId' => 'SMIT', 'Posicion' => 2, 'FechaInicio' => '2026-09-10 13:00:00', 'FechaFinal' => '2026-09-10 19:00:00', 'EnProceso' => 0, 'Ultimo' => '1'],
             $this->estado(7)
         );
+    }
+
+    public function test_mover_a_un_telar_cuya_fila_sin_orden_no_se_envia_la_conserva_en_su_lugar(): void
+    {
+        // Id 5 (204) no tiene NoProduccion: getRegistrosByTelar no la lista y la UI no la manda.
+        $this->assertNull(DB::table('ReqProgramaTejido')->where('Id', 5)->value('NoProduccion'));
+        DB::table('ReqProgramaTejido')->where('Id', 5)->update(['HorasProd' => 5, 'FechaInicio' => '2026-09-08 00:00:00']);
+
+        $this->mover([1, 6], [7], '204')->assertOk();
+
+        $this->assertSame([5, 7], $this->idsDe('204'));
+        $this->assertSame([1, 2, 6], $this->idsDe('201'));
+        $this->assertSame(['204', 2, 0, '1'], [$this->estado(7)['NoTelarId'], $this->estado(7)['Posicion'], $this->estado(7)['EnProceso'], $this->estado(7)['Ultimo']]);
     }
 
     public function test_mover_antes_del_registro_en_proceso_del_destino_lo_desplaza_sin_rechazo(): void
@@ -300,15 +314,16 @@ class UtileriaMoverOrdenesTest extends TestCase
         $this->mover([6, 7], [1], '205')->assertOk()->assertJsonPath('success', true);
 
         // CARACTERIZA: cambiar-telar rechaza EnProceso con 422 ("Debe finalizar el proceso antes
-        // de moverlo"); Mover lo pasa de telar sin aviso y el origen promueve a Id 6 a EnProceso
-        // con FechaInicio = now(): el 201 queda "tejiendo" otra orden y el 205 la que se movió.
+        // de moverlo"); Mover lo pasa de telar sin aviso y el origen promueve a la siguiente fila
+        // (Id 2, sin orden, que conserva su lugar delante de 6 y 7) a EnProceso con FechaInicio = now().
         $this->assertSame([1], $this->idsDe('205'));
         $this->assertSame(1, $this->estado(1)['EnProceso']);
-        $this->assertSame([6, 7, 2], $this->idsDe('201'));
+        $this->assertSame([2, 6, 7], $this->idsDe('201'));
         $this->assertSame(
-            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 1, 'FechaInicio' => self::AHORA, 'FechaFinal' => '2026-09-10 20:00:00', 'EnProceso' => 1, 'Ultimo' => '0'],
-            $this->estado(6)
+            ['NoTelarId' => '201', 'SalonTejidoId' => 'SMIT', 'Posicion' => 1, 'FechaInicio' => self::AHORA, 'FechaFinal' => '2026-09-10 18:00:00', 'EnProceso' => 1, 'Ultimo' => '0'],
+            $this->estado(2)
         );
+        $this->assertSame([2, '2026-09-10 18:00:00', '2026-09-11 06:00:00', 0], [$this->estado(6)['Posicion'], $this->estado(6)['FechaInicio'], $this->estado(6)['FechaFinal'], $this->estado(6)['EnProceso']]);
     }
 
     // ---- CatCodificados -------------------------------------------------------------
@@ -319,10 +334,8 @@ class UtileriaMoverOrdenesTest extends TestCase
 
         $cat = DB::table('CatCodificados')->where('OrdenTejido', '30006')->get();
         $this->assertCount(1, $cat, 'no se duplica la fila');
-        // CARACTERIZA: el sincronizador localiza la fila por OrdenTejido + TelarId usando el telar
-        // NUEVO (205) y la fila sigue en el 201, así que no la encuentra: CatCodificados no sigue
-        // a la orden. cambiar-telar sí la mueve (sincronizarTelarCatCodificados filtra por el viejo).
-        $this->assertSame(201, (int) $cat[0]->TelarId);
+        // La fila se localiza por el telar VIEJO (201) y pasa al nuevo, igual que cambiar-telar.
+        $this->assertSame(205, (int) $cat[0]->TelarId);
         $this->assertSame('SMIT', $cat[0]->Departamento);
         // Las demás órdenes del Cat no se tocan.
         $this->assertSame(201, (int) DB::table('CatCodificados')->where('OrdenTejido', '30007')->value('TelarId'));
@@ -335,10 +348,10 @@ class UtileriaMoverOrdenesTest extends TestCase
         $this->assertSame(['210', 'JACQUARD'], [$this->estado(6)['NoTelarId'], $this->estado(6)['SalonTejidoId']]);
         $cat = DB::table('CatCodificados')->where('OrdenTejido', '30006')->get();
         $this->assertCount(1, $cat);
-        // CARACTERIZA: mismo hueco que dentro del salón; tampoco el paso 5 (MovimientoDesarrollador)
-        // lo corrige porque escribe Pedido/Saldos, no TelarId/Departamento.
-        $this->assertSame(201, (int) $cat[0]->TelarId);
-        $this->assertSame('SMIT', $cat[0]->Departamento);
+        // CatCodificados sigue a la orden: telar y departamento nuevos.
+        $this->assertSame(210, (int) $cat[0]->TelarId);
+        $this->assertSame('JACQUARD', $cat[0]->Departamento);
+        $this->assertSame(201, (int) DB::table('CatCodificados')->where('OrdenTejido', '30007')->value('TelarId'));
     }
 
     // ---- rollback ------------------------------------------------------------------
@@ -445,8 +458,11 @@ class UtileriaMoverOrdenesTest extends TestCase
         $this->assertEquals([0.8, 300.0], [(float) $porMover['EficienciaSTD'], (float) $porMover['VelocidadSTD']]);
         $this->assertEquals([0.8, 300.0], [(float) $porCambiar['EficienciaSTD'], (float) $porCambiar['VelocidadSTD']]);
 
-        // CatCodificados: cambiar-telar mueve la fila al telar nuevo; Mover no (ver test de Cat).
-        $this->assertSame(201, (int) DB::table('CatCodificados')->where('OrdenTejido', '30006')->value('TelarId'));
+        // CatCodificados: los dos caminos mueven la fila al telar nuevo.
+        $this->assertSame([210, 'JACQUARD'], [
+            (int) DB::table('CatCodificados')->where('OrdenTejido', '30006')->value('TelarId'),
+            DB::table('CatCodificados')->where('OrdenTejido', '30006')->value('Departamento'),
+        ]);
         $this->assertSame([211, 'JACQUARD'], [
             (int) DB::table('CatCodificados')->where('OrdenTejido', '30008')->value('TelarId'),
             DB::table('CatCodificados')->where('OrdenTejido', '30008')->value('Departamento'),

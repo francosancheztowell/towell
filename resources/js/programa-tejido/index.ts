@@ -7,6 +7,7 @@ import {
     rowMatchesCustomFilters as ptRowMatchesCustomFilters,
 } from './filter-engine.ts';
 import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccion.ts';
+import { indiceDestino as ptIndiceDestino, indiceMinimo as ptIndiceMinimo } from './dragdrop-logica.ts';
 import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
 import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 import { abrirDuplicar as ptAbrirDuplicar, escucharGuardado as ptEscucharDuplicarGuardado } from './duplicar.ts';
@@ -4144,6 +4145,12 @@ const uiInlineEditableFields: Record<string, any> = {
 
     let value = (input.value ?? '').trim();
 
+    // '1,5' en un input number llega como '' (badInput) o NaN: el servidor lo tomaría como vaciar.
+    if (cfg.type === 'number' && (input.validity?.badInput || (value !== '' && Number.isNaN(Number(value))))) {
+      window.notify.warning('Número no válido: usa punto decimal (ej. 1.5). No se guardó.');
+      return;
+    }
+
     if (cfg.toPayload) value = cfg.toPayload(value);
     else if (cfg.type === 'number') value = (value === '' ? null : Number(value));
     else if (value === '') value = null;
@@ -6212,25 +6219,10 @@ const uiInlineEditableFields: Record<string, any> = {
       }
 
       function calcTargetPosition(telarId: any, targetRow: any, isBefore: any) {
+        // Índice por orden en el DOM (cache.rows ya excluye la fila arrastrada), no por el
+        // valor de Posicion: con huecos (1,2,5,6) el servidor la ponía en otro lugar.
         const cache = buildTelarCache(telarId);
-        if (!targetRow) return cache.rows.length;
-
-        const targetPos = rowMeta(targetRow).posicion;
-        if (Number.isFinite(targetPos)) {
-          let newPos = isBefore ? (targetPos - 1) : targetPos;
-          const originPos = state.origin.posicion;
-          if (isSameTelar(telarId, state.origin.telar) && Number.isFinite(originPos) && originPos < targetPos) {
-            newPos -= 1;
-          }
-          return Math.max(0, Math.min(newPos, cache.rows.length));
-        }
-
-        const idx = cache.indexMap?.get(targetRow);
-        if (typeof idx === 'number') {
-          return isBefore ? idx : idx + 1;
-        }
-
-        return cache.rows.length;
+        return ptIndiceDestino(cache.rows, state.draggedRow, targetRow || null, !!isBefore);
       }
 
       function findClosestRow(tb: any, y: any) {
@@ -6385,7 +6377,7 @@ const uiInlineEditableFields: Record<string, any> = {
 
         const targetPosition = calcTargetPosition(targetTelar, targetRow, isBefore);
         const cache = buildTelarCache(targetTelar);
-        const minAllowed = cache.lastEnProceso !== -1 ? (cache.lastEnProceso + 1) : 0;
+        const minAllowed = ptIndiceMinimo(cache.lastEnProceso);
 
         if (targetPosition < minAllowed) {
           state.blockedReason = 'No se puede colocar antes de un registro en proceso.';
@@ -6447,9 +6439,10 @@ const uiInlineEditableFields: Record<string, any> = {
           }
 
           const newPos = calcTargetPosition(state.origin.telar, targetRow, isBefore);
-          const originPos = Number.isFinite(state.origin.posicion) ? (state.origin.posicion - 1) : null;
+          // Índice actual por orden en el DOM, igual que newPos (no Posicion - 1).
+          const originPos = telarRows.indexOf(state.draggedRow);
 
-          if (originPos !== null && originPos === newPos) {
+          if (originPos === newPos) {
             toast('El registro ya está en esa posición', 'info');
             clearVisualRows();
             return false;
@@ -6461,6 +6454,7 @@ const uiInlineEditableFields: Record<string, any> = {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+              'Accept': 'application/json',
                 'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
               },
               body: JSON.stringify({ new_position: newPos })
@@ -6492,7 +6486,7 @@ const uiInlineEditableFields: Record<string, any> = {
 
         // Movimiento entre telares diferentes - permitir sin bloqueo
         const cache = buildTelarCache(targetTelar);
-        const minAllowed = cache.lastEnProceso !== -1 ? (cache.lastEnProceso + 1) : 0;
+        const minAllowed = ptIndiceMinimo(cache.lastEnProceso);
         let targetPosition = calcTargetPosition(targetTelar, targetRow, isBefore);
         targetPosition = Math.max(minAllowed, Math.min(targetPosition, cache.rows?.length || 0));
 
@@ -6519,6 +6513,7 @@ const uiInlineEditableFields: Record<string, any> = {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Accept': 'application/json',
               'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
             },
             body: JSON.stringify({ nuevo_salon: nuevoSalon, nuevo_telar: nuevoTelar })
@@ -6531,7 +6526,7 @@ const uiInlineEditableFields: Record<string, any> = {
             const esc = escapeHtmlPtModal;
             window.notify.html(`
                 <div class="text-left">
-                  <p class="mb-3">${esc(verificacion?.mensaje || 'Validación fallida')}</p>
+                  <p class="mb-3">${esc(verificacion?.mensaje || verificacion?.message || 'Validación fallida')}</p>
                   <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
                     <p><span class="font-medium">Clave Modelo:</span> ${esc(verificacion?.clave_modelo || 'N/A')}</p>
                     <p><span class="font-medium">Telar Destino:</span> ${esc(verificacion?.telar_destino || nuevoTelar)} (${esc(verificacion?.salon_destino || nuevoSalon || 'N/A')})</p>
@@ -6577,6 +6572,7 @@ const uiInlineEditableFields: Record<string, any> = {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Accept': 'application/json',
               'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
             },
             body: JSON.stringify({

@@ -102,20 +102,22 @@ class CambiarTelarRigorTest extends TestCase
     private function fila(int $id, string $tabla = 'ReqProgramaTejido'): array
     {
         $r = (array) DB::table($tabla)->where('Id', $id)->first(self::COLUMNAS);
+        $o = fn (string $col, callable $cast) => $r[$col] === null ? null : $cast($r[$col]);
+        $fecha = fn ($v) => Carbon::parse($v)->format('Y-m-d H:i:s');
 
         return [
             'Id' => (int) $r['Id'],
             'Salon' => $r['SalonTejidoId'],
             'Telar' => (string) $r['NoTelarId'],
-            'Posicion' => $r['Posicion'] === null ? null : (int) $r['Posicion'],
-            'FechaInicio' => $r['FechaInicio'] === null ? null : Carbon::parse($r['FechaInicio'])->format('Y-m-d H:i:s'),
-            'FechaFinal' => $r['FechaFinal'] === null ? null : Carbon::parse($r['FechaFinal'])->format('Y-m-d H:i:s'),
-            'EnProceso' => $r['EnProceso'] === null ? null : (int) $r['EnProceso'],
-            'Ultimo' => $r['Ultimo'] === null ? null : (string) $r['Ultimo'],
-            'OrdCompartida' => $r['OrdCompartida'] === null ? null : (int) $r['OrdCompartida'],
-            'OrdCompartidaLider' => $r['OrdCompartidaLider'] === null ? null : (int) $r['OrdCompartidaLider'],
-            'TotalPedido' => $r['TotalPedido'] === null ? null : (float) $r['TotalPedido'],
-            'SaldoPedido' => $r['SaldoPedido'] === null ? null : (float) $r['SaldoPedido'],
+            'Posicion' => $o('Posicion', 'intval'),
+            'FechaInicio' => $o('FechaInicio', $fecha),
+            'FechaFinal' => $o('FechaFinal', $fecha),
+            'EnProceso' => $o('EnProceso', 'intval'),
+            'Ultimo' => $o('Ultimo', 'strval'),
+            'OrdCompartida' => $o('OrdCompartida', 'intval'),
+            'OrdCompartidaLider' => $o('OrdCompartidaLider', 'intval'),
+            'TotalPedido' => $o('TotalPedido', 'floatval'),
+            'SaldoPedido' => $o('SaldoPedido', 'floatval'),
         ];
     }
 
@@ -172,20 +174,29 @@ class CambiarTelarRigorTest extends TestCase
         ], $this->fila(6));
     }
 
-    public function test_origen_sin_en_proceso_reancla_al_inicio_del_registro_movido(): void
+    public function test_origen_sin_en_proceso_conserva_el_inicio_del_primero_que_se_queda(): void
     {
         // Mover el ÚLTIMO de 301 (Id 9, inicia 09-25) a 204.
         $this->cambiar(9, 'SMIT', '204', 1)->assertOk()->assertJsonPath('success', true);
 
-        // CARACTERIZA: el movido se marca con Posicion = -Id antes de leer el origen, así que queda
-        // PRIMERO en la consulta y $inicioOrigen toma SU FechaInicio (09-25) en vez de la del primero
-        // que se queda (Id 7, 09-20). El telar origen se corre 5 días hacia adelante.
-        $this->assertSame('2026-09-25 06:00:00', $this->fila(7)['FechaInicio']);
-        $this->assertSame('2026-09-26 06:00:00', $this->fila(7)['FechaFinal']);
-        $this->assertSame('2026-09-26 06:00:00', $this->fila(8)['FechaInicio']);
+        // El origen arranca donde arrancaba su primer registro (Id 7, 09-20), no en el del movido.
+        $this->assertSame('2026-09-20 06:00:00', $this->fila(7)['FechaInicio']);
+        $this->assertSame('2026-09-21 06:00:00', $this->fila(7)['FechaFinal']);
+        $this->assertSame('2026-09-21 06:00:00', $this->fila(8)['FechaInicio']);
         $this->assertSame([1, 2], [$this->fila(7)['Posicion'], $this->fila(8)['Posicion']]);
         $this->assertSame(['1', '0'], [(string) $this->fila(7)['EnProceso'], $this->fila(7)['Ultimo']]);
         $this->assertSame('1', $this->fila(8)['Ultimo']);
+    }
+
+    public function test_si_se_va_el_primero_del_origen_los_que_quedan_arrancan_donde_arrancaba_el(): void
+    {
+        // Mover el PRIMERO de 301 (Id 7, inicia 09-20): el telar no debe quedar con un hueco.
+        $this->cambiar(7, 'SMIT', '204', 1)->assertOk()->assertJsonPath('success', true);
+
+        $this->assertSame('2026-09-20 06:00:00', $this->fila(8)['FechaInicio']);
+        $this->assertSame('2026-09-21 06:00:00', $this->fila(8)['FechaFinal']);
+        $this->assertSame('2026-09-21 06:00:00', $this->fila(9)['FechaInicio']);
+        $this->assertSame([1, 2], [$this->fila(8)['Posicion'], $this->fila(9)['Posicion']]);
     }
 
     public function test_destino_vacio_arranca_en_la_fecha_previa_del_movido(): void
@@ -320,13 +331,13 @@ class CambiarTelarRigorTest extends TestCase
         $this->cambiar(2, 'SMIT', '204', 1)
             ->assertStatus(500)
             ->assertJsonPath('success', false)
-            ->assertJsonPath('message', 'Error al cambiar de telar: falla simulada en el destino');
+            ->assertJsonPath('message', 'Error al cambiar de telar.');
 
         $this->assertSame($antes, $this->fotoSuperficies(), 'rollback total: origen, destino, líneas y CatCodificados');
         $this->assertSame($dispatcherAntes, ReqProgramaTejido::getEventDispatcher(), 'los observers vuelven');
     }
 
-    public function test_si_regenerar_lineas_falla_tras_el_commit_responde_500_con_el_registro_ya_movido(): void
+    public function test_si_regenerar_lineas_falla_tras_el_commit_responde_exito_con_el_registro_ya_movido(): void
     {
         $commit = false;
         Event::listen(TransactionCommitted::class, function () use (&$commit) {
@@ -340,10 +351,8 @@ class CambiarTelarRigorTest extends TestCase
 
         $r = $this->cambiar(2, 'SMIT', '204', 1);
 
-        // CARACTERIZA: el catch de cambiarTelar envuelve también el post-commit; rollBack() ya no
-        // revierte nada y el cliente ve "Error" aunque el cambio quedó guardado (y reintenta).
-        $r->assertStatus(500)->assertJsonPath('success', false)
-            ->assertJsonPath('message', 'Error al cambiar de telar: lineas caidas');
+        // El cambio ya quedó guardado: un fallo de líneas se reporta, pero el cliente ve éxito.
+        $r->assertOk()->assertJsonPath('success', true)->assertJsonPath('registro_id', 2);
         $commit = false;
         $this->assertSame(['204', 2], [$this->fila(2)['Telar'], $this->fila(2)['Posicion']]);
         $this->assertSame([1, 6], DB::table('ReqProgramaTejido')->where('NoTelarId', '201')->orderBy('Posicion')->pluck('Id')->map(fn ($i) => (int) $i)->all());

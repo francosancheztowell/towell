@@ -165,15 +165,7 @@ class BalancearTejido
 
             $rest = array_slice($merged, $idxBase + 1);
             foreach ($rest as $r) {
-                $rid = (int) $r->Id;
-                if (isset($idsActualizados[$rid])) {
-                    if (! empty($r->FechaFinal)) {
-                        $cursor = Carbon::parse($r->FechaFinal);
-                    }
-
-                    continue;
-                }
-
+                // También los que vienen en cambios: se reencadenan desde el cursor (si no, traslapan).
                 [$inicio, $fin] = self::resolverInicioFin($cursor->copy(), $r);
                 $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
                 $r->FechaFinal = $fin->format('Y-m-d H:i:s');
@@ -221,18 +213,19 @@ class BalancearTejido
     {
         AuditoriaHelper::contexto('BALANCEO');
 
+        // Fuera del try: la ValidationException debe salir como 422 con 'errors', no como 500.
+        $request->validate([
+            'cambios' => 'required|array|min:1',
+            'cambios.*.id' => 'required|integer',
+            'cambios.*.total_pedido' => 'required|numeric|min:0',
+            'cambios.*.fecha_final' => 'nullable|string', // la ignoramos
+            'cambios.*.modo' => 'nullable|string|in:saldo,total',
+            'ord_compartida' => 'required|integer',
+        ]);
+
         $dispatcher = null;
 
         try {
-            $request->validate([
-                'cambios' => 'required|array|min:1',
-                'cambios.*.id' => 'required|integer',
-                'cambios.*.total_pedido' => 'required|numeric|min:0',
-                'cambios.*.fecha_final' => 'nullable|string', // la ignoramos
-                'cambios.*.modo' => 'nullable|string|in:saldo,total',
-                'ord_compartida' => 'required|integer',
-            ]);
-
             $cambios = $request->input('cambios', []);
 
             $ids = array_values(array_unique(array_map(fn ($c) => (int) $c['id'], $cambios)));
@@ -364,16 +357,8 @@ class BalancearTejido
                 // Continuar desde el siguiente registro después del base
                 $cascadaCount = 0;
                 foreach ($todosRegistrosTelar->slice($idxBase + 1) as $r) {
-                    // Si ya fue actualizado manualmente, usar su FechaFinal como cursor y continuar
-                    if (isset($idsActualizados[(int) $r->Id])) {
-                        if (! empty($r->FechaFinal)) {
-                            $cursor = Carbon::parse($r->FechaFinal);
-                        }
-
-                        continue;
-                    }
-
-                    // Actualizar este registro en cascada
+                    // Actualizar este registro en cascada (también si vino en cambios: si se
+                    // saltara, conservaría su FechaInicio vieja y traslaparía al anterior).
                     [$inicio, $fin] = self::resolverInicioFin($cursor->copy(), $r);
                     $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
                     $r->FechaFinal = $fin->format('Y-m-d H:i:s');

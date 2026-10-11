@@ -145,11 +145,11 @@ class VerificarCambioTelarRigorTest extends TestCase
         $this->assertSame($antes, $this->fotoSuperficies());
     }
 
-    public function test_verificar_no_exige_permiso_modificar(): void
+    public function test_verificar_exige_permiso_modificar(): void
     {
-        // La ruta no lleva module.permission (solo auth): es de lectura; el 403 lo pone cambiar-telar.
-        $this->verificar(2, ['nuevo_salon' => 'JACQUARD', 'nuevo_telar' => '210'], [])
-            ->assertOk()->assertJsonPath('puede_mover', true);
+        // Mismo permiso que cambiar-telar: sin modificar del módulo no se entrega el diagnóstico.
+        $this->verificar(2, ['nuevo_salon' => 'JACQUARD', 'nuevo_telar' => '210'], [])->assertForbidden();
+        $this->verificar(2, ['nuevo_salon' => 'JACQUARD', 'nuevo_telar' => '210'], [2 => ['acceso']])->assertForbidden();
     }
 
     public function test_verificar_exige_salon_y_telar(): void
@@ -158,12 +158,9 @@ class VerificarCambioTelarRigorTest extends TestCase
         $this->verificar(2, [])->assertStatus(422)->assertJsonValidationErrors(['nuevo_salon', 'nuevo_telar']);
     }
 
-    public function test_verificar_registro_inexistente_responde_500(): void
+    public function test_verificar_registro_inexistente_responde_404(): void
     {
-        // CARACTERIZA: findOrFail está dentro del try/catch(Throwable); un Id que no existe
-        // devuelve 500 "Error al verificar: ..." en vez de 404 (cambiar-telar sí da 404).
-        $this->verificar(9999, ['nuevo_salon' => 'JACQUARD', 'nuevo_telar' => '210'])
-            ->assertStatus(500)->assertJsonPath('puede_mover', false);
+        $this->verificar(9999, ['nuevo_salon' => 'JACQUARD', 'nuevo_telar' => '210'])->assertNotFound();
     }
 
     public function test_verificar_en_muestras_lee_la_tabla_de_muestras(): void

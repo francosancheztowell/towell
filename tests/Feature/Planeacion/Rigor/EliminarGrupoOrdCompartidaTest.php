@@ -134,7 +134,7 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
 
     // ---- borrar al líder ------------------------------------------------------------
 
-    public function test_borrar_al_lider_en_grupo_de_dos_transfiere_el_pedido_al_otro_y_lo_hace_lider(): void
+    public function test_borrar_al_lider_en_grupo_de_dos_transfiere_el_pedido_al_otro_y_disuelve_el_grupo(): void
     {
         $this->grupoDeDos();
 
@@ -148,7 +148,8 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
             'NoTelarId' => '302', 'Posicion' => 2,
             'FechaInicio' => '2026-09-11 20:00:00', 'FechaFinal' => '2026-09-12 20:00:00',
             'EnProceso' => 0, 'Ultimo' => '1',
-            'OrdCompartida' => self::GRUPO, 'OrdCompartidaLider' => 1, 'OrdPrincipal' => 50010,
+            // Queda solo: deja de ser grupo (null/null, como desvincular con 2).
+            'OrdCompartida' => null, 'OrdCompartidaLider' => null, 'OrdPrincipal' => 50010,
             // CARACTERIZA: Saldo = (400 + 1000) - Produccion(50) = 1350, ignora %seg=10 (regla: Pedido×1.1−Prod = 1490).
             'TotalPedido' => 1400.0, 'SaldoPedido' => 1350.0,
         ], $this->estado(11));
@@ -250,19 +251,29 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
         ], $this->estado(23));
     }
 
-    public function test_grupo_que_queda_de_uno_conserva_ord_compartida_y_liderazgo(): void
+    public function test_grupo_que_queda_de_uno_se_disuelve(): void
     {
         $this->grupoDeDos();
+        $pedidoAntes = $this->estado(10);
 
         $this->borrar(11)->assertOk();
 
-        // CARACTERIZA: un "grupo" de un solo miembro sigue con OrdCompartida y OrdCompartidaLider=1.
-        $this->assertSame(['Id' => 10, 'OrdCompartida' => self::GRUPO, 'OrdCompartidaLider' => 1], (function () {
-            $r = DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)->first();
+        // Un grupo de un solo miembro deja de serlo: OrdCompartida y OrdCompartidaLider a null.
+        $this->assertSame(0, DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)->count());
+        $despues = $this->estado(10);
+        $this->assertNull($despues['OrdCompartida']);
+        $this->assertNull($despues['OrdCompartidaLider']);
+        // El líder sigue recibiendo el pedido del borrado (regla sin cambios).
+        $this->assertGreaterThan($pedidoAntes['TotalPedido'], $despues['TotalPedido']);
+    }
 
-            return ['Id' => (int) $r->Id, 'OrdCompartida' => (int) $r->OrdCompartida, 'OrdCompartidaLider' => (int) $r->OrdCompartidaLider];
-        })());
-        $this->assertSame(1, DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)->count());
+    public function test_grupo_de_tres_que_queda_de_dos_sigue_siendo_grupo(): void
+    {
+        $this->borrar(11)->assertOk();
+
+        $this->assertSame([10, 12], DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)
+            ->orderBy('Id')->pluck('Id')->map(fn ($id) => (int) $id)->all());
+        $this->assertSame(1, (int) DB::table('ReqProgramaTejido')->where('Id', 10)->value('OrdCompartidaLider'));
     }
 
     public function test_borrar_el_unico_miembro_restante_no_transfiere_nada(): void
@@ -322,10 +333,10 @@ class EliminarGrupoOrdCompartidaTest extends TestCase
 
         $r = $this->borrar(10)->assertJsonPath('success', false);
 
-        // CARACTERIZA: QueryException hereda de RuntimeException, así que un error de BD sale como
-        // 422 (no 500) y el mensaje SQL crudo llega al usuario.
-        $r->assertStatus(422);
-        $this->assertStringContainsString('falla simulada', (string) $r->json('message'));
+        // Un error de BD (QueryException) es 500 con mensaje fijo: ni 422 ni el SQL crudo.
+        $r->assertStatus(500);
+        $this->assertStringNotContainsString('falla simulada', (string) $r->json('message'));
+        $this->assertStringNotContainsString('SQL', (string) $r->json('message'));
 
         $this->assertSame($antes, $this->fotoCompleta(), 'rollback total: receptor, fechas y líneas intactos');
     }

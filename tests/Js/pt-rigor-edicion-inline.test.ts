@@ -51,6 +51,9 @@ const REGLAS: Record<string, string[]> = Object.fromEntries(
     ]),
 );
 
+/** Columnas sin las que no se calculan las fórmulas de rollos: la regla no acepta null. */
+const OBLIGATORIOS = ['NoTiras', 'PesoCrudo'];
+
 const VACIO_A_NULL = [
     ...bloque(requestPhp, /CAMPOS_VACIO_A_NULL = \[([\s\S]*?)\];/, 'CAMPOS_VACIO_A_NULL').matchAll(/'(\w+)'/g),
 ].map((m) => m[1]!);
@@ -58,7 +61,7 @@ const VACIO_A_NULL = [
 /** Conversión de saveInlineField (valor del input → valor del payload), extraída del propio index.ts. */
 const conversionTexto = bloque(
     indexTs,
-    /let value = \(input\.value \?\? ''\)\.trim\(\);\s*([\s\S]*?else if \(value === ''\) value = null;)/,
+    /let value = \(input\.value \?\? ''\)\.trim\(\);[\s\S]*?(if \(cfg\.toPayload\)[\s\S]*?else if \(value === ''\) value = null;)/,
     'conversión de saveInlineField',
 );
 const aPayload = new Function('cfg', 'crudo', `let value = String(crudo ?? '').trim();\n${conversionTexto}\nreturn value;`) as (
@@ -107,8 +110,13 @@ test('el tipo del input coincide con la regla del servidor', () => {
     const esperado: Record<string, string> = { number: 'numeric', date: 'date', 'datetime-local': 'date', text: 'string', select: 'string' };
     for (const [columna, cfg] of Object.entries(CAMPOS_UI)) {
         const regla = REGLAS[MAPA[columna]!]!;
-        assert.ok(regla.includes(esperado[cfg.type]!), `${columna} (${cfg.type}) contra [${regla.join(', ')}]`);
-        assert.ok(regla.includes('nullable'), `${columna}: vaciar la celda manda null y la regla no lo acepta`);
+        const tipo = esperado[cfg.type]!;
+        const coincide = regla.includes(tipo) || (tipo === 'numeric' && regla.includes('integer'));
+        assert.ok(coincide, `${columna} (${cfg.type}) contra [${regla.join(', ')}]`);
+        // NoTiras y PesoCrudo son obligatorios (> 0): vaciarlos da 422 sobre el campo.
+        if (!OBLIGATORIOS.includes(columna)) {
+            assert.ok(regla.includes('nullable'), `${columna}: vaciar la celda manda null y la regla no lo acepta`);
+        }
         assert.ok(regla.includes('sometimes'), `${columna}: sin 'sometimes' un PUT de otro campo fallaría`);
     }
 });
@@ -120,14 +128,21 @@ test('donde el servidor limita el largo, el input usa el mismo maxLength', () =>
     }
 });
 
-test('caracteriza: columnas con min 0 en el input que el servidor no limita', () => {
-    // CARACTERIZA: el input pone min=0 pero la regla no tiene min:0, así que un PUT directo
-    // (o un input al que se le teclea "-") manda negativos que el servidor acepta.
+test('donde el input pone min 0, el servidor también rechaza negativos', () => {
     const sinMin = Object.entries(CAMPOS_UI)
-        .filter(([columna, cfg]) => cfg.min === 0 && !REGLAS[MAPA[columna]!]!.includes('min:0'))
-        .map(([columna]) => columna)
-        .sort();
-    assert.deepEqual(sinMin, ['LargoCrudo', 'Luchaje', 'NoTiras', 'Peine', 'PesoCrudo']);
+        .filter(([columna, cfg]) => {
+            const regla = REGLAS[MAPA[columna]!]!;
+            return cfg.min === 0 && !regla.includes('min:0') && !regla.includes('gt:0');
+        })
+        .map(([columna]) => columna);
+    assert.deepEqual(sinMin, []);
+});
+
+test('NoTiras y PesoCrudo exigen > 0 sin nullable (las fórmulas de rollos los necesitan)', () => {
+    for (const columna of OBLIGATORIOS) {
+        const regla = REGLAS[MAPA[columna]!]!;
+        assert.ok(regla.includes('gt:0') && !regla.includes('nullable'), `${columna}: [${regla.join(', ')}]`);
+    }
 });
 
 test('los campos numéricos y de fecha del mapa convierten "" en null en el servidor', () => {
@@ -164,11 +179,11 @@ test('AplicacionId "NA" se manda como null (sin aplicación)', () => {
 });
 
 test('número no válido tecleado llega como NaN y JSON lo manda como null', () => {
-    // CARACTERIZA: Number('1,5') = NaN; JSON.stringify lo vuelve null y el servidor lo trata
-    // como "vaciar" (o lo ignora si es pedido), sin avisar del formato.
+    // Number('1,5') = NaN y JSON lo volvería null ("vaciar"): saveInlineField corta antes
+    // de convertir con un aviso, sin mandar el PUT.
     const valor = aPayload(CAMPOS_UI.LargoCrudo, '1,5');
     assert.ok(Number.isNaN(valor));
-    assert.equal(JSON.stringify({ largo_crudo: valor }), '{"largo_crudo":null}');
+    assert.match(indexTs, /cfg\.type === 'number' && \(input\.validity\?\.badInput \|\| \(value !== '' && Number\.isNaN\(Number\(value\)\)\)\)\) \{\s*window\.notify\.warning\(.*\);\s*return;/);
 });
 
 test('el mapa vive en un solo lugar (state.blade.php ya no lo duplica)', () => {
