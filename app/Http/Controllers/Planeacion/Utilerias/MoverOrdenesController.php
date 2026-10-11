@@ -358,8 +358,12 @@ class MoverOrdenesController extends Controller
         TelarSalonResolver::applyTelarFilter(DB::table($tabla), $salon, $telar)
             ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
 
+        // Una lectura con lock para todo el telar (antes una por orden). Va después del bump
+        // para que los originales coincidan con la BD y saveQuietly() solo escriba lo que cambia.
+        $registros = ReqProgramaTejido::query()->whereKey($ordenes)->lockForUpdate()->get()->keyBy('Id');
+
         foreach ($ordenes as $index => $id) {
-            $registro = ReqProgramaTejido::query()->whereKey($id)->lockForUpdate()->first();
+            $registro = $registros->get((int) $id);
             if (! $registro) {
                 continue;
             }
