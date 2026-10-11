@@ -7,12 +7,11 @@ use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class ControlMermaReportService
 {
-    private ?string $dateColumn = null;
+    /** Fecha del reporte: el cierre de la orden de engomado (columna existente desde 2026-03). */
+    private const COLUMNA_FECHA = 'FechaFinaliza';
 
     public function build(?string $fechaIni, ?string $fechaFin): Collection
     {
@@ -20,7 +19,7 @@ class ControlMermaReportService
             return collect();
         }
 
-        $dateColumn = $this->resolveDateColumn();
+        $dateColumn = self::COLUMNA_FECHA;
 
         $programas = EngProgramaEngomado::query()
             ->with([
@@ -44,7 +43,7 @@ class ControlMermaReportService
         ?Collection $urdProductionByFolio = null,
         ?Collection $engProductionByFolio = null
     ): Collection {
-        $dateColumn ??= $this->resolveDateColumn();
+        $dateColumn ??= self::COLUMNA_FECHA;
 
         if ($urdProductionByFolio === null || $engProductionByFolio === null) {
             [$urdProductionByFolio, $engProductionByFolio] = $this->loadProductionGroupedByFolio($programas);
@@ -406,40 +405,5 @@ class ControlMermaReportService
         $normalized = preg_replace('/\s+/', ' ', trim((string) $value));
 
         return $normalized ?? '';
-    }
-
-    private function resolveDateColumn(): string
-    {
-        if ($this->dateColumn !== null) {
-            return $this->dateColumn;
-        }
-
-        $model = new EngProgramaEngomado();
-        $connectionName = $model->getConnectionName();
-        $table = $model->getTable();
-
-        foreach (['FechaFinaliza', 'FechaProg', 'FechaReq'] as $candidate) {
-            if (Schema::connection($connectionName)->hasColumn($table, $candidate)) {
-                $this->dateColumn = $candidate;
-
-                if ($candidate !== 'FechaFinaliza') {
-                    Log::warning('ControlMerma: usando columna de fecha alternativa', [
-                        'table' => $table,
-                        'column' => $candidate,
-                    ]);
-                }
-
-                return $this->dateColumn;
-            }
-        }
-
-        $this->dateColumn = 'FechaProg';
-
-        Log::warning('ControlMerma: no se encontro columna de fecha esperada, usando fallback por defecto', [
-            'table' => $table,
-            'column' => $this->dateColumn,
-        ]);
-
-        return $this->dateColumn;
     }
 }
