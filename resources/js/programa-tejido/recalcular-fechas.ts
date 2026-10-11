@@ -2,6 +2,7 @@
 // req-programa-tejido.blade.php; la URL de la superficie llega en PT_BOOT.routes.
 import { PT_BOOT } from './boot.ts';
 import { datosDelError } from './respuesta.ts';
+import { recargarConservando } from './vista.ts';
 
 interface RespuestaRecalcular {
     ok?: boolean;
@@ -30,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
         http.post<RespuestaRecalcular>(url)
             .then((data) => {
                 if (data.ok) {
-                    // Aviso con cierre solo y recarga a los 2 s, como antes.
+                    // Cambian las fechas de todos los telares: se recarga, pero conservando scroll, fila y filtros.
                     notify.success(data.message ?? 'Listo');
-                    setTimeout(() => window.location.reload(), 2000);
+                    setTimeout(() => recargarConservando(), 2000);
                 } else {
                     void notify.alert(data.message ?? '', 'Error', 'error');
                 }

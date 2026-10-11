@@ -11,6 +11,7 @@ import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactil
 import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 import { abrirDuplicar as ptAbrirDuplicar, escucharGuardado as ptEscucharDuplicarGuardado } from './duplicar.ts';
 import { abrirFiltroColumna as ptAbrirFiltroColumna, textoARango as ptTextoARango, tipoDeColumna as ptTipoDeColumna, valoresDeColumna as ptValoresDeColumna } from './filtro-columna.ts';
+import { recargarConservando as ptRecargarConservando, restaurarVista as ptRestaurarVista } from './vista.ts';
 import { chipsDe as ptChipsDe, guardarEnUrl as ptGuardarFiltrosEnUrl, leerDeUrl as ptLeerFiltrosDeUrl, pintarBarra as ptPintarBarraFiltros, deserializar as ptDeserializarFiltros, serializar as ptSerializarFiltros } from './barra-filtros.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
@@ -433,6 +434,20 @@ function buildCalendarWarningHtml(message: any, advertencias: any) {
 	`;
 }
 
+/**
+ * Refresca en su lugar las filas de los telares tocados (cambiar calendario recalcula las
+ * fechas de todo el telar), sin recargar la página: se conservan scroll, selección y filtros.
+ */
+window.ptRefrescarTelares = async (ids: string[]) => {
+	const filas = Array.from(document.querySelectorAll<HTMLElement>('#mainTable tbody tr.selectable-row'));
+	const telarDe = (fila: HTMLElement) => fila.querySelector('[data-column="NoTelarId"]')?.textContent?.trim() ?? '';
+	const telares = new Set(filas.filter((f) => ids.includes(f.dataset.id ?? '')).map(telarDe));
+	await actualizarRegistrosPorIds(filas.filter((f) => telares.has(telarDe(f))).map((f) => f.dataset.id));
+	window.PT?.filterIndex?.rebuild?.();
+	lastFilterState = null;
+	applyProgramaTejidoFilters();
+};
+
 // Modal Duplicar/Dividir (Livewire): al guardar se pintan las filas sin recargar.
 ptEscucharDuplicarGuardado({
 	insertar: redirectToRegistro,
@@ -487,7 +502,7 @@ async function redirectToRegistro(data: any) {
 						}
 						return;
 					}
-					window.location.reload();
+					ptRecargarConservando();
 					return;
 				}
 
@@ -805,7 +820,7 @@ async function redirectToRegistro(data: any) {
 			return;
 		}
 		ptDebugLog('[DEBUG] 🔄 Último fallback: recargando página');
-		window.location.reload();
+		ptRecargarConservando();
 		return;
 	}
 	} // cierra if (tieneMultiplesRegistros)
@@ -836,7 +851,7 @@ async function redirectToRegistro(data: any) {
 	}
 
 	ptDebugLog('[DEBUG] 🔄 Fallback final: recargando página');
-	window.location.reload();
+	ptRecargarConservando();
 }
 
 async function agregarRegistroSinRecargar(data: any, { preventReload = false } = {}) {
@@ -897,7 +912,7 @@ async function agregarRegistroSinRecargar(data: any, { preventReload = false } =
 		const tb = document.querySelector('#mainTable tbody');
 		if (!tb) {
 			if (preventReload) throw new Error('No se encontró la tabla principal (#mainTable tbody)');
-			window.location.reload();
+			ptRecargarConservando();
 			return;
 		}
 
@@ -921,7 +936,7 @@ async function agregarRegistroSinRecargar(data: any, { preventReload = false } =
 
 		if (!columns || columns.length === 0) {
 			if (preventReload) throw new Error('No se encontraron columnas para la tabla');
-			window.location.reload();
+			ptRecargarConservando();
 			return;
 		}
 
@@ -1166,7 +1181,7 @@ async function agregarRegistroSinRecargar(data: any, { preventReload = false } =
 			}
 			window.location.href = url.toString();
 		} else {
-			window.location.reload();
+			ptRecargarConservando();
 		}
 	}
 }
@@ -6263,7 +6278,7 @@ const uiInlineEditableFields: Record<string, any> = {
           tb.addEventListener('dragend',   onDragEnd);
         }
 
-        toast('Modo arrastrar activado<br>Arrastra las filas para reorganizarlas', 'info');
+        toast('Modo arrastrar activado: arrastra las filas para reordenarlas', 'info');
       }
 
       function disable() {
@@ -6459,7 +6474,7 @@ const uiInlineEditableFields: Record<string, any> = {
               return false;
             }
 
-            toast(`Prioridad actualizada<br>${data.cascaded_records || 0} registro(s) recalculado(s)`, 'success');
+            toast(`Prioridad actualizada · ${data.cascaded_records || 0} registro(s) recalculado(s)`, 'success');
 
             if (typeof window.updateTableAfterDragDrop === 'function') {
               window.updateTableAfterDragDrop(data.detalles, registroId, data.updates || {});
@@ -7780,10 +7795,17 @@ const uiInlineEditableFields: Record<string, any> = {
     }
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => { buildPTFilterIndex(); restaurarFiltros(); });
+      document.addEventListener('DOMContentLoaded', () => { buildPTFilterIndex(); restaurarFiltros(); restaurarVistaGrilla(); });
     } else {
       buildPTFilterIndex();
       restaurarFiltros();
+      restaurarVistaGrilla();
+    }
+
+    /** Después de filtrar (cambia el alto): scroll de antes de recargar (vista.ts). */
+    function restaurarVistaGrilla() {
+      const pendiente = !!sessionStorage.getItem('selectRegistroId') || new URLSearchParams(location.search).has('registro_id');
+      ptRestaurarVista(document.querySelector('.pt-table-scroll'), pendiente);
     }
 
     // Exponer para invalidación desde inline-edit y operaciones

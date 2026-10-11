@@ -11,6 +11,8 @@
  */
 declare global {
     interface Window {
+        /** index.ts: refresca en su lugar todas las filas de los telares de esos registros. */
+        ptRefrescarTelares?: (ids: string[]) => Promise<void>;
         /**
          * Valores que solo conoce el servidor. Los imprime
          * resources/views/modulos/programa-tejido/scripts/main.blade.php
