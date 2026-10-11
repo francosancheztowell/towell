@@ -12,14 +12,14 @@
             bg="bg-green-600"
             iconColor="text-white"
             :checkPermission="false"
-            onclick="window.dispatchEvent(new CustomEvent('verifica-maquina-abrir-filtros'))"
+            x-data x-on:click="$dispatch('verifica-maquina-abrir-filtros')"
         />
         <x-navbar.button-create
             module="Estado Maquina"
             id="btn-nueva-verificacion"
             title="Nueva verificación"
             text="Nuevo"
-            onclick="window.dispatchEvent(new CustomEvent('verifica-maquina-abrir-modal'))"
+            x-data x-on:click="$dispatch('verifica-maquina-abrir-modal')"
         />
     </div>
 @endsection
