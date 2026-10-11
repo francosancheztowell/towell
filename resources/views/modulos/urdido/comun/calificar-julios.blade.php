@@ -55,8 +55,7 @@
 
         <div class="p-4 overflow-auto flex-1">
             <div data-cj="cargando" class="text-center py-6 text-gray-500 hidden">
-                <i class="fa-solid fa-spinner fa-spin text-2xl" aria-hidden="true"></i>
-                <div class="mt-2">{{ $esUrdido ? 'Cargando julios...' : 'Cargando registros...' }}</div>
+                <x-ui.spinner :label="$esUrdido ? 'Cargando julios…' : 'Cargando registros…'" :inline="true" />
             </div>
             <div data-cj="vacio" class="text-center py-6 text-gray-500 hidden">
                 {{ $esUrdido ? 'No se encontraron julios para este folio.' : 'No se encontraron registros para este folio.' }}
