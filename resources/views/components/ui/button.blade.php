@@ -15,7 +15,10 @@
         @param string $icon     Clase Font Awesome ('fa-plus', 'fa-solid fa-plus') o uno de los SVG
                                 predefinidos: check, plus, trash, edit, save
         @param string $label    Texto accesible (obligatorio si no hay texto visible)
-        @param bool   $loading  Deshabilita y muestra un spinner (default false)
+        @param bool   $loading  Deshabilita y muestra un spinner (default false). Sin pasarlo, un
+                                wire:click (o el submit de un wire:submit) se pone ocupado solo
+                                mientras dura la petición: Livewire 4 marca data-loading y app.css
+                                pinta el spinner ([data-ui-button][data-loading]).
         @param bool   $fullWidth
 
     Uso:
@@ -65,7 +68,7 @@
             'icon' => 'size-touch rounded-full',
         ];
         $currentSize = $sizes[$size ?? 'touch'] ?? $sizes['touch'];
-        $clases = "inline-flex items-center justify-center {$currentSize} font-medium {$variantsPlanos[$variant]} transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:pointer-events-none";
+        $clases = "inline-flex items-center justify-center {$currentSize} font-medium {$variantsPlanos[$variant]} transition active:scale-[.97] motion-reduce:active:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:pointer-events-none";
     } else {
         $sizes = [
             'sm' => 'px-3 py-1.5 text-sm',
@@ -74,7 +77,7 @@
         ];
         $currentVariant = $variantsDegradado[$variant] ?? $variantsDegradado['primary'];
         $currentSize = $sizes[$size ?? 'md'] ?? $sizes['md'];
-        $clases = "inline-flex items-center justify-center {$currentSize} rounded-xl font-semibold {$currentVariant} transition-all duration-200 shadow-lg ring-1 disabled:opacity-50 disabled:cursor-not-allowed";
+        $clases = "inline-flex items-center justify-center {$currentSize} rounded-xl font-semibold {$currentVariant} transition-all duration-200 shadow-lg ring-1 active:scale-[.97] motion-reduce:active:scale-100 disabled:opacity-50 disabled:cursor-not-allowed";
     }
 
     if ($fullWidth) {
@@ -104,6 +107,7 @@
     @else type="{{ $type }}" @endif
     @if ($label) aria-label="{{ $label }}" @if (! $conTexto) title="{{ $label }}" @endif @endif
     @if ($loading) aria-busy="true" @endif
+    data-ui-button
     {{ $attributes->merge(['class' => $clases]) }}
     @if ($loading && ! $href) disabled @endif
 >

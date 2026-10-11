@@ -39,6 +39,9 @@ export const TOAST_DURATIONS: Readonly<Record<ToastType, number>> = {
 
 export const MAX_TOASTS = 4;
 
+/** Duración del fundido de salida (towell-toast-out). */
+const SALIDA_MS = 150;
+
 const CONTAINER_ID = 'towell-toasts';
 const STYLE_ID = 'towell-toasts-style';
 
@@ -57,8 +60,10 @@ const STYLES = `
 .towell-toast--error{border-color:#dc2626}.towell-toast--error .towell-toast__icon{background:#dc2626}
 /* popover: el contenedor sube al top layer para no quedar bajo un <dialog> modal (utils/dialogo.ts). */
 .towell-toasts[popover]{inset:auto;top:calc(var(--pt-navbar-height,72px) + .75rem);right:1rem;margin:0;border:0;padding:0;background:transparent;color:inherit;overflow:visible;height:auto}
+.towell-toast--saliendo{animation:towell-toast-out .15s ease-in forwards;pointer-events:none}
 @keyframes towell-toast-in{from{opacity:0;transform:translateY(-.5rem)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.towell-toast{animation:none}}
+@keyframes towell-toast-out{to{opacity:0;transform:translateX(1rem)}}
+@media (prefers-reduced-motion:reduce){.towell-toast,.towell-toast--saliendo{animation:none}}
 `;
 
 function container(): HTMLElement | null {
@@ -121,20 +126,30 @@ export function toast(type: ToastType, message: unknown): HTMLElement | null {
     close.setAttribute('aria-label', 'Cerrar notificación');
     close.textContent = '×';
 
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    // Al vencer, se desvanece los últimos SALIDA_MS (dura TOAST_DURATION en total). La × lo quita al instante.
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    let saliendo = false;
+    const pausar = (): void => {
+        if (!saliendo) timers.forEach(clearTimeout);
+    };
+    const desvanecer = (): void => {
+        saliendo = true;
+        el.className += ' towell-toast--saliendo';
+    };
     const dismiss = (): void => {
-        clearTimeout(timer);
+        timers.forEach(clearTimeout);
         el.remove();
     };
     const start = (): void => {
-        clearTimeout(timer);
-        timer = setTimeout(dismiss, TOAST_DURATIONS[type]);
+        if (saliendo) return;
+        pausar();
+        timers = [setTimeout(desvanecer, TOAST_DURATIONS[type] - SALIDA_MS), setTimeout(() => el.remove(), TOAST_DURATIONS[type])];
     };
 
     close.addEventListener('click', dismiss);
-    el.addEventListener('mouseenter', () => clearTimeout(timer));
+    el.addEventListener('mouseenter', pausar);
     el.addEventListener('mouseleave', start);
-    el.addEventListener('focusin', () => clearTimeout(timer));
+    el.addEventListener('focusin', pausar);
     el.addEventListener('focusout', start);
 
     el.appendChild(icon);
