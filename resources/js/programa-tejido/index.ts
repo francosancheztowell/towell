@@ -2300,6 +2300,8 @@ function refrescarBarraFiltros() {
             (clave) => quickFilterConfig[clave]?.label || clave,
         );
         ptPintarBarraFiltros(barra, chips, visibles, filas.length);
+        const sinResultados = document.getElementById('ptSinResultados');
+        if (sinResultados) sinResultados.hidden = !(chips.length > 0 && visibles === 0);
     }
     ptGuardarFiltrosEnUrl(estado);
     try { sessionStorage.setItem(CLAVE_SESION_FILTROS, ptSerializarFiltros(estado)); } catch { /* modo privado */ }
@@ -2334,7 +2336,7 @@ function restaurarFiltros() {
 }
 
 document.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLElement>('#ptFiltrosBarra [data-quitar-tipo]');
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('#ptFiltrosBarra [data-quitar-tipo], #ptSinResultados [data-quitar-tipo]');
     if (btn) quitarDesdeBarra(btn.dataset.quitarTipo!, btn.dataset.quitarClave ?? '');
 });
 

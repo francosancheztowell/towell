@@ -180,6 +180,13 @@
             </tfoot>
 
           </table>
+          {{-- Filtros sin coincidencias (barra-filtros.ts lo muestra/oculta). Sticky a la izquierda:
+               se ve aunque se haya hecho scroll horizontal por las 116 columnas. --}}
+          <div id="ptSinResultados" hidden class="sticky left-0 w-[calc(100vw-1rem)] max-w-full" role="status">
+            <x-empty.empty-state title="Ningún registro coincide con los filtros" message="Prueba con otro valor o quita algún filtro." icon="fa-filter-circle-xmark">
+              <x-ui.button type="button" variant="neutral" data-quitar-tipo="todo" class="mt-4 min-h-touch">Limpiar filtros</x-ui.button>
+            </x-empty.empty-state>
+          </div>
         </div>
       </div>
     @elseif(!empty($error))
