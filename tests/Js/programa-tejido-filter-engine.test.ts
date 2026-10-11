@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { checkFilterMatch, dateInRange, groupFiltersByColumn, rowMatchesCustomFilters } from '../../resources/js/programa-tejido/filter-engine.ts'
+import { checkFilterMatch, dateInRange, enRango, groupFiltersByColumn, rowMatchesCustomFilters } from '../../resources/js/programa-tejido/filter-engine.ts'
 
 test('dateInRange incluye los dos extremos del rango', () => {
   // El bug viejo: new Date('2026-09-15') es medianoche UTC, o sea el 14 en
@@ -57,4 +57,29 @@ test('groupFiltersByColumn agrupa varias condiciones de la misma columna', () =>
 	assert.equal(g.NoTelarId?.length, 2)
 	assert.equal(g.Producto?.length, 1)
 	assert.equal(g.Producto?.[0]?.value, 'toalla')
+})
+
+test('between: rango numérico con lados abiertos y miles con coma', () => {
+	assert.equal(enRango('75', '36..90'), true)
+	assert.equal(enRango('36', '36..90'), true, 'incluye el mínimo')
+	assert.equal(enRango('90', '36..90'), true, 'incluye el máximo')
+	assert.equal(enRango('91', '36..90'), false)
+	assert.equal(enRango('12,500', '10000..'), true, 'sin máximo; la coma de miles no rompe')
+	assert.equal(enRango('5', '..10'), true, 'sin mínimo')
+	assert.equal(enRango('', '0..10'), false, 'vacío queda fuera')
+	assert.equal(enRango('ABC', '0..10'), false, 'texto no numérico queda fuera')
+})
+
+test('between: fechas se comparan por día aunque la celda traiga hora', () => {
+	assert.equal(enRango('2026-10-31 22:30:00', '2026-10-01..2026-10-31'), true, 'el último día entra completo')
+	assert.equal(enRango('2026-11-01 00:00:00', '2026-10-01..2026-10-31'), false)
+	assert.equal(enRango('2026-10-01 06:30:00', '2026-10-01..'), true)
+	assert.equal(enRango('', '2026-10-01..'), false)
+})
+
+test('checkFilterMatch con between y filtro agrupado', () => {
+	assert.equal(checkFilterMatch('75', { operator: 'between', value: '36..90' }), true)
+	const g = groupFiltersByColumn([{ column: 'Ancho', operator: 'between', value: '70..80' }])
+	assert.equal(rowMatchesCustomFilters({ Ancho: '75' }, g), true)
+	assert.equal(rowMatchesCustomFilters({ Ancho: '90' }, g), false)
 })

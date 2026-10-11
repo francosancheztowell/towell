@@ -26,6 +26,13 @@ const fechaCorta = (iso: string | null): string => {
     return d && m ? `${d}/${m}/${y?.slice(2)}` : iso;
 };
 
+/** '36..90' → '36 – 90'; lado vacío → '…'; fechas ISO en dd/mm/aa. */
+const rangoLegible = (rango: string): string => {
+    const lado = (x = '') => (/^\d{4}-\d{2}-\d{2}/.test(x) ? fechaCorta(x.slice(0, 10)) : x || '…');
+    const [min, max] = rango.split('..');
+    return `${lado(min)} – ${lado(max)}`;
+};
+
 /** Un chip por columna (sus valores unidos con coma), uno por filtro rápido y uno por rango. */
 export function chipsDe(
     estado: EstadoFiltros,
@@ -35,7 +42,8 @@ export function chipsDe(
     const porColumna = new Map<string, string[]>();
     for (const f of estado.filters) {
         const lista = porColumna.get(f.column) ?? [];
-        lista.push(f.operator === 'empty' ? '(vacío)' : f.operator === 'notEmpty' ? '(con valor)' : f.value);
+        lista.push(f.operator === 'empty' ? '(vacío)' : f.operator === 'notEmpty' ? '(con valor)'
+            : f.operator === 'between' ? rangoLegible(f.value) : f.value);
         porColumna.set(f.column, lista);
     }
     const chips: Chip[] = [...porColumna].map(([col, valores]) => ({

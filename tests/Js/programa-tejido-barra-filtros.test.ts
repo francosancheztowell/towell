@@ -95,3 +95,13 @@ test('pintarBarra se oculta sin chips y escapa lo que viene de la BD', () => {
     assert.ok(!el.innerHTML.includes('<img'), 'el valor debe ir escapado');
     assert.match(el.innerHTML, /data-quitar-tipo="todo"/);
 });
+
+test('el chip de un rango se lee como rango', () => {
+    const e = vacio();
+    e.filters = [
+        { column: 'Ancho', operator: 'between', value: '36..90' },
+        { column: 'Peso', operator: 'between', value: '..10' },
+        { column: 'FechaCte', operator: 'between', value: '2026-10-01..2026-10-31' },
+    ];
+    assert.deepEqual(chips(e).map((c) => c.valor), ['36 – 90', '… – 10', '01/10/26 – 31/10/26']);
+});

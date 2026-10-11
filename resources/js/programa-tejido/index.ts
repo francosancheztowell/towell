@@ -10,6 +10,7 @@ import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccio
 import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
 import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 import { abrirDuplicar as ptAbrirDuplicar, escucharGuardado as ptEscucharDuplicarGuardado } from './duplicar.ts';
+import { abrirFiltroColumna as ptAbrirFiltroColumna, textoARango as ptTextoARango, tipoDeColumna as ptTipoDeColumna, valoresDeColumna as ptValoresDeColumna } from './filtro-columna.ts';
 import { chipsDe as ptChipsDe, guardarEnUrl as ptGuardarFiltrosEnUrl, leerDeUrl as ptLeerFiltrosDeUrl, pintarBarra as ptPintarBarraFiltros, deserializar as ptDeserializarFiltros, serializar as ptSerializarFiltros } from './barra-filtros.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
@@ -1770,6 +1771,23 @@ function applyProgramaTejidoFilters() {
     if (typeof window.onFiltersApplied === 'function') {
         window.onFiltersApplied(filters);
     }
+}
+
+/**
+ * Predicado con el estado actual de filtros. Con `exceptoColumna`, ignora los de esa columna:
+ * así el panel de filtro cuenta cuántos quedan con los DEMÁS filtros (conteo cruzado, Power BI).
+ */
+function predicadoFiltros(exceptoColumna?: string) {
+    const otros = exceptoColumna ? filters.filter((f) => f.column !== exceptoColumna) : filters;
+    const porColumna = otros.length ? ptGroupFiltersByColumn(otros) : null;
+    const rapidos = Object.entries(quickFilters).filter(([, activo]) => activo).map(([k]) => quickFilterConfig[k].check);
+    return (row: HTMLElement): boolean => {
+        if (!rapidos.every((check) => check(row))) return false;
+        if (!checkDateFilters(row)) return false;
+        if (!porColumna) return true;
+        const datos = window.PT_FILTER_INDEX?.get(row.dataset.id!);
+        return datos ? ptRowMatchesCustomFilters(datos, porColumna) : true;
+    };
 }
 
 // ===== Verificar filtros de fecha =====
@@ -5301,207 +5319,53 @@ const uiInlineEditableFields: Record<string, any> = {
      * @param {number} columnIndex - Índice de la columna en el DOM
      * @param {string} columnField - Campo de datos de la columna (data-column)
      */
-    function openFilterModal(columnIndex: any, columnField: any) {
-      // Validar parámetros
-      if (columnIndex === null || columnIndex === undefined || columnIndex < 0) {
-        console.error('[openFilterModal] Índice de columna inválido:', columnIndex);
-        toast('No se pudo obtener el índice de la columna', 'error');
-        return;
-      }
-
-      if (!columnField || typeof columnField !== 'string') {
-        console.error('[openFilterModal] Campo de columna inválido:', columnField);
-        toast('No se pudo obtener el campo de la columna', 'error');
-        return;
-      }
-
-      // Obtener el label de la columna desde el encabezado si está disponible
-      let columnLabel = columnField;
-      const thead = qs('#mainTable thead');
-      if (thead) {
-        const th = thead.querySelector(`th[data-index="${columnIndex}"], th.column-${columnIndex}`);
-        if (th) {
-          const labelText = th.textContent || th.innerText || '';
-          if (labelText.trim()) {
-            columnLabel = labelText.trim();
-          }
-        }
-      }
-
-      // Obtener todos los valores únicos de la columna
+    /** Panel de filtro pegado al encabezado (filtro-columna.ts): aplica al instante, con conteo cruzado. */
+    function openFilterModal(_columnIndex: any, columnField: any) {
+      if (!columnField || typeof columnField !== 'string') return;
+      const campo = escapeCSSValue(columnField);
+      const th = qs(`#mainTable thead th[data-column="${campo}"]`) as HTMLElement | null;
       const tb = tbodyEl();
-      if (!tb) {
-        toast('No se pudo acceder a los datos de la tabla', 'error');
-        return;
-      }
+      if (!th || !tb) return;
 
-      const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
-      const values = new Set();
-      const valueCounts = new Map();
-
-      rows.forEach((row: any) => {
-        const escapedField = escapeCSSValue(columnField);
-        const selector = '[data-column="' + escapedField + '"]';
-        const cell = row.querySelector(selector);
-        if (cell) {
-          // IMPORTANTE:
-          // - data-value: valor crudo para comparación (usado en el filtro)
-          // - textContent: valor formateado para mostrar (más legible)
-          const rawValue = cell.dataset.value || '';
-          const displayValue = (cell.textContent || cell.innerText || '').trim();
-
-          // Usar el valor crudo (data-value) para la comparación del filtro
-          // Si no hay data-value, usar textContent como fallback
-          const valueForFilter = rawValue || displayValue;
-
-          if (valueForFilter && String(valueForFilter).trim()) {
-            const valueStr = String(valueForFilter).trim();
-            // Usar el valor crudo como clave para agrupar
-            if (!valueCounts.has(valueStr)) {
-              values.add(valueStr);
-              valueCounts.set(valueStr, {
-                rawValue: valueStr,
-                displayValue: displayValue || valueStr,
-                count: 0
-              });
-            }
-            // Incrementar contador
-            const entry = valueCounts.get(valueStr);
-            entry.count = (entry.count || 0) + 1;
-            valueCounts.set(valueStr, entry);
-          }
-        }
+      const pasaOtros = predicadoFiltros(columnField);
+      const filas = qsa('.selectable-row', tb).map((row: any) => {
+        const cell = row.querySelector(`[data-column="${campo}"]`) as HTMLElement | null;
+        const etiqueta = (cell?.textContent || '').trim();
+        return { valor: String(cell?.dataset.value || etiqueta), etiqueta, pasaOtros: pasaOtros(row) };
       });
-
-      const uniqueValues = Array.from(values).sort();
-
-      if (uniqueValues.length === 0) {
+      const valores = ptValoresDeColumna(filas);
+      if (!valores.length) {
         toast('No hay valores para filtrar en esta columna', 'info');
         return;
       }
 
-      // Crear HTML del modal con checkboxes
-      const escapedLabel = String(columnLabel).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      let html = '<div class="text-left">' +
-        '<p class="text-sm text-gray-600 mb-4">Filtrar por: <strong>' + escapedLabel + '</strong></p>' +
-        '<div class="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-2">' +
-        '<div class="mb-2 pb-2 border-b border-gray-200">' +
-        '<input type="text" id="filterSearchInput" placeholder="Buscar..." ' +
-        'class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">' +
-        '</div>' +
-        '<div id="filterCheckboxesContainer" class="space-y-1">';
-
-      uniqueValues.forEach(value => {
-        const entry = valueCounts.get(value);
-        const count = entry ? entry.count : 0;
-        const displayValue = entry ? entry.displayValue : value;
-
-        // Usar escape HTML estándar para el atributo data-value y el value del checkbox
-        const escapedValueAttr = String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        const escapedDisplayValue = String(displayValue).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-        html += '<label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer filter-checkbox-item" data-value="' + escapedValueAttr + '">' +
-          '<div class="flex items-center gap-2">' +
-          '<input type="checkbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 filter-checkbox" ' +
-          'value="' + escapedValueAttr + '">' +
-          '<span class="text-sm text-gray-700">' + escapedDisplayValue + '</span>' +
-          '</div>' +
-          '<span class="text-xs text-gray-500">(' + count + ')</span>' +
-          '</label>';
-      });
-
-      html += '</div></div></div>';
-
-      window.notify.form({
-        title: 'Filtrar Columna',
-        html: html,
-        confirmText: 'Aplicar',
-        cancelText: 'Cancelar',
-        width: 'lg',
-        didOpen: () => {
-          // Restaurar estado de checkboxes si hay filtros activos para esta columna
-          // Usar la variable global 'filters' directamente
-          const currentFilters = (typeof filters !== 'undefined' ? filters : window.filters) || [];
-          const activeFiltersForColumn = currentFilters.filter((f: any) => f.column === columnField);
-          if (activeFiltersForColumn.length > 0) {
-            activeFiltersForColumn.forEach((filter: any) => {
-              const filterValue = String(filter.value || '').trim();
-              const escapedValueAttr = filterValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-              const label = Array.from(document.querySelectorAll<HTMLElement>('.filter-checkbox-item')).find(l => {
-                return l.dataset.value === filterValue || l.dataset.value === escapedValueAttr;
-              });
-              if (label) {
-                const checkbox = label.querySelector<HTMLInputElement>('.filter-checkbox');
-                if (checkbox) checkbox.checked = true;
-              }
-            });
-          }
-
-          // Búsqueda en tiempo real
-          const searchInput = document.getElementById('filterSearchInput')!;
-          const container = document.getElementById('filterCheckboxesContainer')!;
-          const items = container.querySelectorAll<HTMLElement>('.filter-checkbox-item');
-
-          searchInput.addEventListener('input', (e: any) => {
-            const searchTerm = e.target.value.toLowerCase();
-            items.forEach(item => {
-              const value = item.dataset.value || '';
-              const text = item.textContent || '';
-              if (value.toLowerCase().includes(searchTerm) || text.toLowerCase().includes(searchTerm)) {
-                item.style.display = '';
-              } else {
-                item.style.display = 'none';
-              }
-            });
-          });
-
-          // Seleccionar/Deseleccionar todos
-          const selectAllBtn = document.createElement('button');
-          selectAllBtn.type = 'button';
-          selectAllBtn.className = 'text-xs text-blue-600 hover:text-blue-800 mt-2';
-          selectAllBtn.textContent = 'Seleccionar todos';
-          selectAllBtn.addEventListener('click', () => {
-            container.querySelectorAll<HTMLInputElement>('.filter-checkbox').forEach(cb => cb.checked = true);
-          });
-          container.parentElement!.insertBefore(selectAllBtn, container);
-
-          const deselectAllBtn = document.createElement('button');
-          deselectAllBtn.type = 'button';
-          deselectAllBtn.className = 'text-xs text-red-600 hover:text-red-800 ml-2 mt-2';
-          deselectAllBtn.textContent = 'Deseleccionar todos';
-          deselectAllBtn.addEventListener('click', () => {
-            container.querySelectorAll<HTMLInputElement>('.filter-checkbox').forEach(cb => cb.checked = false);
-          });
-          container.parentElement!.insertBefore(deselectAllBtn, container);
+      const propios = filters.filter((f) => f.column === columnField);
+      ptAbrirFiltroColumna({
+        ancla: th,
+        titulo: (th.textContent || columnField).trim(),
+        tipo: ptTipoDeColumna(valores.map((v) => v.valor)),
+        valores,
+        seleccion: new Set(propios.filter((f) => f.operator === 'equals').map((f) => String(f.value))),
+        rango: ptTextoARango(propios.find((f) => f.operator === 'between')?.value),
+        alCambiar: (seleccion, rango) => {
+          filters = filters.filter((f) => f.column !== columnField);
+          if (rango) filters.push({ column: columnField, operator: 'between', value: rango });
+          else seleccion.forEach((valor) => filters.push({ column: columnField, operator: 'equals', value: valor }));
+          window.filters = filters;
+          lastFilterState = null;
+          applyProgramaTejidoFilters();
+          updateColumnFilterIcons();
         },
-        preConfirm: () => {
-          // ⚡ FIX: Obtener el valor desde data-value en lugar de value para evitar problemas con CSS.escape()
-          const checked = Array.from(document.querySelectorAll<HTMLInputElement>('.filter-checkbox:checked')).map(cb => {
-            // Siempre obtener el valor desde el data-value del label padre para evitar problemas con escape
-            const label = cb.closest<HTMLElement>('label.filter-checkbox-item');
-            if (label && label.dataset.value !== undefined) {
-              // El data-value ya está en el formato correcto (sin escape de CSS)
-              return label.dataset.value;
-            }
-            // Fallback: usar el value del checkbox directamente
-            return cb.value;
-          });
-          return checked;
-        }
-      }).then((result) => {
-        if (result === null) return;
-
-        const selectedValues = result || [];
-
-        // Aplicar filtro
-        if (typeof window.applyColumnFilter === 'function') {
-          window.applyColumnFilter(columnField, selectedValues);
-        } else {
-          // Fallback: aplicar filtro manualmente
-          applyColumnFilterManual(columnField, selectedValues);
-        }
       });
     }
+
+    // Un clic en el encabezado abre su filtro (antes solo por clic derecho → Filtrar, invisible en tablet).
+    qs('#mainTable thead')?.addEventListener('click', (e: Event) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('.column-pin-icon, .column-filter-icon')) return;
+      const th = t.closest<HTMLElement>('th[data-column]');
+      if (th) openFilterModal(Number(th.dataset.index), th.dataset.column);
+    });
 
     // Función auxiliar para aplicar filtro manualmente
     /**
