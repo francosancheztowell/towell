@@ -56,8 +56,13 @@ export interface OpcionesFiltroColumna {
     valores: ValorColumna[];
     seleccion: Set<string>;
     rango: Rango;
-    /** Llamado en cada cambio: valores marcados o rango (uno excluye al otro). */
-    alCambiar: (valores: string[], rango: string | null) => void;
+    /** Texto de un filtro "contiene" ya aplicado a esta columna (se muestra en el buscador). */
+    contiene?: string;
+    /**
+     * Llamado en cada cambio: valores marcados, rango, o texto "contiene" (Enter en el buscador,
+     * como en AX/Excel). Uno excluye a los otros.
+     */
+    alCambiar: (valores: string[], rango: string | null, contiene?: string | null) => void;
 }
 
 let panel: HTMLElement | null = null;
@@ -108,7 +113,7 @@ export function abrirFiltroColumna(o: OpcionesFiltroColumna): HTMLElement {
         </div>`;
     const buscar = o.valores.length > 8 ? `
         <div class="border-b border-slate-100 px-3 py-2">
-            <input data-buscar type="search" placeholder="Buscar valor…" aria-label="Buscar valor" class="block min-h-touch w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+            <input data-buscar type="search" value="${escapeHtml(o.contiene ?? '')}" placeholder="Buscar… Enter filtra la grilla" aria-label="Buscar valor; Enter filtra la grilla por los que contienen el texto" class="block min-h-touch w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
         </div>` : '';
 
     el.innerHTML = `
@@ -147,12 +152,24 @@ export function abrirFiltroColumna(o: OpcionesFiltroColumna): HTMLElement {
             o.alCambiar(marcados(), null);
         }
     };
+    // Enter en el buscador: filtra la GRILLA por "contiene" (no solo la lista de valores).
+    el.onkeydown = (e) => {
+        const t = e.target as HTMLInputElement;
+        if (e.key !== 'Enter' || !t.matches('[data-buscar]')) return;
+        e.preventDefault();
+        const texto = t.value.trim();
+        el.querySelectorAll<HTMLInputElement>('[data-lista] input').forEach((i) => (i.checked = false));
+        el.querySelectorAll<HTMLInputElement>('[data-rango]').forEach((i) => (i.value = ''));
+        o.alCambiar([], null, texto || null);
+        if (texto) el.hidePopover();
+    };
     el.onclick = (e) => {
         if (!(e.target as HTMLElement).closest('[data-limpiar]')) return;
         el.querySelectorAll<HTMLInputElement>('input').forEach((i) => (i.type === 'checkbox' ? (i.checked = false) : (i.value = '')));
         o.alCambiar([], null);
     };
 
+    if (o.contiene) el.querySelector<HTMLInputElement>('[data-buscar]')?.dispatchEvent(new Event('input', { bubbles: true }));
     if (!el.matches(':popover-open')) el.showPopover();
     posicionar(el, o.ancla);
     el.querySelector<HTMLElement>('[data-buscar], [data-rango="min"], [data-lista] input')?.focus({ preventScroll: true });

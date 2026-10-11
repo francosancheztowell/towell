@@ -190,10 +190,12 @@ class MovimientoDesarrolladorService
                             ->get();
 
                         if ($registrosCompartidos->isNotEmpty()) {
-                            $nuevoLider = $registrosCompartidos->first();
+                            // Regla del owner: el más antiguo con NoProduccion (antes, el más antiguo a secas).
+                            $nuevoLider = OrdCompartida::seleccionarLider($registrosCompartidos) ?? $registrosCompartidos->first();
                             ReqProgramaTejido::query()->where('OrdCompartida', $ordCompartida)->update(['OrdCompartidaLider' => null]);
-                            $nuevoLider->OrdCompartidaLider = 1;
-                            $nuevoLider->saveQuietly();
+                            // Directo a BD: si ya era líder, el modelo cargado tiene 1 y saveQuietly() no
+                            // escribía nada tras el update(null) de arriba → el grupo quedaba sin líder.
+                            ReqProgramaTejido::query()->whereKey($nuevoLider->Id)->update(['OrdCompartidaLider' => 1]);
                             ActualizarOrdPrincipal::ejecutar($ordCompartida);
                         }
                     }

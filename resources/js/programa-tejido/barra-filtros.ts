@@ -43,7 +43,8 @@ export function chipsDe(
     for (const f of estado.filters) {
         const lista = porColumna.get(f.column) ?? [];
         lista.push(f.operator === 'empty' ? '(vacío)' : f.operator === 'notEmpty' ? '(con valor)'
-            : f.operator === 'between' ? rangoLegible(f.value) : f.value);
+            : f.operator === 'between' ? rangoLegible(f.value)
+            : f.operator === 'contains' ? `contiene “${f.value}”` : f.value);
         porColumna.set(f.column, lista);
     }
     const chips: Chip[] = [...porColumna].map(([col, valores]) => ({

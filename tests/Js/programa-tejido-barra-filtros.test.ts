@@ -105,3 +105,9 @@ test('el chip de un rango se lee como rango', () => {
     ];
     assert.deepEqual(chips(e).map((c) => c.valor), ['36 – 90', '… – 10', '01/10/26 – 31/10/26']);
 });
+
+test('el chip de "contiene" (Enter en el buscador) dice lo que busca', () => {
+    const e = vacio();
+    e.filters = [{ column: 'TamanoClave', operator: 'contains', value: 'alb' }];
+    assert.deepEqual(chips(e).map((c) => c.valor), ['contiene “alb”']);
+});

@@ -5369,9 +5369,11 @@ const uiInlineEditableFields: Record<string, any> = {
         valores,
         seleccion: new Set(propios.filter((f) => f.operator === 'equals').map((f) => String(f.value))),
         rango: ptTextoARango(propios.find((f) => f.operator === 'between')?.value),
-        alCambiar: (seleccion, rango) => {
+        contiene: propios.find((f) => f.operator === 'contains')?.value,
+        alCambiar: (seleccion, rango, contiene) => {
           filters = filters.filter((f) => f.column !== columnField);
-          if (rango) filters.push({ column: columnField, operator: 'between', value: rango });
+          if (contiene) filters.push({ column: columnField, operator: 'contains', value: contiene });
+          else if (rango) filters.push({ column: columnField, operator: 'between', value: rango });
           else seleccion.forEach((valor) => filters.push({ column: columnField, operator: 'equals', value: valor }));
           window.filters = filters;
           lastFilterState = null;
