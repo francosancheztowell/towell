@@ -4,6 +4,9 @@ namespace App\Models\Tejido;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string|null $Folio
+ */
 class TejMarcasLine extends Model
 {
     protected $table = 'TejMarcasLine';
