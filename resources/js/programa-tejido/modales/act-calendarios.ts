@@ -181,7 +181,7 @@ async function guardarCalendariosSeleccionados(): Promise<void> {
     }
 }
 
-// PUENTE PT-TS 1: index.js (menú Actualizar → Calendarios) abre el modal.
+// PUENTE PT-TS 1: index.ts (menú Actualizar → Calendarios) abre el modal.
 window.abrirModalActCalendarios = abrirModalActCalendarios;
 // PUENTE PT-TS 1: x-ui.modal-base (onclose del botón × y Esc) en modal/act-calendarios.blade.php.
 window.cerrarModalActCalendarios = cerrarModalActCalendarios;

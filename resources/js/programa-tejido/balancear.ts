@@ -1,7 +1,7 @@
 // Balanceo de órdenes compartidas (modal notify.form + Gantt). Vivía inline en
 // modulos/programa-tejido/balancear.blade.php (73 KB por carga, sin cache).
 // Las URL se escriben con la ruta de Programa y rutaSuperficie() las pasa a Muestras
-// (antes lo hacía el parche de window.fetch de index.js).
+// (antes lo hacía el parche de window.fetch de index.ts).
 // http/notify son los globales de bootstrap.js (ver respuesta.ts: por qué no se importan).
 import {
     buildDateRange,
@@ -726,7 +726,7 @@ interface ColumnaGrilla {
     dateType?: 'date' | 'datetime' | null;
 }
 
-/** Valor de celda. formatearValorCelda de index.js no está en window, así que siempre se usó este respaldo. */
+/** Valor de celda. formatearValorCelda de index.ts no está en window, así que siempre se usó este respaldo. */
 function formatearValorBasico(value: unknown, dateType: ColumnaGrilla['dateType']): string {
     if (value === null || value === undefined || value === '') return '';
     if (dateType === 'date' || dateType === 'datetime') {
@@ -743,7 +743,7 @@ async function actualizarRegistrosBalanceo(registrosIds: Ord[]): Promise<void> {
     const tb = document.querySelector('#mainTable tbody');
     if (!tb) return;
 
-    // columnsData de index.js vive en su scope; aquí solo se ve window.columns o el DOM (como antes).
+    // columnsData de index.ts vive en su scope; aquí solo se ve window.columns o el DOM (como antes).
     const columns: ColumnaGrilla[] = window.columns ||
         Array.from(document.querySelectorAll('#mainTable thead th[data-column]'), (th) => ({
             field: th.getAttribute('data-column') ?? '',
@@ -1257,7 +1257,7 @@ if (document.readyState === 'loading') {
     updateBalancearButton(null);
 }
 
-// PUENTE PT-TS 1: index.js (menú contextual "Balancear" y detalle de grupo) abre el modal.
+// PUENTE PT-TS 1: index.ts (menú contextual "Balancear" y detalle de grupo) abre el modal.
 window.verDetallesGrupoBalanceo = verDetallesGrupoBalanceo;
 // PUENTE PT-TS 1: onclick del botón #btnBalancear en components/navbar/sections/programa-tejido.blade.php.
 window.abrirBalancearDesdeSeleccion = abrirBalancearDesdeSeleccion;

@@ -6,9 +6,8 @@
  *
  * Deliberadamente NO estan las ~95 funciones que el bundle se llama a si mismo
  * por window.: eso es herencia de cuando el codigo eran 8 Blade dentro de un
- * mismo <script>, no un contrato. Declararlas aqui seria documentar como API
- * publica lo que es un detalle interno, con firmas que no puedo verificar.
- * Se anaden cuando algun consumidor externo real las necesite.
+ * mismo <script>, no un contrato. Se declaran junto al codigo, en index.ts.
+ * Se pasan aqui cuando algun consumidor externo real las necesite.
  */
 declare global {
     interface Window {
@@ -50,10 +49,10 @@ declare global {
             };
         };
 
-        /** Flag de depuracion del modal. Lo inicializa index.js. */
+        /** Flag de depuracion del modal. Lo inicializa index.ts. */
         __PT_DEBUG?: boolean;
 
-        // Puentes de los modulos del bundle (PT-TS 1): los llaman index.js o el onclose de
+        // Puentes de los modulos del bundle (PT-TS 1): los llaman index.ts o el onclose de
         // x-ui.modal-base en los Blade de modal/*.
         abrirModalActCalendarios?: () => Promise<void>;
         cerrarModalActCalendarios?: () => void;
@@ -70,7 +69,7 @@ declare global {
         /** Columnas de la grilla si otro script las publica; balancear cae al <thead> si no. */
         columns?: Array<{ field: string; label?: string; dateType?: 'date' | 'datetime' | null }>;
 
-        /** Vive en el scope de index.js y hoy no se publica (HANDOFF PT-TS 2): repaso lo busca aqui. */
+        /** Vive en el scope de index.ts y hoy no se publica (HANDOFF PT-TS 2): repaso lo busca aqui. */
         agregarRegistroSinRecargar?: (data: Record<string, unknown>, opciones?: { preventReload?: boolean }) => Promise<unknown>;
 
     }

@@ -1,7 +1,7 @@
 /**
  * URL de la superficie actual (Programa o Muestras) a partir de la URL de Programa.
  *
- * Es la misma regla que el parche de window.fetch de index.js: el código de la grilla escribe
+ * Es la misma regla que el parche de window.fetch de index.ts: el código de la grilla escribe
  * las rutas de Programa y el parche las reescribe a la superficie. window.http (axios) no pasa
  * por ese parche, así que lo que se migra a http reescribe la URL aquí.
  * tests/Js/programa-tejido-rutas.test.ts compara las dos implementaciones.
