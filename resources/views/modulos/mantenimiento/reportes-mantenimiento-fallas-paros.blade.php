@@ -2,10 +2,7 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
-    <button type="button" data-accion="abrir-rango"
-        class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
-        <i class="fas fa-search" aria-hidden="true"></i> Consultar
-    </button>
+    <x-ui.button variant="create" size="nav" icon="fa-search" data-accion="abrir-rango">Consultar</x-ui.button>
     @if (!empty($fechaIni) && !empty($fechaFin))
         <a href="{{ route('mantenimiento.reportes.fallas-paros.excel', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
             class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
@@ -125,12 +122,8 @@
             </div>
         </div>
         <div class="flex gap-2 mt-6">
-            <button type="button" id="btn-confirmar-fechas-reporte" data-accion="confirmar-rango" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm">
-                Consultar
-            </button>
-            <button type="button" id="btn-cerrar-modal-fechas-reporte" data-accion="cerrar-rango" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                Cancelar
-            </button>
+            <x-ui.button variant="create" id="btn-confirmar-fechas-reporte" data-accion="confirmar-rango" class="flex-1">Consultar</x-ui.button>
+            <x-ui.button variant="neutral" id="btn-cerrar-modal-fechas-reporte" data-accion="cerrar-rango">Cancelar</x-ui.button>
         </div>
     </div>
 </div>

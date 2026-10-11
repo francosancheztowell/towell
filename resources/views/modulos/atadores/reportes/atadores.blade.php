@@ -3,10 +3,7 @@
 @section('page-title', 'OEE Atadores')
 
 @section('navbar-right')
-    <button type="button" data-ui-modal-open="modalRangoTejido"
-        class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
-        <i class="fas fa-calendar-alt"></i> Seleccionar Fechas
-    </button>
+    <x-ui.button variant="create" size="nav" icon="fa-calendar-alt" data-ui-modal-open="modalRangoTejido">Seleccionar Fechas</x-ui.button>
     @if (!empty($fechaIni) && !empty($fechaFin))
         <a href="{{ route('atadores.reportes.atadores.descargar', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
             class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
@@ -47,28 +44,11 @@
             </div>
 
             <div class="p-6">
-                @if (session('success'))
-                    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                        {{ session('success') }}
-                    </div>
-                @endif
-
-                @if (session('error'))
-                    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                        {{ session('error') }}
-                    </div>
-                @endif
-
                 @if (empty($fechaIni) || empty($fechaFin))
-                    <div class="text-center py-12">
-                        <i class="fas fa-calendar-alt text-6xl text-gray-300 mb-4"></i>
-                        <p class="text-gray-500 text-lg">Seleccione un rango de fechas</p>
-                        <p class="text-gray-400 text-sm mt-2">Puede descargar el Excel del rango seleccionado o exportar los datos al archivo <strong>OEE_ATADORES.xlsx</strong>.</p>
-                        <button type="button" data-ui-modal-open="modalRangoTejido"
-                            class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
-                            <i class="fas fa-search mr-2"></i> Seleccionar Fechas
-                        </button>
-                    </div>
+                    <x-empty.empty-state icon="fa-calendar-alt" title="Seleccione un rango de fechas"
+                        message="Puede descargar el Excel del rango seleccionado o exportar los datos al archivo OEE_ATADORES.xlsx.">
+                        <x-ui.button variant="create" icon="fa-search" data-ui-modal-open="modalRangoTejido">Seleccionar Fechas</x-ui.button>
+                    </x-empty.empty-state>
                 @else
                     <div class="text-center py-12">
                         <i class="fas fa-table text-6xl text-blue-400 mb-4"></i>
