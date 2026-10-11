@@ -217,11 +217,6 @@ trait ProduccionTrait
             ->exists();
     }
 
-    protected function traitHasHoraInicialCaptured($registro): bool
-    {
-        return $registro->HoraInicial !== null && trim((string) $registro->HoraInicial) !== '';
-    }
-
     /**
      * Refresca la Fecha (y Turno1) de los registros que aún no han sido "llenados".
      *

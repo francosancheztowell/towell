@@ -20,11 +20,6 @@ class RequerimientoStatusService
 
     private const ESTATUS_VALIDOS = ['En Proceso', 'Solicitado', 'Surtido', 'Cancelado', 'Creado'];
 
-    public static function estatusValidos(): array
-    {
-        return self::ESTATUS_VALIDOS;
-    }
-
     /**
      * @return array{ok: bool, message: string, code: int}
      */
