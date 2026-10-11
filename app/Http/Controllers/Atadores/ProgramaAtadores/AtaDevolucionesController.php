@@ -98,7 +98,7 @@ class AtaDevolucionesController extends Controller
             $registros = $query->orderByDesc('Fecha')
                 ->orderByDesc('Turno')
                 ->orderByDesc('Id')
-                ->get();
+                ->get(['NoJulio', 'NoProduccion', 'ConfigId', 'Tipo']);
 
             // Cuenta y Calibre viven en TejHistorialInventarioTelares, donde se
             // insertan (Status = 'Completado') cuando el atado pasa a Autorizado.
