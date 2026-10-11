@@ -52,12 +52,8 @@
                 </div>
             </div>
             <div class="flex gap-2 mt-6">
-                <button type="button" id="btn-confirmar-fechas" data-accion="confirmar-rango" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm">
-                    Consultar
-                </button>
-                <button type="button" id="btn-cerrar-modal-fechas" data-accion="cerrar-rango" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                    Cancelar
-                </button>
+                <x-ui.button variant="create" id="btn-confirmar-fechas" data-accion="confirmar-rango" class="flex-1">Consultar</x-ui.button>
+                <x-ui.button variant="neutral" id="btn-cerrar-modal-fechas" data-accion="cerrar-rango">Cancelar</x-ui.button>
             </div>
         </div>
     </div>
