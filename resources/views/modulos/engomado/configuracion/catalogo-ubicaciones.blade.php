@@ -58,8 +58,8 @@
                             data-uid="{{ $uid }}"
                             data-codigo="{{ $ubicacion->Codigo }}"
                             data-id="{{ $ubicacion->Id }}">
-                            <td class="py-2 px-4">{{ $ubicacion->Id }}</td>
-                            <td class="py-2 px-4 font-semibold">{{ $ubicacion->Codigo }}</td>
+                            <td class="py-2 px-4 text-inherit">{{ $ubicacion->Id }}</td>
+                            <td class="py-2 px-4 font-semibold text-inherit">{{ $ubicacion->Codigo }}</td>
                         </tr>
                     @empty
                         <x-ui.table-empty :colspan="2" message="No hay ubicaciones registradas" icon="fa-location-dot" />

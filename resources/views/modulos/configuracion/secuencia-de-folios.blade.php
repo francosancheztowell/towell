@@ -14,20 +14,22 @@
 <div class="w-full px-4 py-4">
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-auto max-h-[calc(100vh-12rem)]">
-            <table class="min-w-full text-base" id="tabla-secuencia"
-                   data-crud='@json([
-                       'store' => route('configuracion.secuencia-folios.store'),
-                       'update' => route('configuracion.secuencia-folios.update', ['id' => ':id']),
-                       'destroy' => route('configuracion.secuencia-folios.destroy', ['id' => ':id']),
-                       'campos' => ['Modulo', 'Prefijo', 'Consecutivo'],
-                       'llaveId' => 'Id',
-                       'tituloNuevo' => 'Nueva secuencia',
-                       'tituloEditar' => 'Editar secuencia',
-                       'tituloEliminar' => '¿Eliminar secuencia?',
-                       'campoNombre' => 'Modulo',
-                       'nombrePorDefecto' => 'esta secuencia',
-                       'vacio' => 'No hay registros de secuencia.',
-                   ])'>
+            @php
+                $crud = [
+                    'store' => route('configuracion.secuencia-folios.store'),
+                    'update' => route('configuracion.secuencia-folios.update', ['id' => ':id']),
+                    'destroy' => route('configuracion.secuencia-folios.destroy', ['id' => ':id']),
+                    'campos' => ['Modulo', 'Prefijo', 'Consecutivo'],
+                    'llaveId' => 'Id',
+                    'tituloNuevo' => 'Nueva secuencia',
+                    'tituloEditar' => 'Editar secuencia',
+                    'tituloEliminar' => '¿Eliminar secuencia?',
+                    'campoNombre' => 'Modulo',
+                    'nombrePorDefecto' => 'esta secuencia',
+                    'vacio' => 'No hay registros de secuencia.',
+                ];
+            @endphp
+            <table class="min-w-full text-base" id="tabla-secuencia" data-crud='@json($crud)'>
                 <thead class="sticky top-0 z-10 bg-blue-500 text-white shadow-sm">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Id</th>
@@ -45,8 +47,8 @@
                         @endphp
                         <tr class="seq-row border-b border-gray-100 hover:bg-gray-50 cursor-pointer {{ $loop->even ? 'bg-gray-50/50' : '' }}"
                             data-id="{{ $r->Id }}"
-                            data-modulo="{{ e($modulo) }}"
-                            data-prefijo="{{ e($prefijo) }}"
+                            data-modulo="{{ $modulo }}"
+                            data-prefijo="{{ $prefijo }}"
                             data-consecutivo="{{ (int) $consecutivo }}">
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $r->Id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900 text-base">{{ $modulo ?? '—' }}</td>

@@ -58,7 +58,7 @@
                     <div class="flex flex-col space-y-2 lg:min-w-48">
                         @if(($statusSeleccionado ?? '') === 'En Proceso')
                             <flux:button variant="primary" color="green" icon="list-bullet" class="min-h-touch w-full"
-                                :loading="true" wire:target="cambiarStatus"
+                                :loading="true" wire:target="cambiarStatus('Solicitado')"
                                 x-on:click="notify.confirm({ title: '¿Solicitar consumo?', text: 'El folio pasa a status Solicitado.', confirmText: 'Sí, solicitar' }).then(ok => ok && $wire.cambiarStatus('Solicitado'))">
                                 Solicitar consumo
                             </flux:button>
@@ -66,7 +66,7 @@
                                 Editar
                             </flux:button>
                             <flux:button variant="danger" icon="x-mark" class="min-h-touch w-full"
-                                :loading="true" wire:target="cambiarStatus"
+                                :loading="true" wire:target="cambiarStatus('Cancelado')"
                                 x-on:click="notify.confirm({ title: '¿Cancelar este requerimiento?', text: 'No se puede deshacer.', confirmText: 'Sí, cancelar', confirmColor: '#dc2626' }).then(ok => ok && $wire.cambiarStatus('Cancelado'))">
                                 Cancelar
                             </flux:button>

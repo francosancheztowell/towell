@@ -14,20 +14,22 @@
 <div class="w-full px-4 py-4">
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-auto max-h-[calc(100vh-12rem)]">
-            <table class="min-w-full text-base" id="tabla-departamentos"
-                   data-crud='@json([
-                       'store' => route('configuracion.departamentos.store'),
-                       'update' => route('configuracion.departamentos.update', ['id' => ':id']),
-                       'destroy' => route('configuracion.departamentos.destroy', ['id' => ':id']),
-                       'campos' => ['Depto', 'Descripcion'],
-                       'llaveId' => 'id',
-                       'tituloNuevo' => 'Nuevo departamento',
-                       'tituloEditar' => 'Editar departamento',
-                       'tituloEliminar' => '¿Eliminar departamento?',
-                       'campoNombre' => 'Depto',
-                       'nombrePorDefecto' => 'este registro',
-                       'vacio' => 'No hay departamentos registrados.',
-                   ])'>
+            @php
+                $crud = [
+                    'store' => route('configuracion.departamentos.store'),
+                    'update' => route('configuracion.departamentos.update', ['id' => ':id']),
+                    'destroy' => route('configuracion.departamentos.destroy', ['id' => ':id']),
+                    'campos' => ['Depto', 'Descripcion'],
+                    'llaveId' => 'id',
+                    'tituloNuevo' => 'Nuevo departamento',
+                    'tituloEditar' => 'Editar departamento',
+                    'tituloEliminar' => '¿Eliminar departamento?',
+                    'campoNombre' => 'Depto',
+                    'nombrePorDefecto' => 'este registro',
+                    'vacio' => 'No hay departamentos registrados.',
+                ];
+            @endphp
+            <table class="min-w-full text-base" id="tabla-departamentos" data-crud='@json($crud)'>
                 <thead class="sticky top-0 z-10 bg-blue-500 text-white shadow-sm">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Id</th>
@@ -39,8 +41,8 @@
                     @forelse($departamentos as $d)
                         <tr class="depto-row border-b border-gray-100 hover:bg-gray-50 cursor-pointer {{ $loop->even ? 'bg-gray-50/50' : '' }}"
                             data-id="{{ $d->id }}"
-                            data-depto="{{ e($d->Depto) }}"
-                            data-descripcion="{{ e($d->Descripcion ?? '') }}">
+                            data-depto="{{ $d->Depto }}"
+                            data-descripcion="{{ $d->Descripcion ?? '' }}">
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $d->id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900 text-base">{{ $d->Depto }}</td>
                             <td class="px-4 py-3 text-gray-600 text-base">{{ $d->Descripcion ?? '—' }}</td>
