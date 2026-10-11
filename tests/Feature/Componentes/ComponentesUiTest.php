@@ -83,6 +83,11 @@ class ComponentesUiTest extends TestCase
             ->assertSee('disabled', false)
             ->assertSee('aria-busy="true"', false)
             ->assertSee('animate-spin -ml-1 mr-2', false);
+
+        // Sin :loading, app.css lo pone ocupado con el data-loading de Livewire.
+        $this->blade('<x-ui.button wire:click="guardar">Guardar</x-ui.button>')
+            ->assertSee('data-ui-button', false)
+            ->assertDontSee('aria-busy', false);
     }
 
     public function test_alert_se_cierra_sin_onclick(): void
@@ -114,7 +119,7 @@ class ComponentesUiTest extends TestCase
             ->assertSee('Guardando');
 
         $html = (string) $this->blade('<x-ui.skeleton :lines="3" />');
-        $this->assertSame(3, substr_count($html, 'motion-safe:animate-pulse'));
+        $this->assertSame(3, substr_count($html, 'ui-skeleton'));
     }
 
     public function test_field_liga_label_ayuda_y_error_de_validacion(): void
