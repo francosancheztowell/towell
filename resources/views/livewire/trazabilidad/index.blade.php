@@ -49,11 +49,11 @@
 
     {{-- Sin target: los filtros llegan por evento, no por una acción con nombre. --}}
     <div class="relative">
-        <div wire:loading.block class="traza-progreso hidden" role="status">
+        <div wire:loading.delay.block class="traza-progreso hidden" role="status">
             <span class="sr-only">Actualizando trazabilidad…</span>
         </div>
 
-        <div id="resultado-resumen-livewire" class="transition-opacity" wire:loading.class="opacity-50 pointer-events-none">
+        <div id="resultado-resumen-livewire" class="transition-opacity" wire:loading.delay.class="opacity-50 pointer-events-none">
             @include('modulos.trazabilidad._resultado')
         </div>
     </div>
