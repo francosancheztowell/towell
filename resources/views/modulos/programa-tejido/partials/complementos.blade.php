@@ -98,7 +98,7 @@
 </div>
 
 {{-- Modal Duplicar/Dividir (Livewire). Lo abre "Crear" del menú de la fila (duplicar.ts). Es lo
-     único Livewire de la grilla legacy: la tabla sigue siendo HTML + index.js. --}}
+     único Livewire de la grilla legacy: la tabla sigue siendo HTML + index.ts. --}}
 @if($canCrear)
   <livewire:planeacion.programa-tejido.duplicar-dividir :superficie="$superficiePT->value" />
 @endif

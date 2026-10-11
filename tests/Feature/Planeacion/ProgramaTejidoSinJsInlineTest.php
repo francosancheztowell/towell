@@ -64,7 +64,6 @@ class ProgramaTejidoSinJsInlineTest extends TestCase
             ),
         );
 
-        // index.js (13 000 líneas) es de PT-TS 2.
-        $this->assertSame(['resources/js/programa-tejido/index.js'], $js);
+        $this->assertSame([], $js);
     }
 }

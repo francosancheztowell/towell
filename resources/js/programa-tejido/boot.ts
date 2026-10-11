@@ -4,7 +4,7 @@
  * La vista los imprime como datos, no como código: un
  * <script type="application/json" id="pt-boot"> en scripts/main.blade.php. Este módulo
  * lo lee una sola vez y lo deja también en window.PT_BOOT para el código que lo busca ahí.
- * Va primero entre los imports de index.js: los módulos que lo usan al evaluarse
+ * Va primero entre los imports de index.ts: los módulos que lo usan al evaluarse
  * (marbetes, recalcular) lo encuentran ya resuelto.
  */
 type PtBoot = NonNullable<Window['PT_BOOT']>;

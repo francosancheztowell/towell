@@ -44,7 +44,6 @@ export default defineConfig({
         'resources/css/app.css',
         entrada('resources/js/app'),
         entrada('resources/js/app-core'),
-        entrada('resources/js/charts'),
         'resources/css/trazabilidad/index.css',
         'resources/js/trazabilidad/index.ts',
         'resources/css/crudo/dashboard.css',

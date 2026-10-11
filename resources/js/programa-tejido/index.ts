@@ -19,6 +19,105 @@ import './modales/repaso.ts';
 import './modales/marbetes.ts';
 import './lineas.ts';
 
+/**
+ * Estado y funciones que el bundle se publica a sí mismo en window (herencia de cuando
+ * eran 8 <script> de Blade en un mismo scope). Son internos, por eso viven aquí y no en
+ * globals.d.ts. Los `var` además se leen a secas (`typeof clearRowCache`), que en el
+ * navegador resuelve a la propiedad de window.
+ */
+type Fn = (...args: any[]) => any;
+/** window.PT visto desde dentro del bundle: lo público (globals.d.ts) más lo que solo usa el bundle. */
+type PTInterno = Omit<NonNullable<Window['PT']>, 'rowCache' | 'loader'> & {
+    rowCache: WeakMap<HTMLElement, any>;
+    loader: { show(): void; hide(): void };
+    contextMenu?: any;
+    contextMenuHeader?: any;
+    selectedColumn?: { index: number; field: string };
+    actions?: any;
+    dragdrop?: any;
+};
+declare global {
+    var clearRowCache: (() => void) | undefined;
+    var applyInlineModeToRows: (() => void) | undefined;
+    var actualizarRegistrosVinculados: Fn | undefined;
+    var applyFilters: (() => void) | undefined;
+    var updateTotales: () => void;
+    var inlineEditMode: boolean;
+
+    interface Window {
+        PT_FETCH_PATCHED?: boolean;
+        PT_FILTER_INDEX?: Map<string, Record<string, string>>;
+        App?: { user?: { id?: unknown } };
+        authUserId?: unknown;
+        onFiltersApplied?: (filters: any[]) => void;
+        escapeHtmlPtModal: typeof escapeHtmlPtModal;
+
+        allRows: any[];
+        selectedRowIndex: number;
+        yellowHighlightTimeout: ReturnType<typeof setTimeout> | null;
+        filters: any[];
+        pinnedColumns?: any[];
+        quickFilters: Record<string, boolean>;
+        dateRangeFilters: Record<string, { desde: string | null; hasta: string | null }>;
+        lastFilterState: string | null;
+        dragDropMode: boolean;
+        multiSelectMode: boolean;
+        selectedRowsIds: Set<any>;
+        selectedRowsOrder: any[];
+
+        applyProgramaTejidoFilters: typeof applyProgramaTejidoFilters;
+        toggleQuickFilter: typeof toggleQuickFilter;
+        openProgramaTejidoFilterModal: typeof openProgramaTejidoFilterModal;
+        saveDateRangeFilters: typeof saveDateRangeFilters;
+        closeProgramaTejidoFilterModal: typeof closeProgramaTejidoFilterModal;
+        addCustomFilter: typeof addCustomFilter;
+        removeFilter: typeof removeFilter;
+        resetAllFiltersInModal: typeof resetAllFiltersInModal;
+        applyAndCloseProgramaTejidoFilterModal: typeof applyAndCloseProgramaTejidoFilterModal;
+        resetAllFilters: typeof resetAllFilters;
+        resetFilters: typeof resetAllFilters;
+        updateFilterUI: typeof updateFilterUI;
+        loadPersistedHiddenColumns: typeof loadPersistedHiddenColumns;
+        getColumnGroup: typeof getColumnGroup;
+        getGroupColumns: typeof getGroupColumns;
+        toggleGroupVisibility: typeof toggleGroupVisibility;
+        toggleGroupPin: typeof toggleGroupPin;
+        openPinColumnsModal: typeof openPinColumnsModal;
+        openHideColumnsModal: typeof openHideColumnsModal;
+        getPinnedColumns: typeof getPinnedColumns;
+        pinColumn: typeof pinColumn;
+        unpinColumn: typeof unpinColumn;
+        resetColumnVisibility: typeof resetColumnVisibility;
+        initializeColumnVisibility: typeof initializeColumnVisibility;
+        showColumn: typeof showColumn;
+        hideColumn: typeof hideColumn;
+        togglePinColumn: typeof togglePinColumn;
+        updatePinnedColumnsPositions: typeof updatePinnedColumnsPositions;
+        applyDefaultPinsOnce: typeof applyDefaultPinsOnce;
+        pinDefaultColumns: typeof pinDefaultColumns;
+        selectRow: typeof selectRow;
+        deselectRow: typeof deselectRow;
+
+        enableInlineEditForCell: (cell: any) => Promise<void>;
+        closeInlineEditForRow: (row: any) => void;
+        enableInlineEditForAllCellsInRow: (row: any) => Promise<void>;
+        toggleInlineEditMode: () => void;
+        updateTableAfterDragDrop: Fn;
+        updateColumnFilterIcons: () => void;
+        updateColumnPinIcons: () => void;
+        applyColumnFilter: Fn;
+        descargarPrograma: Fn;
+        abrirNuevo: Fn;
+        eliminarRegistro: Fn;
+        eliminarEnProcesoRegistro: (id: any) => Promise<void>;
+        desvincularRegistro: (id: any) => Promise<void>;
+        editarFilaSeleccionada: () => void;
+        toggleDragDropMode: () => void;
+        vincularRegistrosExistentes: () => void;
+        initReprogramarListeners: () => void;
+    }
+}
+
 // Bundle JS de Programa Tejido. Antes iba inline en el HTML (527 KB que el
 // navegador volvia a descargar y a recompilar en cada recarga); ahora lo sirve
 // Vite con hash, asi que sale de cache y V8 reusa el bytecode.
@@ -40,7 +139,7 @@ import './lineas.ts';
     window.PT_FETCH_PATCHED = true;
 
     const originalFetch = window.fetch.bind(window);
-    const rewriteUrl = (url) => {
+    const rewriteUrl = (url: any) => {
       if (typeof url !== 'string') return url;
       let next = url;
 
@@ -72,19 +171,19 @@ import './lineas.ts';
 
 
 function getCsrfToken() {
-	return document.querySelector('meta[name="csrf-token"]')?.content || '';
+	return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '';
 }
 
 // Depuración modal programa-tejido: en consola, window.__PT_DEBUG = true antes de usar el modal
 window.__PT_DEBUG = window.__PT_DEBUG === true;
-function ptDebugLog(...args) {
+function ptDebugLog(...args: any[]) {
 	if (window.__PT_DEBUG) {
 		console.log.apply(console, args);
 	}
 }
 
 window.escapeHtmlPtModal = escapeHtmlPtModal;
-function escapeHtmlPtModal(s) {
+function escapeHtmlPtModal(s: any) {
 	if (s === null || s === undefined) return '';
 	return String(s)
 		.replace(/&/g, '&amp;')
@@ -95,7 +194,7 @@ function escapeHtmlPtModal(s) {
 }
 window.escapeHtmlPtModal = escapeHtmlPtModal;
 
-function normalizeSqlDateValue(value) {
+function normalizeSqlDateValue(value: any) {
 	if (value === null || value === undefined) return null;
 	const raw = String(value).trim();
 	if (!raw) return null;
@@ -105,7 +204,7 @@ function normalizeSqlDateValue(value) {
 	return dt;
 }
 
-function formatDateCellValue(value, type) {
+function formatDateCellValue(value: any, type: any) {
 	const dt = normalizeSqlDateValue(value);
 	if (!dt) return '';
 	const day = String(dt.getDate()).padStart(2, '0');
@@ -119,13 +218,13 @@ function formatDateCellValue(value, type) {
 	return `${day}/${month}/${year}`;
 }
 
-function updateDateCell(cell, value, type) {
+function updateDateCell(cell: any, value: any, type: any) {
 	if (!cell || value === undefined) return;
 	cell.textContent = formatDateCellValue(value, type);
 	cell.setAttribute('data-value', value || '');
 }
 
-async function actualizarRegistrosPorIds(registrosIds) {
+async function actualizarRegistrosPorIds(registrosIds: any) {
 	const ids = Array.from(new Set(registrosIds || [])).filter(Boolean);
 	if (ids.length === 0) return;
 
@@ -147,12 +246,12 @@ async function actualizarRegistrosPorIds(registrosIds) {
 
 	if (!columns || columns.length === 0) return;
 
-	const getDateType = (field) => {
+	const getDateType = (field: any) => {
 		const col = columns.find(c => c.field === field);
 		return col?.dateType || null;
 	};
 
-	const formatearValor = (registro, field, value) => {
+	const formatearValor = (registro: any, field: any, value: any) => {
 		if (typeof formatearValorCelda === 'function') {
 			return formatearValorCelda(registro, field, value, getDateType(field));
 		}
@@ -167,7 +266,7 @@ async function actualizarRegistrosPorIds(registrosIds) {
 		return String(value);
 	};
 
-	const fetchDetalle = async (registroId) => {
+	const fetchDetalle = async (registroId: any) => {
 		try {
 			const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
 				headers: {
@@ -208,7 +307,7 @@ async function actualizarRegistrosPorIds(registrosIds) {
 
 		columns.forEach(col => {
 			const field = col.field;
-			const value = registro[field] !== undefined ? registro[field] : null;
+			const value = registro[field as string] !== undefined ? registro[field as string] : null;
 			const celda = fila.querySelector(`td[data-column="${field}"]`);
 			if (!celda) return;
 			celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
@@ -217,12 +316,12 @@ async function actualizarRegistrosPorIds(registrosIds) {
 	}
 }
 
-async function actualizarRegistroOriginalDividir(data, tableBody) {
+async function actualizarRegistroOriginalDividir(data: any, tableBody?: any) {
 	if (!data?.registro_id_original) return;
 	const tb = tableBody || document.querySelector('#mainTable tbody');
 	if (!tb) return;
 
-	const aplicarActualizacion = (filaOriginal, regOriginal) => {
+	const aplicarActualizacion = (filaOriginal: any, regOriginal: any) => {
 		const totalPedidoCell = filaOriginal.querySelector('[data-column="TotalPedido"]');
 		const saldoPedidoCell = filaOriginal.querySelector('[data-column="SaldoPedido"]');
 		const fechaFinalCell = filaOriginal.querySelector('[data-column="FechaFinal"]');
@@ -311,10 +410,10 @@ async function actualizarRegistroOriginalDividir(data, tableBody) {
 	}
 }
 
-function buildCalendarWarningHtml(message, advertencias) {
+function buildCalendarWarningHtml(message: any, advertencias: any) {
 	const detalles = Array.isArray(advertencias?.detalles) ? advertencias.detalles : [];
 	const detallesHtml = detalles.length > 0
-		? `<ul class="list-disc list-inside text-xs text-yellow-700 space-y-1">${detalles.slice(0, 5).map(detalle => (
+		? `<ul class="list-disc list-inside text-xs text-yellow-700 space-y-1">${detalles.slice(0, 5).map((detalle: any) => (
 			`<li>Calendario '<strong>${escapeHtmlPtModal(detalle.calendario_id)}</strong>': ${escapeHtmlPtModal(detalle.mensaje)}</li>`
 		)).join('')}${detalles.length > 5 ? `<li>... y ${detalles.length - 5} mas</li>` : ''}</ul>`
 		: '';
@@ -339,9 +438,9 @@ ptEscucharDuplicarGuardado({
 	advertenciaHtml: buildCalendarWarningHtml,
 });
 
-async function redirectToRegistro(data) {
+async function redirectToRegistro(data: any) {
 	// Evitar location.href / reload en flujos que ya actualizan la tabla sin recargar (alinear dividir con duplicar/vincular)
-	const evitarRecargaProgramaTejido = (d) =>
+	const evitarRecargaProgramaTejido = (d: any) =>
 		d?.modo === 'dividir' ||
 		d?.modo === 'duplicar' ||
 		(d?.registro_id_original != null && d?.registros_divididos != null);
@@ -370,7 +469,7 @@ async function redirectToRegistro(data) {
 		if (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
 			try {
 				const datosPrecargadosCompletos = data.registros_datos &&
-					data.registros_ids.every((id) => data.registros_datos[String(id)] != null);
+					data.registros_ids.every((id: any) => data.registros_datos[String(id)] != null);
 				// Sin datos precargados, breve espera por visibilidad en BD tras commit; con datos del servidor no hace falta 800ms
 				const delayInicialMs = datosPrecargadosCompletos ? 0 : 120;
 				if (delayInicialMs > 0) {
@@ -392,7 +491,7 @@ async function redirectToRegistro(data) {
 
 				// Obtener IDs de filas existentes en el DOM
 				const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
-				const registrosAgregados = [];
+				const registrosAgregados: number[] = [];
 
 				ptDebugLog(`[DEBUG] 📋 IDs de registros a agregar:`, data.registros_ids);
 				ptDebugLog(`[DEBUG] 📋 registros_datos disponible:`, !!data.registros_datos, data.registros_datos ? Object.keys(data.registros_datos) : 'N/A');
@@ -412,7 +511,7 @@ async function redirectToRegistro(data) {
 
 					try {
 						const registroPrecargado = data.registros_datos && data.registros_datos[idStr];
-						let payload = { registro_id: registroId, message: '' };
+						let payload: Record<string, any> = { registro_id: registroId, message: '' };
 
 						if (registroPrecargado) {
 							payload.registro = registroPrecargado;
@@ -504,7 +603,7 @@ async function redirectToRegistro(data) {
 					console.warn(`[DEBUG] ⚠️ Solo se agregaron ${registrosAgregados.length} de ${data.registros_ids.length} registros esperados`);
 
 					// Intentar agregar los registros faltantes
-					const idsFaltantes = data.registros_ids.filter(id => !registrosAgregados.includes(parseInt(id)));
+					const idsFaltantes = data.registros_ids.filter((id: any) => !registrosAgregados.includes(parseInt(id)));
 					ptDebugLog(`[DEBUG] 🔄 Intentando agregar registros faltantes:`, idsFaltantes);
 
 					for (const idFaltante of idsFaltantes) {
@@ -738,7 +837,7 @@ async function redirectToRegistro(data) {
 	window.location.reload();
 }
 
-async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) {
+async function agregarRegistroSinRecargar(data: any, { preventReload = false } = {}) {
 	if (!data?.registro_id) return;
 
 	let registro = null;
@@ -851,7 +950,7 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 		let insertarAntes = null;
 
 		// Función auxiliar para parsear fecha desde texto
-		const parsearFecha = (fechaTexto) => {
+		const parsearFecha = (fechaTexto: any) => {
 			if (!fechaTexto) return null;
 			try {
 				const partes = fechaTexto.split('/');
@@ -865,13 +964,13 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 		};
 
 		// Función auxiliar para obtener NoTelar de una fila
-		const obtenerNoTelar = (fila) => {
+		const obtenerNoTelar = (fila: any) => {
 			const telarCell = fila.querySelector('[data-column="NoTelarId"]');
 			return telarCell ? String(telarCell.textContent.trim()) : '';
 		};
 
 		// Función auxiliar para obtener FechaInicio de una fila
-		const obtenerFechaInicio = (fila) => {
+		const obtenerFechaInicio = (fila: any) => {
 			const fechaCell = fila.querySelector('[data-column="FechaInicio"]');
 			if (fechaCell) {
 				const fechaTexto = fechaCell.textContent.trim();
@@ -886,7 +985,7 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 			const fechaExistente = obtenerFechaInicio(filaExistente);
 
 			// Comparar primero por NoTelar (orden numérico si son números, alfabético si no)
-			const compararTelar = (telar1, telar2) => {
+			const compararTelar = (telar1: any, telar2: any) => {
 				const num1 = parseInt(telar1);
 				const num2 = parseInt(telar2);
 				if (!isNaN(num1) && !isNaN(num2)) {
@@ -972,7 +1071,7 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 		window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
 
 		// Actualizar data-row-index de todas las filas
-		window.allRows.forEach((fila, index) => {
+		window.allRows.forEach((fila: any, index: any) => {
 			fila.setAttribute('data-row-index', index);
 		});
 
@@ -985,7 +1084,7 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 
 		// Aplicar columnas ocultas a la nueva fila basándonos en el estado del header
 		// Obtener todas las columnas del header y aplicar el mismo estado de visibilidad a la nueva fila
-		const headerCells = document.querySelectorAll('#mainTable thead th[data-column]');
+		const headerCells = document.querySelectorAll<HTMLElement>('#mainTable thead th[data-column]');
 		headerCells.forEach((th) => {
 			// Extraer el índice de la columna desde las clases column-X
 			const classList = Array.from(th.classList);
@@ -1000,7 +1099,7 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 
 					if (isHidden) {
 						// Aplicar el mismo estado a la celda correspondiente en la nueva fila
-						const cell = row.querySelector(`td.column-${colIndex}`);
+						const cell = row.querySelector<HTMLElement>(`td.column-${colIndex}`);
 						if (cell) {
 							cell.style.display = 'none';
 						}
@@ -1016,12 +1115,12 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 
 		// Asegurar que los campos editables (TamanoClave, FlogsId, etc.) no tengan inputs bloqueados
 		// Verificar que las celdas editables estén listas para el modo inline edit
-		row.querySelectorAll('td[data-column]').forEach(cell => {
+		row.querySelectorAll<HTMLElement>('td[data-column]').forEach(cell => {
 			const columnName = cell.getAttribute('data-column');
 			// Si el campo es editable según uiInlineEditableFields, asegurar que no tenga inputs readonly/disabled
 			if (columnName && typeof uiInlineEditableFields !== 'undefined' && uiInlineEditableFields[columnName]) {
 				// Remover cualquier input readonly o disabled que pueda existir en la celda
-				const inputs = cell.querySelectorAll('input[readonly], input[disabled], textarea[readonly], textarea[disabled]');
+				const inputs = cell.querySelectorAll<HTMLInputElement>('input[readonly], input[disabled], textarea[readonly], textarea[disabled]');
 				inputs.forEach(input => {
 					// Si es un campo editable como TamanoClave o FlogsId, eliminar el input y dejar solo el texto
 					if (columnName === 'TamanoClave' || columnName === 'FlogsId') {
@@ -1070,7 +1169,7 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 	}
 }
 
-function construirFilaRegistro(registro, columns) {
+function construirFilaRegistro(registro: any, columns: any) {
 	if (registro.id != null && (registro.Id === undefined || registro.Id === null || registro.Id === '')) {
 		registro.Id = registro.id;
 	}
@@ -1094,9 +1193,9 @@ function construirFilaRegistro(registro, columns) {
 	// Obtener índice actual de filas para data-row-index
 	const tb = document.querySelector('#mainTable tbody');
 	const totalFilas = tb ? tb.querySelectorAll('.selectable-row').length : 0;
-	tr.setAttribute('data-row-index', totalFilas);
+	tr.setAttribute('data-row-index', String(totalFilas));
 
-	columns.forEach((col, colIndex) => {
+	columns.forEach((col: any, colIndex: any) => {
 		const td = document.createElement('td');
 		const field = col.field;
 		const value = registro[field] !== undefined ? registro[field] : null;
@@ -1136,7 +1235,7 @@ function construirFilaRegistro(registro, columns) {
 		return tr;
 	}
 
-function formatearValorCelda(registro, field, value, dateType) {
+function formatearValorCelda(registro: any, field: any, value: any, dateType: any) {
 	if (value === null || value === undefined || value === '') {
 		if (field === 'Reprogramar' || field === 'EnProceso') {
 			return '<input type="checkbox" disabled class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">';
@@ -1191,7 +1290,7 @@ function formatearValorCelda(registro, field, value, dateType) {
 	// Campo PTvsCte (Dif vs Compromiso)
 	if (field === 'PTvsCte' && !isNaN(value)) {
 		const valorFloat = parseFloat(value);
-		const parteEntera = parseInt(valorFloat);
+		const parteEntera = parseInt(valorFloat as any);
 		const parteDecimal = Math.abs(valorFloat - parteEntera);
 
 		if (parteDecimal > 0.50) {
@@ -1333,9 +1432,9 @@ function formatearValorCelda(registro, field, value, dateType) {
 }
 
   // ===== Estado =====
-let filters = [];
-let hiddenColumns = [];
-let pinnedColumns = [];
+let filters: any[] = [];
+let hiddenColumns: any[] = [];
+let pinnedColumns: any[] = [];
 // Fuente unica en window: main.blade.php y _shared-helpers.blade.php escriben
 // estos tres desde otro punto del script. Tenerlos ademas como binding lexico
 // creaba DOS estados: filters/selection usaban uno y el resto el otro, asi que
@@ -1349,14 +1448,14 @@ ptInstalarIndiceSeleccion(window, () => (window.allRows.length > 0 ? window.allR
 ptEnlazarDiasLiberar(document, () => import('../componentes/dias-liberar.ts').then((m) => m.mostrarModalDiasLiberar()));
 window.inlineEditMode = false;
 
-const normalizeInputValue = (value) => {
+const normalizeInputValue = (value: any) => {
 	if (value === undefined || value === null) return '';
 	const str = String(value).trim();
 	if (!str || str.toLowerCase() === 'null') return '';
 	return str;
 };
 
-const normalizeDateValue = (value) => {
+const normalizeDateValue = (value: any) => {
 	const str = normalizeInputValue(value);
 	if (!str) return '';
 	if (str.includes('T')) return str.split('T')[0];
@@ -1364,20 +1463,20 @@ const normalizeDateValue = (value) => {
 	return str;
 };
 
-const normalizeDateTimeValue = (value) => {
+const normalizeDateTimeValue = (value: any) => {
 	let str = normalizeInputValue(value);
 	if (!str) return '';
 	str = str.replace('T', ' ').replace('Z', '');
-	if (str.includes('.')) str = str.split('.')[0];
+	if (str.includes('.')) str = str.split('.')[0]!;
 	const [datePart, rawTime = ''] = str.split(' ');
 	if (!rawTime) return `${datePart} 00:00:00`.trim();
 	const [hour = '00', minute = '00', second = '00'] = rawTime.split(':');
 	return `${datePart} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
 };
 
-const formatDateInputValue = (value) => normalizeDateValue(value);
+const formatDateInputValue = (value: any) => normalizeDateValue(value);
 
-const formatDateDisplayValue = (value) => {
+const formatDateDisplayValue = (value: any) => {
 	const normalized = normalizeDateValue(value);
 	if (!normalized) return '';
 	const [year, month, day] = normalized.split('-');
@@ -1385,7 +1484,7 @@ const formatDateDisplayValue = (value) => {
 	return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
 };
 
-const formatDateTimeInputValue = (value) => {
+const formatDateTimeInputValue = (value: any) => {
 	const normalized = normalizeDateTimeValue(value);
 	if (!normalized) return '';
 	const [datePart, timePart = ''] = normalized.split(' ');
@@ -1394,7 +1493,7 @@ const formatDateTimeInputValue = (value) => {
 	return `${datePart}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
 };
 
-const formatDateTimeDisplayValue = (value) => {
+const formatDateTimeDisplayValue = (value: any) => {
 	const normalized = normalizeDateTimeValue(value);
 	if (!normalized) return '';
 	const [datePart, timePart = ''] = normalized.split(' ');
@@ -1406,7 +1505,7 @@ const formatDateTimeDisplayValue = (value) => {
 	return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
 };
 
-const datetimeLocalToSql = (value) => {
+const datetimeLocalToSql = (value: any) => {
 	if (!value) return null;
 	const [datePart, timePart = ''] = value.split('T');
 	if (!datePart) return null;
@@ -1414,12 +1513,12 @@ const datetimeLocalToSql = (value) => {
 	return `${datePart} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:00`;
 };
 
-const dateCompareValue = (value) => {
+const dateCompareValue = (value: any) => {
 	const normalized = formatDateInputValue(value);
 	return normalized === '' ? null : normalized;
 };
 
-const dateTimeCompareValue = (value) => {
+const dateTimeCompareValue = (value: any) => {
 	const normalized = normalizeDateTimeValue(value);
 	return normalized === '' ? null : normalized;
 };
@@ -1428,7 +1527,7 @@ const createDateFieldConfig = () => ({
 	type: 'date',
 	inputFormatter: formatDateInputValue,
 	displayFormatter: formatDateDisplayValue,
-	toPayload: (value) => (value === '' ? null : value),
+	toPayload: (value: any) => (value === '' ? null : value),
 	compareFormatter: dateCompareValue
 });
 
@@ -1436,19 +1535,19 @@ const createDateTimeFieldConfig = () => ({
 	type: 'datetime-local',
 	inputFormatter: formatDateTimeInputValue,
 	displayFormatter: formatDateTimeDisplayValue,
-	toPayload: (value) => (value ? datetimeLocalToSql(value) : null),
+	toPayload: (value: any) => (value ? datetimeLocalToSql(value) : null),
 	compareFormatter: dateTimeCompareValue
 });
 
 // Cache de catÃ¡logos cargados
-let catalogosCache = {
+let catalogosCache: Record<string, any> = {
 	hilos: null,
 	aplicaciones: null,
 	calendarios: null
 };
 
 // Mapeo de campos editables a nombres de payload para el backend
-const inlineFieldPayloadMap = {
+const inlineFieldPayloadMap: Record<string, string> = {
 	FibraRizo: 'hilo',
 	CalendarioId: 'calendario_id',
 	TamanoClave: 'tamano_clave',
@@ -1473,8 +1572,8 @@ const inlineFieldPayloadMap = {
 };
 
 // ===== Helpers DOM =====
-const $ = (sel, ctx = document) => ctx.querySelector(sel);
-const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+const $ = (sel: string, ctx: ParentNode = document) => ctx.querySelector<HTMLElement>(sel);
+const $$ = (sel: string, ctx: ParentNode = document) => Array.from(ctx.querySelectorAll<HTMLElement>(sel));
 const tbodyEl = () => $('#mainTable tbody');
 
 // ===== Columnas desde PHP =====
@@ -1485,7 +1584,7 @@ const columnsData = PT_BOOT.columns || [];
 
 // Estado de filtros
 // NOTE: `filters` se declara globalmente en state.blade.php
-let quickFilters = {
+let quickFilters: Record<string, boolean> = {
     ultimos: false,
     divididos: false,
     enProceso: false,
@@ -1494,24 +1593,24 @@ let quickFilters = {
     conCambioHilo: false,
 };
 
-let dateRangeFilters = {
+let dateRangeFilters: Record<'fechaInicio' | 'fechaFinal', { desde: string | null; hasta: string | null }> = {
     fechaInicio: { desde: null, hasta: null },
     fechaFinal: { desde: null, hasta: null },
 };
 
-let lastFilterState = null;
-let debounceTimer = null;
+let lastFilterState: string | null = null;
+let debounceTimer: any = null;
 
 // Columnas excluidas del selector (se manejan como quickfilters o fechas)
 const excludedColumns = ['Estado', 'Salon', 'SalonTejidoId', 'CambioHilo', 'FechaInicio', 'FechaFinal'];
 
 // ===== Filtros Rápidos =====
-const quickFilterConfig = {
+const quickFilterConfig: Record<string, any> = {
     ultimos: {
         label: 'Últimos',
         icon: 'fa-flag-checkered',
         description: 'Últimos registros de cada telar',
-        check: (row) => {
+        check: (row: any) => {
             const cell = row.querySelector('[data-column="Ultimo"]');
             if (!cell) return false;
             const val = (cell.dataset.value || cell.textContent || '').toString().trim();
@@ -1522,7 +1621,7 @@ const quickFilterConfig = {
         label: 'Telares divididos',
         icon: 'fa-code-branch',
         description: 'Telares con orden compartida',
-        check: (row) => {
+        check: (row: any) => {
             // Usar el atributo data-ord-compartida del <tr> en lugar de buscar una celda
             const ordCompartida = row.dataset.ordCompartida;
             if (!ordCompartida) return false;
@@ -1534,7 +1633,7 @@ const quickFilterConfig = {
         label: 'En proceso',
         icon: 'fa-spinner',
         description: 'Registros actualmente en proceso',
-        check: (row) => {
+        check: (row: any) => {
             const cell = row.querySelector('[data-column="EnProceso"]');
             if (!cell) return false;
             const checkbox = cell.querySelector('input[type="checkbox"]');
@@ -1547,7 +1646,7 @@ const quickFilterConfig = {
         label: 'JACQUARD',
         icon: 'fa-industry',
         description: 'Solo salón Jacquard',
-        check: (row) => {
+        check: (row: any) => {
             const cell = row.querySelector('[data-column="Salon"]') || row.querySelector('[data-column="SalonTejidoId"]');
             if (!cell) return false;
             const val = (cell.dataset.value || cell.textContent || '').toString().trim().toUpperCase();
@@ -1558,7 +1657,7 @@ const quickFilterConfig = {
         label: 'SMIT',
         icon: 'fa-industry',
         description: 'Solo salón Smit',
-        check: (row) => {
+        check: (row: any) => {
             const cell = row.querySelector('[data-column="Salon"]') || row.querySelector('[data-column="SalonTejidoId"]');
             if (!cell) return false;
             const val = (cell.dataset.value || cell.textContent || '').toString().trim().toUpperCase();
@@ -1569,7 +1668,7 @@ const quickFilterConfig = {
         label: 'Cambio de hilo',
         icon: 'fa-exchange-alt',
         description: 'Con cambio de hilo',
-        check: (row) => {
+        check: (row: any) => {
             const cell = row.querySelector('[data-column="CambioHilo"]');
             if (!cell) return false;
             const val = (cell.dataset.value || cell.textContent || '').toString().trim();
@@ -1589,7 +1688,7 @@ function applyProgramaTejidoFilters() {
         return;
     }
 
-    const rows = Array.from(tb.querySelectorAll('.selectable-row'));
+    const rows = Array.from(tb.querySelectorAll<HTMLElement>('.selectable-row'));
     const hasQuickFilters = Object.values(quickFilters).some(Boolean);
     const hasCustomFilters = filters.length > 0;
     const hasDateFilters = Object.values(dateRangeFilters).some(d => d.desde || d.hasta);
@@ -1609,7 +1708,7 @@ function applyProgramaTejidoFilters() {
 
     rows.forEach(row => {
         const rowId = row.dataset.id;
-        const rowData = window.PT_FILTER_INDEX?.get(rowId) ?? null;
+        const rowData = window.PT_FILTER_INDEX?.get(rowId!) ?? null;
 
         // Quick filters siguen usando DOM (necesitan estado de checkboxes, etc.)
         const matchesQuick = !hasQuickFilters || activeQuickChecks.every(check => check(row));
@@ -1620,7 +1719,7 @@ function applyProgramaTejidoFilters() {
             matchesCustom = rowData
                 ? ptRowMatchesCustomFilters(rowData, filtersByColumn)
                 : Object.entries(filtersByColumn).every(([column, columnFilters]) => {
-                    const cell = row.querySelector(`[data-column="${column}"]`);
+                    const cell = row.querySelector<HTMLElement>(`[data-column="${column}"]`);
                     if (!cell) return false;
                     const cellValue = String(cell.dataset.value || cell.textContent || '').trim().toLowerCase();
                     return columnFilters.some(filter => checkFilterMatch(cellValue, filter));
@@ -1648,7 +1747,7 @@ function applyProgramaTejidoFilters() {
     } else if (window.PT && typeof window.PT.clearRowCache === 'function') {
         window.PT.clearRowCache();
     }
-    if (window.inlineEditMode) applyInlineModeToRows();
+    if (window.inlineEditMode) applyInlineModeToRows!();
 
     lastFilterState = currentState;
     updateFilterUI();
@@ -1685,7 +1784,7 @@ function applyProgramaTejidoFilters() {
 // entregan 'Y-m-d', asi que dateInRange compara strings y no toca
 // zonas horarias: new Date('2026-09-15') era UTC medianoche, o sea el dia 14 en
 // America/Mexico_City, y el rango se corria un dia dejando fuera el 'hasta'.
-function checkDateFilters(row) {
+function checkDateFilters(row: any) {
     for (const [field, range] of Object.entries(dateRangeFilters)) {
         if (!range.desde && !range.hasta) continue;
 
@@ -1701,7 +1800,7 @@ function checkDateFilters(row) {
 
 // ===== Quick filters: toggle + UI =====
 window.toggleQuickFilter = toggleQuickFilter;
-function toggleQuickFilter(filterKey) {
+function toggleQuickFilter(filterKey: any) {
     // Si es un filtro de salón, desactivar el otro
     if (filterKey === 'salonJacquard' && !quickFilters.salonJacquard) {
         quickFilters.salonSmit = false;
@@ -1747,7 +1846,7 @@ function renderQuickFilterButtons() {
         .join('');
 }
 
-function updateQuickFilterButton(btn, filterKey) {
+function updateQuickFilterButton(btn: any, filterKey: any) {
     const config = quickFilterConfig[filterKey];
     const isActive = quickFilters[filterKey];
 
@@ -1878,12 +1977,12 @@ function openProgramaTejidoFilterModal() {
         botones: [{ texto: 'Cerrar', valor: 'cerrar', variante: 'secundario' }],
         alAbrir: (modalEl) => {
             // Quick filters - ya aplican automáticamente
-            modalEl.querySelectorAll('[data-quick-filter]').forEach(btn => {
+            modalEl.querySelectorAll<HTMLElement>('[data-quick-filter]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const key = btn.dataset.quickFilter;
                     toggleQuickFilter(key);
                     // Actualizar todos los botones (para el caso de salones mutuamente excluyentes)
-                    modalEl.querySelectorAll('[data-quick-filter]').forEach(b => {
+                    modalEl.querySelectorAll<HTMLElement>('[data-quick-filter]').forEach(b => {
                         const k = b.dataset.quickFilter;
                         updateQuickFilterButton(b, k);
                     });
@@ -1922,17 +2021,17 @@ function openProgramaTejidoFilterModal() {
                 });
             });
 
-            setTimeout(() => modalEl.querySelector('#filtro-columna')?.focus(), 50);
+            setTimeout(() => modalEl.querySelector<HTMLElement>('#filtro-columna')?.focus(), 50);
 		}
 	});
 }
 
 window.saveDateRangeFilters = saveDateRangeFilters;
 function saveDateRangeFilters() {
-    dateRangeFilters.fechaInicio.desde = document.getElementById('fecha-inicio-desde')?.value || null;
-    dateRangeFilters.fechaInicio.hasta = document.getElementById('fecha-inicio-hasta')?.value || null;
-    dateRangeFilters.fechaFinal.desde = document.getElementById('fecha-final-desde')?.value || null;
-    dateRangeFilters.fechaFinal.hasta = document.getElementById('fecha-final-hasta')?.value || null;
+    dateRangeFilters.fechaInicio.desde = (document.getElementById('fecha-inicio-desde') as HTMLInputElement | null)?.value || null;
+    dateRangeFilters.fechaInicio.hasta = (document.getElementById('fecha-inicio-hasta') as HTMLInputElement | null)?.value || null;
+    dateRangeFilters.fechaFinal.desde = (document.getElementById('fecha-final-desde') as HTMLInputElement | null)?.value || null;
+    dateRangeFilters.fechaFinal.hasta = (document.getElementById('fecha-final-hasta') as HTMLInputElement | null)?.value || null;
     lastFilterState = null;
 }
 
@@ -1967,8 +2066,8 @@ function renderActiveFilters() {
 
 window.addCustomFilter = addCustomFilter;
 function addCustomFilter() {
-    const colSelect = document.getElementById('filtro-columna');
-    const valEl = document.getElementById('filtro-valor');
+    const colSelect = document.getElementById('filtro-columna') as HTMLSelectElement;
+    const valEl = document.getElementById('filtro-valor') as any;
 
     const column = colSelect?.value;
     const operator = 'contains';
@@ -2004,7 +2103,7 @@ function addCustomFilter() {
         section.classList.remove('hidden');
         list.innerHTML = renderActiveFilters();
         const counter = section.querySelector('span.bg-blue-100');
-        if (counter) counter.textContent = filters.length;
+        if (counter) counter.textContent = String(filters.length);
     }
 
     if (valEl.tagName === 'SELECT') {
@@ -2020,7 +2119,7 @@ function addCustomFilter() {
 }
 
 window.removeFilter = removeFilter;
-function removeFilter(index) {
+function removeFilter(index: any) {
     filters.splice(index, 1);
     lastFilterState = null;
 
@@ -2032,7 +2131,7 @@ function removeFilter(index) {
 			} else {
             list.innerHTML = renderActiveFilters();
             const counter = section.querySelector('span.bg-blue-100');
-            if (counter) counter.textContent = filters.length;
+            if (counter) counter.textContent = String(filters.length);
         }
     }
 
@@ -2041,7 +2140,7 @@ function removeFilter(index) {
 
 // Limpiar filtros sin cerrar el modal
 window.resetAllFiltersInModal = resetAllFiltersInModal;
-function resetAllFiltersInModal(modalEl) {
+function resetAllFiltersInModal(modalEl: any) {
     // Limpiar arrays
     filters = [];
     quickFilters = {
@@ -2060,13 +2159,13 @@ function resetAllFiltersInModal(modalEl) {
 
     // Actualizar UI de quick filters
     if (modalEl) {
-        modalEl.querySelectorAll('[data-quick-filter]').forEach(btn => {
+        modalEl.querySelectorAll('[data-quick-filter]').forEach((btn: any) => {
             const key = btn.dataset.quickFilter;
             updateQuickFilterButton(btn, key);
         });
 
         // Limpiar inputs de fecha
-        modalEl.querySelectorAll('input[type="date"]').forEach(input => {
+        modalEl.querySelectorAll('input[type="date"]').forEach((input: any) => {
             input.value = '';
         });
 
@@ -2115,7 +2214,7 @@ function resetAllFilters() {
     const tb = tbodyEl();
     if (tb) {
         const rows = tb.querySelectorAll('.selectable-row');
-        rows.forEach((row, i) => {
+        rows.forEach((row: any, i: any) => {
             row.style.display = '';
             row.classList.remove('filter-hidden');
         });
@@ -2141,7 +2240,7 @@ function updateFilterUI() {
                         (hasDateFilters ? 1 : 0);
 
     if (totalFilters > 0) {
-        badge.textContent = totalFilters;
+        badge.textContent = String(totalFilters);
         badge.classList.remove('hidden');
     } else {
         badge.classList.add('hidden');
@@ -2174,7 +2273,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-  const columnGroups = {
+  const columnGroups: Record<string, any> = {
 	1: {
 		name: 'Grupo 1',
 		fields: [
@@ -2205,7 +2304,7 @@ document.addEventListener('DOMContentLoaded', function () {
 };
 const REQUIRED_PINNED_FIELDS = ['Ultimo', 'CambioHilo', 'Maquina', 'Ancho', 'NombreProducto'];
 // ===== Cache de columnas para lookups rapidos =====
-const columnCache = {
+const columnCache: { fieldToIndex: Map<any, any> | null; fieldToGroup: Map<any, any> | null; groupToIndices: Map<any, any> | null; columnCount: number } = {
 	fieldToIndex: null,
 	fieldToGroup: null,
 	groupToIndices: null,
@@ -2218,8 +2317,8 @@ let defaultPinsApplied = false;
 function buildFieldToGroupMap() {
 	columnCache.fieldToGroup = new Map();
 	Object.entries(columnGroups).forEach(([groupId, group]) => {
-		group.fields.forEach(field => {
-			columnCache.fieldToGroup.set(field, parseInt(groupId));
+		group.fields.forEach((field: any) => {
+			columnCache.fieldToGroup!.set(field, parseInt(groupId));
 		});
 	});
 }
@@ -2231,18 +2330,18 @@ function ensureColumnCache() {
 	if (columnCache.fieldToIndex && columnCache.columnCount === columnsData.length) return true;
 	columnCache.fieldToIndex = new Map();
 	columnsData.forEach((col, idx) => {
-		if (col?.field) columnCache.fieldToIndex.set(col.field, idx);
+		if (col?.field) columnCache.fieldToIndex!.set(col.field, idx);
 	});
 	columnCache.columnCount = columnsData.length;
 	columnIndicesCache = columnsData.map((_, idx) => idx);
 	columnCache.groupToIndices = new Map();
 	Object.entries(columnGroups).forEach(([groupId, group]) => {
-		const indices = [];
-		group.fields.forEach(field => {
-			const idx = columnCache.fieldToIndex.get(field);
+		const indices: any[] = [];
+		group.fields.forEach((field: any) => {
+			const idx = columnCache.fieldToIndex!.get(field);
 			if (idx !== undefined) indices.push(idx);
 		});
-		columnCache.groupToIndices.set(parseInt(groupId), indices);
+		columnCache.groupToIndices!.set(parseInt(groupId), indices);
 	});
 	return true;
 }
@@ -2258,28 +2357,28 @@ function syncColumnStateSets(force = false) {
 }
 const columnElementsCache = new Map();
 let columnElementsCacheRowCount = 0;
-function getColumnElements(index) {
+function getColumnElements(index: any) {
 	const table = document.getElementById('mainTable');
 	if (!table) {
 		columnElementsCache.clear();
 		columnElementsCacheRowCount = 0;
 		return [];
 	}
-	const rowCount = table.rows.length;
+	const rowCount = (table as HTMLTableElement).rows.length;
 	if (rowCount !== columnElementsCacheRowCount) {
 		columnElementsCache.clear();
 		columnElementsCacheRowCount = rowCount;
 	}
 	let cached = columnElementsCache.get(index);
 	if (cached && cached.length > 0 && cached[0].isConnected) {
-		const valid = cached.every(el => el.closest('table') === table);
+		const valid = cached.every((el: any) => el.closest('table') === table);
 		if (valid) return cached;
 	}
 	cached = Array.from(table.getElementsByClassName(`column-${index}`));
 	columnElementsCache.set(index, cached);
 	return cached;
 }
-function forEachColumnElement(index, cb) {
+function forEachColumnElement(index: any, cb: any) {
 	const elements = getColumnElements(index);
 	for (let i = 0; i < elements.length; i++) cb(elements[i]);
 }
@@ -2297,8 +2396,8 @@ function ensureColumnsReady() {
 	return true;
 }
 function buildGroupedColumns() {
-	const groupedColumns = {};
-	const ungroupedColumns = [];
+	const groupedColumns: Record<string, any> = {};
+	const ungroupedColumns: any[] = [];
 	columnsData.forEach((col, realIndex) => {
 		if (!col || !col.field) return;
 		const groupId = getColumnGroup(col.field);
@@ -2337,7 +2436,7 @@ function getCachedHiddenFields() {
 	}
 }
 
-function setCachedHiddenFields(fields) {
+function setCachedHiddenFields(fields: any) {
 	try {
 		localStorage.setItem(COLUMN_STATE_CACHE_KEY, JSON.stringify(fields || []));
 	} catch (e) {
@@ -2356,7 +2455,7 @@ function getCachedPinnedFields() {
 	}
 }
 
-function setCachedPinnedFields(fields) {
+function setCachedPinnedFields(fields: any) {
 	try {
 		localStorage.setItem(PINNED_COLUMNS_CACHE_KEY, JSON.stringify(fields || []));
 	} catch (e) {
@@ -2364,9 +2463,9 @@ function setCachedPinnedFields(fields) {
 	}
 }
 
-let saveHiddenColumnsTimer = null;
+let saveHiddenColumnsTimer: ReturnType<typeof setTimeout> | null = null;
 let isInitializingColumns = false; // evita guardar mientras cargamos estados
-let pendingHiddenFields = null; // campos que deben ocultarse cuando columnsData estÃ© listo
+let pendingHiddenFields: any[] | null = null; // campos que deben ocultarse cuando columnsData estÃ© listo
 let initialColumnsApplyScheduled = false;
 let initialColumnsApplyAttempts = 0;
 const MAX_INITIAL_COLUMNS_APPLY_ATTEMPTS = 30;
@@ -2453,9 +2552,9 @@ function scheduleSaveHiddenColumns() {
 async function saveHiddenColumns() {
 	try {
 		syncColumnStateSets();
-		const columnas = {};
+		const columnas: Record<string, boolean> = {};
 		// Enviar estado completo: true = oculta, false = visible
-		const hiddenFields = [];
+		const hiddenFields: any[] = [];
 		columnsData.forEach((col, idx) => {
 			if (!col?.field) return;
 			const hidden = hiddenColumnsSet.has(idx);
@@ -2463,14 +2562,14 @@ async function saveHiddenColumns() {
 			if (hidden) hiddenFields.push(col.field);
 		});
 		setCachedHiddenFields(hiddenFields);
-		const body = { columnas };
+		const body: Record<string, unknown> = { columnas };
 		if (CURRENT_USER_ID) body.usuario_id = CURRENT_USER_ID;
 		const res = await fetch(COLUMN_STATE_ENDPOINT, {
 			method: 'POST',
 			headers: {
 				'Accept': 'application/json',
 				'Content-Type': 'application/json',
-				'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+				'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
 			},
 			credentials: 'same-origin',
 			body: JSON.stringify(body)
@@ -2483,37 +2582,37 @@ async function saveHiddenColumns() {
 	}
 }
 // FunciÃ³n para obtener el Ã­ndice de una columna por su campo
-function getColumnIndexByField(field) {
+function getColumnIndexByField(field: any) {
 	if (ensureColumnCache()) {
-		const idx = columnCache.fieldToIndex.get(field);
+		const idx = columnCache.fieldToIndex!.get(field);
 		return idx === undefined ? -1 : idx;
 	}
 	return columnsData.findIndex(col => col.field === field);
 }
-function isRequiredPinnedField(field) {
+function isRequiredPinnedField(field: any) {
 	return REQUIRED_PINNED_FIELDS.includes(field);
 }
-function isRequiredPinnedIndex(index) {
+function isRequiredPinnedIndex(index: any) {
 	const field = columnsData[index]?.field;
 	return field ? isRequiredPinnedField(field) : false;
 }
 // FunciÃ³n para obtener el grupo de una columna
 window.getColumnGroup = getColumnGroup;
-function getColumnGroup(field) {
+function getColumnGroup(field: any) {
 	if (!columnCache.fieldToGroup || columnCache.fieldToGroup.size === 0) {
 		buildFieldToGroupMap();
 	}
-	return columnCache.fieldToGroup.get(field) || null;
+	return columnCache.fieldToGroup!.get(field) || null;
 }
 // FunciÃ³n para obtener todas las columnas de un grupo
 window.getGroupColumns = getGroupColumns;
-function getGroupColumns(groupId) {
+function getGroupColumns(groupId: any) {
 	if (ensureColumnCache() && columnCache.groupToIndices) {
 		return columnCache.groupToIndices.get(groupId) || [];
 	}
 	const group = columnGroups[groupId];
 	if (!group) return [];
-	return group.fields.map(field => getColumnIndexByField(field)).filter(idx => idx !== -1);
+	return group.fields.map((field: any) => getColumnIndexByField(field)).filter((idx: any) => idx !== -1);
 }
 function tryApplyHiddenFields() {
 	if (initialColumnsApplyScheduled) return;
@@ -2543,8 +2642,8 @@ function applyInitialColumnState() {
 		// ⚡ OPTIMIZACIÓN: Aplicar estados de oculto de forma más eficiente
 		if (pendingHiddenFields && pendingHiddenFields.length > 0) {
 			// Batch DOM updates: aplicar todos los cambios de una vez
-			const indicesToHide = [];
-			pendingHiddenFields.forEach(field => {
+			const indicesToHide: any[] = [];
+			pendingHiddenFields.forEach((field: any) => {
 				const idx = getColumnIndexByField(field);
 				if (idx !== -1 && !hiddenColumnsSet.has(idx)) {
 					indicesToHide.push(idx);
@@ -2554,7 +2653,7 @@ function applyInitialColumnState() {
 			});
 			// Aplicar todos los cambios de visibilidad de una vez
 			indicesToHide.forEach(idx => {
-				forEachColumnElement(idx, el => {
+				forEachColumnElement(idx, (el: any) => {
 					el.style.display = 'none';
 				});
 			});
@@ -2575,10 +2674,10 @@ function applyInitialColumnState() {
 
 // FunciÃ³n para mostrar/ocultar un grupo completo
 window.toggleGroupVisibility = toggleGroupVisibility;
-function toggleGroupVisibility(groupId, visible, silent = false) {
+function toggleGroupVisibility(groupId: any, visible: any, silent = false) {
 	const groupColumns = getGroupColumns(groupId);
 	if (groupColumns.length === 0) return;
-	groupColumns.forEach(index => {
+	groupColumns.forEach((index: any) => {
 		if (visible) showColumn(index, true);
 		else hideColumn(index, true);
 	});
@@ -2591,13 +2690,13 @@ function toggleGroupVisibility(groupId, visible, silent = false) {
 }
 // FunciÃ³n para fijar/desfijar un grupo completo
 window.toggleGroupPin = toggleGroupPin;
-function toggleGroupPin(groupId, pin) {
+function toggleGroupPin(groupId: any, pin: any) {
 	const groupColumns = getGroupColumns(groupId);
 	if (groupColumns.length === 0) return;
 	syncColumnStateSets();
 	let changed = false;
 	if (pin) {
-		groupColumns.forEach(index => {
+		groupColumns.forEach((index: any) => {
 			if (!pinnedColumnsSet.has(index)) {
 				pinnedColumnsSet.add(index);
 				pinnedColumns.push(index);
@@ -2606,7 +2705,7 @@ function toggleGroupPin(groupId, pin) {
 		});
 		if (changed) pinnedColumns.sort((a, b) => a - b);
 	} else {
-		groupColumns.forEach(index => {
+		groupColumns.forEach((index: any) => {
 			if (pinnedColumnsSet.has(index) && !isRequiredPinnedIndex(index)) {
 				pinnedColumnsSet.delete(index);
 				changed = true;
@@ -2617,8 +2716,8 @@ function toggleGroupPin(groupId, pin) {
 	if (changed) {
 		// ⚡ OPTIMIZACIÓN: Guardar en caché cuando se cambia un grupo
 		if (ensureColumnCache()) {
-			const fields = [];
-			groupColumns.forEach(index => {
+			const fields: any[] = [];
+			groupColumns.forEach((index: any) => {
 				if (pin && pinnedColumnsSet.has(index)) {
 					const field = columnsData[index]?.field;
 					if (field) fields.push(field);
@@ -2640,7 +2739,7 @@ function toggleGroupPin(groupId, pin) {
 	}
 }
 // ===== Controles de columnas desde navbar =====
-const COLUMN_MODAL_CONFIG = {
+const COLUMN_MODAL_CONFIG: Record<string, any> = {
 	pin: {
 		title: 'Fijar Columnas',
 		description: 'Selecciona las columnas o grupos que deseas fijar a la izquierda de la tabla:',
@@ -2650,8 +2749,8 @@ const COLUMN_MODAL_CONFIG = {
 		checkboxClass: 'text-yellow-700',
 		focusClass: 'focus:ring-yellow-600',
 		confirmColor: '#d97706',
-		columnAction: (index, checked) => (checked ? pinColumn(index) : unpinColumn(index)),
-		groupAction: (groupId, checked) => toggleGroupPin(groupId, checked)
+		columnAction: (index: any, checked: any) => (checked ? pinColumn(index) : unpinColumn(index)),
+		groupAction: (groupId: any, checked: any) => toggleGroupPin(groupId, checked)
 	},
 	hide: {
 		title: 'Ocultar Columnas',
@@ -2662,15 +2761,15 @@ const COLUMN_MODAL_CONFIG = {
 		checkboxClass: 'text-red-600',
 		focusClass: 'focus:ring-red-500',
 		confirmColor: '#ef4444',
-		columnAction: (index, checked) => (checked ? hideColumn(index) : showColumn(index)),
-		groupAction: (groupId, checked) => toggleGroupVisibility(groupId, !checked)
+		columnAction: (index: any, checked: any) => (checked ? hideColumn(index) : showColumn(index)),
+		groupAction: (groupId: any, checked: any) => toggleGroupVisibility(groupId, !checked)
 	}
 };
-function getModalStateSet(mode) {
+function getModalStateSet(mode: any) {
 	syncColumnStateSets();
 	return mode === 'pin' ? pinnedColumnsSet : hiddenColumnsSet;
 }
-function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }) {
+function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }: Record<string, any>) {
 	const config = COLUMN_MODAL_CONFIG[mode];
 	const set = getModalStateSet(mode);
 	let html = `
@@ -2681,8 +2780,8 @@ function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }) {
 	Object.keys(groupedColumns).sort().forEach(groupId => {
 		const groupData = groupedColumns[groupId];
 		const groupColumns = getGroupColumns(parseInt(groupId, 10));
-		const allChecked = groupColumns.length > 0 && groupColumns.every(idx => set.has(idx) || (mode === 'pin' && isRequiredPinnedIndex(idx)));
-		const someChecked = groupColumns.some(idx => set.has(idx) || (mode === 'pin' && isRequiredPinnedIndex(idx)));
+		const allChecked = groupColumns.length > 0 && groupColumns.every((idx: any) => set.has(idx) || (mode === 'pin' && isRequiredPinnedIndex(idx)));
+		const someChecked = groupColumns.some((idx: any) => set.has(idx) || (mode === 'pin' && isRequiredPinnedIndex(idx)));
 		const indeterminateAttr = someChecked && !allChecked ? 'data-indeterminate="1"' : '';
 		html += `
 			<div class="border border-gray-200 rounded-lg p-2">
@@ -2697,7 +2796,7 @@ function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }) {
 				</div>
 				<div class="pl-4 space-y-1">
 		`;
-		groupData.columns.forEach(({ col, index }) => {
+		groupData.columns.forEach(({ col, index }: Record<string, any>) => {
 			const isRequired = mode === 'pin' && isRequiredPinnedField(col.field);
 			const isChecked = isRequired || set.has(index);
 			const disabledAttr = isRequired ? 'disabled' : '';
@@ -2722,7 +2821,7 @@ function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }) {
 				<div class="text-sm font-semibold text-gray-800 mb-2 pb-2 border-b border-gray-200">Otras columnas</div>
 				<div class="pl-4 space-y-1">
 		`;
-		ungroupedColumns.forEach(({ col, index }) => {
+		ungroupedColumns.forEach(({ col, index }: Record<string, any>) => {
 			const isRequired = mode === 'pin' && isRequiredPinnedField(col.field);
 			const isChecked = isRequired || set.has(index);
 			const disabledAttr = isRequired ? 'disabled' : '';
@@ -2746,14 +2845,14 @@ function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }) {
 	`;
 	return html;
 }
-function bindColumnsModalEvents(mode, container) {
+function bindColumnsModalEvents(mode: any, container: any) {
 	const config = COLUMN_MODAL_CONFIG[mode];
 	if (!config || !container) return;
-	container.querySelectorAll(`.${config.groupClass}[data-indeterminate="1"]`).forEach(cb => {
+	container.querySelectorAll(`.${config.groupClass}[data-indeterminate="1"]`).forEach((cb: any) => {
 		cb.indeterminate = true;
 	});
-	container.querySelectorAll(`.${config.columnClass}`).forEach(checkbox => {
-		checkbox.addEventListener('change', function() {
+	container.querySelectorAll(`.${config.columnClass}`).forEach((checkbox: any) => {
+		checkbox.addEventListener('change', function(this: any) {
 			const columnIndex = parseInt(this.dataset.columnIndex, 10);
 			if (Number.isNaN(columnIndex)) return;
 			config.columnAction(columnIndex, this.checked);
@@ -2761,19 +2860,19 @@ function bindColumnsModalEvents(mode, container) {
 			if (groupId) updateGroupCheckboxState(parseInt(groupId, 10), mode);
 		});
 	});
-	container.querySelectorAll(`.${config.groupClass}`).forEach(checkbox => {
-		checkbox.addEventListener('change', function() {
+	container.querySelectorAll(`.${config.groupClass}`).forEach((checkbox: any) => {
+		checkbox.addEventListener('change', function(this: any) {
 			const groupId = parseInt(this.dataset.groupId, 10);
 			if (Number.isNaN(groupId)) return;
 			config.groupAction(groupId, this.checked);
 			this.indeterminate = false;
-			container.querySelectorAll(`.${config.columnClass}[data-group-id="${groupId}"]`).forEach(cb => {
+			container.querySelectorAll(`.${config.columnClass}[data-group-id="${groupId}"]`).forEach((cb: any) => {
 				cb.checked = this.checked;
 			});
 		});
 	});
 }
-function openColumnsModal(mode) {
+function openColumnsModal(mode: any) {
 	if (!ensureColumnsReady()) return;
 	if (!COLUMN_MODAL_CONFIG[mode]) return;
 	const { groupedColumns, ungroupedColumns } = buildGroupedColumns();
@@ -2797,14 +2896,14 @@ window.openHideColumnsModal = openHideColumnsModal;
 function openHideColumnsModal() {
 	openColumnsModal('hide');
 }
-function updateGroupCheckboxState(groupId, type) {
+function updateGroupCheckboxState(groupId: any, type: any) {
 	const groupColumns = getGroupColumns(groupId);
 	const prefix = type === 'pin' ? 'pin' : 'hide';
 	syncColumnStateSets();
 	const set = type === 'pin' ? pinnedColumnsSet : hiddenColumnsSet;
-	const allChecked = groupColumns.every(idx => set.has(idx) || (type === 'pin' && isRequiredPinnedIndex(idx)));
-	const someChecked = groupColumns.some(idx => set.has(idx) || (type === 'pin' && isRequiredPinnedIndex(idx)));
-	const groupCheckbox = document.querySelector(`.group-toggle-${prefix}[data-group-id="${groupId}"]`);
+	const allChecked = groupColumns.every((idx: any) => set.has(idx) || (type === 'pin' && isRequiredPinnedIndex(idx)));
+	const someChecked = groupColumns.some((idx: any) => set.has(idx) || (type === 'pin' && isRequiredPinnedIndex(idx)));
+	const groupCheckbox = document.querySelector<HTMLInputElement>(`.group-toggle-${prefix}[data-group-id="${groupId}"]`);
 	if (groupCheckbox) {
 		groupCheckbox.checked = allChecked;
 		groupCheckbox.indeterminate = someChecked && !allChecked;
@@ -2826,7 +2925,7 @@ function getPinnedColumns() {
 	return pinnedColumns || [];
 }
 window.pinColumn = pinColumn;
-function pinColumn(index) {
+function pinColumn(index: any) {
 	syncColumnStateSets();
 	if (!pinnedColumnsSet.has(index)) {
 		pinnedColumnsSet.add(index);
@@ -2849,7 +2948,7 @@ function pinColumn(index) {
 	}
 }
 window.unpinColumn = unpinColumn;
-function unpinColumn(index) {
+function unpinColumn(index: any) {
 	syncColumnStateSets();
 	// Permitir desfijar incluso columnas requeridas
 	if (pinnedColumnsSet.has(index)) {
@@ -2945,8 +3044,8 @@ function initializeColumnVisibility() {
 	}
 }
 window.showColumn = showColumn;
-function showColumn(index, silent = false) {
-	forEachColumnElement(index, el => {
+function showColumn(index: any, silent = false) {
+	forEachColumnElement(index, (el: any) => {
 		el.style.display = '';
 		el.style.visibility = '';
 	});
@@ -2964,8 +3063,8 @@ function showColumn(index, silent = false) {
 	if (pinnedColumns.length > 0) updatePinnedColumnsPositions();
 }
 window.hideColumn = hideColumn;
-function hideColumn(index, silent = false) {
-	forEachColumnElement(index, el => {
+function hideColumn(index: any, silent = false) {
+	forEachColumnElement(index, (el: any) => {
 		el.style.display = 'none';
 	});
 	const hideBtn = $(`th.column-${index} .hide-btn`);
@@ -2986,7 +3085,7 @@ function hideColumn(index, silent = false) {
 	if (pinnedColumns.length > 0) updatePinnedColumnsPositions();
 }
 window.togglePinColumn = togglePinColumn;
-function togglePinColumn(index) {
+function togglePinColumn(index: any) {
 	syncColumnStateSets();
 	const exists = pinnedColumnsSet.has(index);
 	// Permitir desfijar incluso columnas requeridas
@@ -3027,8 +3126,8 @@ function togglePinColumn(index) {
 	updatePinnedColumnsPositions();
 }
 let lastPinnedColumnsSet = new Set();
-function clearPinnedStyles(index) {
-	forEachColumnElement(index, el => {
+function clearPinnedStyles(index: any) {
+	forEachColumnElement(index, (el: any) => {
 		// Remover clase pinned-column primero
 		el.classList.remove('pinned-column');
 		
@@ -3047,8 +3146,8 @@ function clearPinnedStyles(index) {
 		// deja que :not(.pinned-column) gane; el navegador repinta en el frame.
 	});
 }
-function applyPinnedStyles(index, left) {
-	forEachColumnElement(index, el => {
+function applyPinnedStyles(index: any, left: any) {
+	forEachColumnElement(index, (el: any) => {
 		el.classList.add('pinned-column');
 		el.style.left = left + 'px';
 		if (el.tagName === 'TH') {
@@ -3170,7 +3269,7 @@ window.PT.presets = { save: promptSavePreset, load: promptLoadPreset };
 const getSelectableRows = () => (window.allRows.length > 0 ? window.allRows : $$('.selectable-row'));
 const isInlineEditActive = () => !!window.inlineEditMode;
 
-function updateRowSelectionStyles(row, isSelected, inlineActive) {
+function updateRowSelectionStyles(row: any, isSelected: any, inlineActive: any) {
 	const esRepaso = row.dataset.esRepaso === '1';
 	row.classList.toggle('bg-blue-700', isSelected && !esRepaso);
 	row.classList.toggle('bg-blue-400', isSelected && esRepaso);
@@ -3187,12 +3286,12 @@ function updateRowSelectionStyles(row, isSelected, inlineActive) {
 	// filas por clic sin efecto visual.
 }
 
-function setButtonDisabled(id, disabled) {
-	const el = document.getElementById(id);
+function setButtonDisabled(id: any, disabled: any) {
+	const el = document.getElementById(id) as HTMLButtonElement | null;
 	if (el) el.disabled = disabled;
 }
 
-function updateSelectionButtons({ canEdit, canDelete, canViewLines }) {
+function updateSelectionButtons({ canEdit, canDelete, canViewLines }: Record<string, boolean>) {
 	setButtonDisabled('btn-editar-programa', !canEdit);
 	setButtonDisabled('layoutBtnEditar', !canEdit);
 	setButtonDisabled('btn-eliminar-programa', !canDelete);
@@ -3210,7 +3309,7 @@ function clearSelectionStyles() {
 }
 
 window.selectRow = selectRow;
-function selectRow(rowElement, rowIndex) {
+function selectRow(rowElement: any, rowIndex: any) {
 	try {
 		// Cancelar cualquier timeout de amarillo temporal
 		if (typeof window.yellowHighlightTimeout !== 'undefined' && window.yellowHighlightTimeout) {
@@ -3308,12 +3407,12 @@ window.deselectRow = deselectRow;
 // uiInlineEditableFields ahora usa directamente los nombres de BD que coinciden con data-column
 
 // Helpers de formateo mejorados
-function parseSqlDateTimeLocal(raw) {
+function parseSqlDateTimeLocal(raw: any) {
   if (!raw) return null;
   const s = String(raw).trim().replace('T', ' ').replace('Z', '');
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
   if (m) {
-    const Y = +m[1], Mo = +m[2] - 1, D = +m[3];
+    const Y = +m[1]!, Mo = +m[2]! - 1, D = +m[3]!;
     const hh = +(m[4] || 0), mm = +(m[5] || 0), ss = +(m[6] || 0);
     const d = new Date(Y, Mo, D, hh, mm, ss, 0);
     return isNaN(d.getTime()) ? null : d;
@@ -3322,13 +3421,13 @@ function parseSqlDateTimeLocal(raw) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function formatDateOnlyDisplay(raw) {
+function formatDateOnlyDisplay(raw: any) {
   const d = parseSqlDateTimeLocal(raw);
   if (!d) return '';
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function formatDateTimeDisplay(raw) {
+function formatDateTimeDisplay(raw: any) {
   const d = parseSqlDateTimeLocal(raw);
   if (!d) return '';
   const date = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -3341,7 +3440,7 @@ function formatDateTimeDisplay(raw) {
   return `${date} ${hh}:${mm}`;
 }
 
-function formatNumber2(raw) {
+function formatNumber2(raw: any) {
   if (raw == null || raw === '') return '';
   const n = Number(raw);
   if (!isFinite(n)) return String(raw);
@@ -3349,11 +3448,11 @@ function formatNumber2(raw) {
 }
 
 // Mantener formatDateDisplay para compatibilidad con código existente
-function formatDateDisplay(isoOrDate) {
+function formatDateDisplay(isoOrDate: any) {
   return formatDateOnlyDisplay(isoOrDate);
 }
 
-function toInputDate(val) {
+function toInputDate(val: any) {
   // acepta dd/mm/yyyy, yyyy-mm-dd, dd-mm-yyyy, etc.
   if (!val) return '';
   const s = String(val).trim();
@@ -3388,23 +3487,23 @@ function toInputDate(val) {
  * - type: text|number|date|select
  * - catalog: hilos|calendarios|aplicaciones (si type=select)
  */
-const uiInlineEditableFields = {
+const uiInlineEditableFields: Record<string, any> = {
   // Usar los nombres de campos de BD que coinciden con data-column
   FibraRizo: {
     type: 'select',
     catalog: 'hilos',
-    displayFormatter: (_val, inputEl) => inputEl?.selectedOptions?.[0]?.textContent || ''
+    displayFormatter: (_val: any, inputEl: any) => inputEl?.selectedOptions?.[0]?.textContent || ''
   },
   CalendarioId: {
     type: 'select',
     catalog: 'calendarios',
-    displayFormatter: (_val, inputEl) => inputEl?.selectedOptions?.[0]?.textContent || ''
+    displayFormatter: (_val: any, inputEl: any) => inputEl?.selectedOptions?.[0]?.textContent || ''
   },
   TotalPedido: {
     type: 'number',
     min: 0,
     step: 0.01,
-    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   },
   FlogsId: {
     type: 'text',
@@ -3417,14 +3516,14 @@ const uiInlineEditableFields = {
   AplicacionId: {
     type: 'select',
     catalog: 'aplicaciones',
-    toPayload: (v) => (v === '' || v === 'NA') ? null : v,
-    displayFormatter: (_val, inputEl) => inputEl?.selectedOptions?.[0]?.textContent || ''
+    toPayload: (v: any) => (v === '' || v === 'NA') ? null : v,
+    displayFormatter: (_val: any, inputEl: any) => inputEl?.selectedOptions?.[0]?.textContent || ''
   },
   EntregaProduc: {
     type: 'date',
-    inputFormatter: (v) => toInputDate(v),
-    toPayload: (v) => v === '' ? null : v,
-    displayFormatter: (v) => v ? formatDateDisplay(v) : ''
+    inputFormatter: (v: any) => toInputDate(v),
+    toPayload: (v: any) => v === '' ? null : v,
+    displayFormatter: (v: any) => v ? formatDateDisplay(v) : ''
   },
   TamanoClave: {
     type: 'text',
@@ -3436,61 +3535,61 @@ const uiInlineEditableFields = {
   },
   ProgramarProd: {
     type: 'date',
-    inputFormatter: (v) => toInputDate(v),
-    toPayload: (v) => v === '' ? null : v,
-    displayFormatter: (v) => v ? formatDateDisplay(v) : ''
+    inputFormatter: (v: any) => toInputDate(v),
+    toPayload: (v: any) => v === '' ? null : v,
+    displayFormatter: (v: any) => v ? formatDateDisplay(v) : ''
   },
   NoTiras: {
     type: 'number',
     min: 0,
     step: 1,
-    displayFormatter: (v) => (v == null || v === '') ? '' : String(v)
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : String(v)
   },
   Peine: {
     type: 'number',
     min: 0,
     step: 1,
-    displayFormatter: (v) => (v == null || v === '') ? '' : String(v)
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : String(v)
   },
   LargoCrudo: {
     type: 'number',
     min: 0,
     step: 0.01,
-    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   },
   Luchaje: {
     type: 'number',
     min: 0,
     step: 0.01,
-    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   },
   PesoCrudo: {
     type: 'number',
     min: 0,
     step: 0.01,
-    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   },
   Ancho: {
     type: 'number',
     min: 0,
     step: 0.01,
-    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   },
   AnchoToalla: {
     type: 'number',
     min: 0,
     step: 0.01,
-    displayFormatter: (v) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   },
   EntregaPT: {
     type: 'date',
-    inputFormatter: (v) => toInputDate(v),
-    toPayload: (v) => v === '' ? null : v,
-    displayFormatter: (v) => v ? formatDateDisplay(v) : ''
+    inputFormatter: (v: any) => toInputDate(v),
+    toPayload: (v: any) => v === '' ? null : v,
+    displayFormatter: (v: any) => v ? formatDateDisplay(v) : ''
   },
   EntregaCte: {
     type: 'datetime-local',
-    inputFormatter: (v) => {
+    inputFormatter: (v: any) => {
       if (!v) return '';
       const d = new Date(v);
       if (isNaN(d.getTime())) return '';
@@ -3501,19 +3600,19 @@ const uiInlineEditableFields = {
       const minutes = String(d.getMinutes()).padStart(2, '0');
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     },
-    toPayload: (v) => v === '' ? null : v,
-    displayFormatter: (v) => v ? formatDateDisplay(v) : ''
+    toPayload: (v: any) => v === '' ? null : v,
+    displayFormatter: (v: any) => v ? formatDateDisplay(v) : ''
   },
   PTvsCte: {
     type: 'number',
     step: 1,
-    displayFormatter: (v) => (v == null || v === '') ? '' : String(v)
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : String(v)
   },
   NoProduccion: {
     type: 'text',
     maxLength: 80,
-    toPayload: (v) => (v === '' ? null : String(v).trim()),
-    displayFormatter: (v) => (v == null || v === '') ? '' : String(v)
+    toPayload: (v: any) => (v === '' ? null : String(v).trim()),
+    displayFormatter: (v: any) => (v == null || v === '') ? '' : String(v)
   },
   // NOTA: Las siguientes columnas NO son editables (calculadas automáticamente):
   // - DiasEficiencia (Dias Ef)
@@ -3533,18 +3632,18 @@ const uiInlineEditableFields = {
 (function() {
   'use strict';
 
-  const $ = (sel, ctx = document) => ctx.querySelector(sel);
-  const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+  const $ = (sel: string, ctx: ParentNode = document) => ctx.querySelector<HTMLElement>(sel);
+  const $$ = (sel: string, ctx: ParentNode = document) => Array.from(ctx.querySelectorAll<HTMLElement>(sel));
   const tbodyEl = () => $('#mainTable tbody');
 
-  function getCellValue(cell) {
+  function getCellValue(cell: any) {
     // data-value tiene prioridad (valor real)
     const v = cell?.dataset?.value;
     if (v !== undefined && v !== null) return String(v).trim();
     return (cell?.textContent || '').trim();
   }
 
-  function setCellValue(cell, display, rawValue) {
+  function setCellValue(cell: any, display: any, rawValue: any) {
     cell.innerHTML = (display ?? '');
     if (rawValue === null || rawValue === undefined) {
       delete cell.dataset.value;
@@ -3555,7 +3654,7 @@ const uiInlineEditableFields = {
   }
 
   // Cargar catálogo
-  async function loadCatalog(catalogName) {
+  async function loadCatalog(catalogName: any) {
     if (catalogosCache[catalogName]) return catalogosCache[catalogName];
 
     let url = '';
@@ -3585,20 +3684,20 @@ const uiInlineEditableFields = {
         normalized = data.map(x => ({ value: x, label: x }));
       } else if (data?.data && Array.isArray(data.data)) {
         if (catalogName === 'hilos') {
-          normalized = data.data.map(item => ({
+          normalized = data.data.map((item: any) => ({
             value: item.Hilo || item.value || item.id || item,
             label: item.Hilo
               ? (item.Hilo + (item.Fibra ? ' - ' + item.Fibra : ''))
               : (item.label || item.name || item.value || item.id || String(item))
           }));
         } else {
-          normalized = data.data.map(item => ({
+          normalized = data.data.map((item: any) => ({
             value: item.value || item.id || item,
             label: item.label || item.name || item.text || item.value || item.id || String(item)
           }));
         }
       } else if (data?.success && Array.isArray(data.data)) {
-        normalized = data.data.map(item => ({
+        normalized = data.data.map((item: any) => ({
           value: item.value || item.id || item,
           label: item.label || item.name || item.text || item.value || item.id || String(item)
         }));
@@ -3613,7 +3712,7 @@ const uiInlineEditableFields = {
   }
 
   // ====== Editar SOLO la celda clickeada ======
-  window.enableInlineEditForCell = async function enableInlineEditForCell(cell) {
+  window.enableInlineEditForCell = async function enableInlineEditForCell(cell: any) {
     if (!cell) {
       return;
     }
@@ -3630,7 +3729,7 @@ const uiInlineEditableFields = {
 
     // Asegurar que solo esta fila específica tenga el amarillo (limpiar otras filas)
     const allRows = window.allRows?.length ? window.allRows : Array.from(document.querySelectorAll('.selectable-row'));
-    allRows.forEach(r => {
+    allRows.forEach((r: any) => {
       if (r !== row && r.classList.contains('bg-yellow-100') && !r.querySelector('.inline-edit-input')) {
         // Solo quitar amarillo de filas que no están en edición
         r.classList.remove('bg-yellow-100');
@@ -3669,7 +3768,7 @@ const uiInlineEditableFields = {
     wrap.className = 'inline-edit-input-container';
     wrap.style.width = '100%';
 
-    let input;
+    let input: any;
 
     if (cfg.type === 'select' && cfg.catalog) {
       input = document.createElement('select');
@@ -3696,7 +3795,7 @@ const uiInlineEditableFields = {
       }
 
       const catalog = await loadCatalog(cfg.catalog);
-      catalog.forEach(item => {
+      catalog.forEach((item: any) => {
         const opt = document.createElement('option');
         opt.value = String(item.value ?? '');
         opt.textContent = String(item.label ?? item.value ?? '');
@@ -3704,10 +3803,10 @@ const uiInlineEditableFields = {
       });
 
       // seleccionar por value (data-value) o por texto
-      const byValue = Array.from(input.options).find(o => o.value == currentValue);
+      const byValue = Array.from<HTMLOptionElement>(input.options).find(o => o.value == currentValue);
       if (byValue) byValue.selected = true;
       else {
-        const byText = Array.from(input.options).find(o => o.textContent.trim() === currentValue);
+        const byText = Array.from<HTMLOptionElement>(input.options).find(o => o.textContent!.trim() === currentValue);
         if (byText) byText.selected = true;
       }
 
@@ -3778,7 +3877,7 @@ const uiInlineEditableFields = {
     }
 
     // Variable para el timeout del amarillo (ya no se usa, el amarillo permanece hasta guardar)
-    let yellowTimeout = null;
+    let yellowTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // Mostrar amarillo cuando hay cambios y mantenerlo hasta que se guarde completamente
     input.addEventListener('input', () => {
@@ -3809,7 +3908,7 @@ const uiInlineEditableFields = {
       }
     });
 
-    input.addEventListener('keydown', (e) => {
+    input.addEventListener('keydown', (e: any) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         saveInlineField(input, row, cell);
@@ -3849,7 +3948,7 @@ const uiInlineEditableFields = {
   }
 
   // actualizar más celdas si backend recalcula cosas (fechas, saldo, etc.)
-  function applyRowUpdatesFromBackend(row, data) {
+  function applyRowUpdatesFromBackend(row: any, data: any) {
     if (!row || !data) return;
 
     const num2Cols = new Set([
@@ -3893,7 +3992,7 @@ const uiInlineEditableFields = {
 
   // Vuelve a consultar Velocidad/Eficiencia STD (mismo endpoint que usa el modal Duplicar/Dividir)
   // y las guarda en la orden. Se dispara al cambiar el hilo (FibraRizo) desde la edición inline.
-  async function recalcularStdParaFila(row, fibraId) {
+  async function recalcularStdParaFila(row: any, fibraId: any) {
     const rowId = row.getAttribute('data-id');
     const noTelarCell = row.querySelector('td[data-column="NoTelarId"]');
     const calibreCell = row.querySelector('td[data-column="CalibreTrama2"]') || row.querySelector('td[data-column="CalibreTrama"]');
@@ -3914,7 +4013,7 @@ const uiInlineEditableFields = {
       if (std.velocidad == null && std.eficiencia == null) return;
 
       // El backend (UpdateTejido::actualizar) solo acepta estas claves snake_case, no los nombres de columna
-      const payload = {};
+      const payload: Record<string, unknown> = {};
       if (std.velocidad != null) payload.velocidad_std = std.velocidad;
       if (std.eficiencia != null) payload.eficiencia_std = std.eficiencia;
 
@@ -3933,7 +4032,7 @@ const uiInlineEditableFields = {
       if (!saveRes.ok) return;
 
       const saveResult = await saveRes.json().catch(() => ({}));
-      const display = {};
+      const display: Record<string, unknown> = {};
       if (std.velocidad != null) display.VelocidadSTD = std.velocidad;
       if (std.eficiencia != null) display.EficienciaSTD = std.eficiencia;
       applyRowUpdatesFromBackend(row, display);
@@ -3943,7 +4042,7 @@ const uiInlineEditableFields = {
   }
 
   // Guardar campo individual
-  async function saveInlineField(input, row, cell) {
+  async function saveInlineField(input: any, row: any, cell: any) {
     const columnName = input.dataset.field;
     const rowId = input.dataset.rowId;
     const cfg = uiInlineEditableFields[columnName];
@@ -4013,7 +4112,7 @@ const uiInlineEditableFields = {
       } else if (typeof window.notify !== 'undefined') {
         window.notify.success('Actualizado');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('saveInlineField error', e);
 
       // restaurar
@@ -4036,11 +4135,11 @@ const uiInlineEditableFields = {
   }
 
   // Cerrar edición inline de una fila (restaurar valores originales)
-  window.closeInlineEditForRow = function(row) {
+  window.closeInlineEditForRow = function(row: any) {
     if (!row) return;
 
     const cells = row.querySelectorAll('td[data-column]');
-    cells.forEach(cell => {
+    cells.forEach((cell: any) => {
       const inputContainer = cell.querySelector('.inline-edit-input-container');
       if (inputContainer) {
         // Siempre restaurar el valor original guardado
@@ -4075,12 +4174,12 @@ const uiInlineEditableFields = {
   };
 
   // Activar edición en todas las celdas editables de una fila
-  window.enableInlineEditForAllCellsInRow = async function(row) {
+  window.enableInlineEditForAllCellsInRow = async function(row: any) {
     if (!row) return;
 
     // NO agregar amarillo al inicio, solo cuando hay cambios
 
-    const cells = row.querySelectorAll('td[data-column]');
+    const cells: NodeListOf<HTMLElement> = row.querySelectorAll('td[data-column]');
     const editableCells = Array.from(cells).filter(cell => {
       const col = cell.getAttribute('data-column');
       return col && uiInlineEditableFields[col] && !cell.querySelector('.inline-edit-input');
@@ -4102,9 +4201,9 @@ const uiInlineEditableFields = {
     if (!window.inlineEditMode) return;
 
     const rows = window.allRows?.length ? window.allRows : $$('.selectable-row');
-    rows.forEach(r => r.classList.add('inline-edit-ready'));
+    rows.forEach((r: any) => r.classList.add('inline-edit-ready'));
 
-    const tb = tbodyEl();
+    const tb: any = tbodyEl();
     if (!tb) return;
 
     // Remover listener anterior si existe
@@ -4113,7 +4212,7 @@ const uiInlineEditableFields = {
     }
 
     // Crear nuevo handler
-    tb._inlineEditHandler = function inlineEditClickHandler(e) {
+    tb._inlineEditHandler = function inlineEditClickHandler(e: any) {
       if (!window.inlineEditMode) return;
 
       // Buscar la celda clickeada
@@ -4146,14 +4245,14 @@ const uiInlineEditableFields = {
   window.toggleInlineEditMode = function() {
     window.inlineEditMode = !window.inlineEditMode;
 
-    const tb = tbodyEl();
+    const tb: any = tbodyEl();
     if (window.inlineEditMode) {
       tb?.classList.add('inline-edit-mode');
       // Forzar re-aplicación del modo inline
       if (tb?.dataset.inlineBound) {
         delete tb.dataset.inlineBound;
       }
-      window.applyInlineModeToRows();
+      window.applyInlineModeToRows!();
       if (typeof window.showToast === 'function') window.showToast('Edición inline activada: clic en una celda editable', 'info');
     } else {
       tb?.classList.remove('inline-edit-mode');
@@ -4179,11 +4278,11 @@ const uiInlineEditableFields = {
 
   (function () {
     window.PT = window.PT || {};
-    const PT = window.PT;
+    const PT = window.PT as PTInterno;
 
-    const qs  = (sel, ctx=document) => ctx.querySelector(sel);
-    const qsa = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
-    const tbodyEl = () => qs('#mainTable tbody');
+    const qs  = (sel: string, ctx: ParentNode | null = document): any => ctx!.querySelector(sel);
+    const qsa = (sel: string, ctx: ParentNode | null = document): any[] => Array.from(ctx!.querySelectorAll<HTMLElement>(sel));
+    const tbodyEl = (): HTMLElement | null => qs('#mainTable tbody');
     const setNavbarHeightVar = () => {
       const nav = document.querySelector('nav');
       if (!nav) return;
@@ -4197,9 +4296,9 @@ const uiInlineEditableFields = {
       * @param {number} delay - Milisegundos mínimos entre ejecuciones
       * @returns {Function}
       */
-    const throttle = (fn, delay) => {
+    const throttle = (fn: any, delay: any) => {
       let lastCall = 0;
-      return function (...args) {
+      return function (this: any, ...args: any[]) {
         const now = Date.now();
         if (now - lastCall >= delay) {
           lastCall = now;
@@ -4208,7 +4307,7 @@ const uiInlineEditableFields = {
       };
     };
 
-    const toast = (msg, type='info') => {
+    const toast = (msg: any, type='info') => {
       if (typeof window.showToast === 'function') return window.showToast(msg, type);
     };
 
@@ -4231,7 +4330,7 @@ const uiInlineEditableFields = {
       );
     }
 
-    function setDragDropButtonGray(isActive) {
+    function setDragDropButtonGray(isActive: any) {
       const btn = findDragDropButton();
       if (!btn) return;
 
@@ -4278,7 +4377,7 @@ const uiInlineEditableFields = {
      * @param {HTMLTableRowElement} row - Fila de la tabla
      * @returns {Object} Objeto con telar, salon, cambioHilo (string), enProceso (boolean), posicion (number|null)
      */
-    function rowMeta(row) {
+    function rowMeta(row: any) {
       if (!row) return { telar:'', salon:'', cambioHilo:'', enProceso:false };
       if (PT.rowCache.has(row)) return PT.rowCache.get(row);
 
@@ -4304,14 +4403,14 @@ const uiInlineEditableFields = {
     // Se publica aqui porque vive dentro del IIFE: como modulo ya no hay global implicito.
     window.clearRowCache = clearRowCache;
 
-    function normalizeTelarValue(value) {
+    function normalizeTelarValue(value: any) {
       const str = String(value ?? '').trim();
       if (!str) return '';
       const num = Number(str);
       if (!Number.isNaN(num)) return String(num);
       return str.toUpperCase();
     }
-    function isSameTelar(a, b) { return normalizeTelarValue(a) === normalizeTelarValue(b); }
+    function isSameTelar(a: any, b: any) { return normalizeTelarValue(a) === normalizeTelarValue(b); }
 
     // =========================
     // Orden actual de filas
@@ -4329,7 +4428,7 @@ const uiInlineEditableFields = {
       if (!tb || tb.dataset.selectionBound) return;
       tb.dataset.selectionBound = '1';
 
-      tb.addEventListener('click', (e) => {
+      tb.addEventListener('click', (e: any) => {
         // Esos dos modos manejan sus propios clicks.
         if (window.dragDropMode || window.multiSelectMode) return;
 
@@ -4384,7 +4483,7 @@ const uiInlineEditableFields = {
      * @param {string|null} raw - Valor crudo de la celda
      * @returns {string}
      */
-    function ddFormatDateTime(raw) {
+    function ddFormatDateTime(raw: any) {
       if (typeof formatDateTimeDisplay === 'function') return formatDateTimeDisplay(raw);
       return raw ? String(raw) : '';
     }
@@ -4394,7 +4493,7 @@ const uiInlineEditableFields = {
      * @param {string|null} raw - Valor crudo de la celda
      * @returns {string}
      */
-    function ddFormatDateOnly(raw) {
+    function ddFormatDateOnly(raw: any) {
       if (typeof formatDateOnlyDisplay === 'function') return formatDateOnlyDisplay(raw);
       if (typeof formatDateDisplay === 'function') return formatDateDisplay(raw);
       return raw ? String(raw) : '';
@@ -4405,14 +4504,14 @@ const uiInlineEditableFields = {
      * @param {string|number|null} raw - Valor crudo de la celda
      * @returns {string}
      */
-    function ddFormatNumber(raw) {
+    function ddFormatNumber(raw: any) {
       if (typeof formatNumber2 === 'function') return formatNumber2(raw);
       const n = Number(raw);
       if (!Number.isFinite(n)) return raw == null ? '' : String(raw);
       return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    function ddSetCellValue(cell, display, rawValue) {
+    function ddSetCellValue(cell: any, display: any, rawValue: any) {
       if (!cell) return;
       cell.innerHTML = display ?? '';
       if (rawValue === null || rawValue === undefined) {
@@ -4422,7 +4521,7 @@ const uiInlineEditableFields = {
       }
     }
 
-    function ddFormatCell(column, raw) {
+    function ddFormatCell(column: any, raw: any) {
       if (column === 'EnProceso') {
         const checked = (raw == 1 || raw === true) ? 'checked' : '';
         return {
@@ -4470,7 +4569,7 @@ const uiInlineEditableFields = {
       return { display: raw == null ? '' : String(raw), rawValue: raw ?? '' };
     }
 
-    function ddApplyUpdatesToRow(row, updates) {
+    function ddApplyUpdatesToRow(row: any, updates: any) {
       if (!row || !updates) return;
 
       if (updates.Posicion !== undefined && updates.Posicion !== null) {
@@ -4494,7 +4593,7 @@ const uiInlineEditableFields = {
       const tb = tbodyEl();
       if (!tb) return;
 
-      const rows = Array.from(tb.querySelectorAll('.selectable-row'));
+      const rows = Array.from(tb.querySelectorAll<HTMLElement>('.selectable-row'));
       rows.sort((a, b) => {
         const telarA = normalizeTelarValue(a.querySelector('[data-column="NoTelarId"]')?.textContent || '');
         const telarB = normalizeTelarValue(b.querySelector('[data-column="NoTelarId"]')?.textContent || '');
@@ -4517,17 +4616,17 @@ const uiInlineEditableFields = {
       refreshAllRows();
     }
 
-    function ddSelectRowById(registroId) {
+    function ddSelectRowById(registroId: any) {
       if (!registroId || typeof window.selectRow !== 'function') return;
       const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tbodyEl());
-      const row = rows.find(r => r.getAttribute('data-id') == registroId);
+      const row = rows.find((r: any) => r.getAttribute('data-id') == registroId);
       if (!row) return;
       const idx = rows.indexOf(row);
       if (idx >= 0) window.selectRow(row, idx);
       row.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    window.updateTableAfterDragDrop = function updateTableAfterDragDrop(detalles, registroId, updates = {}) {
+    window.updateTableAfterDragDrop = function updateTableAfterDragDrop(detalles: any, registroId: any, updates = {}) {
       const tb = tbodyEl();
       if (!tb) return;
 
@@ -4537,7 +4636,7 @@ const uiInlineEditableFields = {
       detallesList.forEach((detalle) => {
         const idKey = String(detalle?.Id ?? detalle?.id ?? '');
         if (!idKey) return;
-        const fallback = {};
+        const fallback: Record<string, unknown> = {};
         if (detalle.NoTelar !== undefined) fallback.NoTelarId = detalle.NoTelar;
         if (detalle.Posicion !== undefined) fallback.Posicion = detalle.Posicion;
         if (detalle.FechaInicio_nueva !== undefined) fallback.FechaInicio = detalle.FechaInicio_nueva;
@@ -4552,7 +4651,7 @@ const uiInlineEditableFields = {
 
       const ids = Object.keys(updatesById);
       ids.forEach((idKey) => {
-        const row = tb.querySelector(`tr.selectable-row[data-id="${idKey}"]`);
+        const row = tb.querySelector<HTMLElement>(`tr.selectable-row[data-id="${idKey}"]`);
         if (!row) return;
 
         // Aplicar todos los updates
@@ -4561,13 +4660,13 @@ const uiInlineEditableFields = {
         // Asegurar que HorasProd (y otras columnas actualizadas) permanezcan visibles
         // Verificar el estado del header para cada columna actualizada
         Object.keys(updatesById[idKey]).forEach((columnField) => {
-          const headerTh = document.querySelector(`#mainTable thead th[data-column="${columnField}"]`);
+          const headerTh = document.querySelector<HTMLElement>(`#mainTable thead th[data-column="${columnField}"]`);
           if (headerTh) {
             const isHeaderHidden = headerTh.style.display === 'none' ||
                                    headerTh.classList.contains('hidden') ||
                                    window.getComputedStyle(headerTh).display === 'none';
 
-            const cell = row.querySelector(`td[data-column="${columnField}"]`);
+            const cell = row.querySelector<HTMLElement>(`td[data-column="${columnField}"]`);
             if (cell) {
               if (isHeaderHidden) {
                 cell.style.display = 'none';
@@ -4599,7 +4698,7 @@ const uiInlineEditableFields = {
       // Restaurar visibilidad de columnas ocultas después de reordenar
       // Esto asegura que las columnas ocultas permanezcan ocultas después del drag and drop
       // Basarse en el estado del header para aplicar el mismo estado a las filas
-      const headerCells = document.querySelectorAll('#mainTable thead th[data-column]');
+      const headerCells = document.querySelectorAll<HTMLElement>('#mainTable thead th[data-column]');
       const tbody = tbodyEl();
 
       headerCells.forEach((th) => {
@@ -4620,8 +4719,8 @@ const uiInlineEditableFields = {
               // Aplicar el mismo estado a todas las celdas correspondientes en las filas
               // Buscar tanto por índice como por data-column para asegurar que todas las celdas se actualicen
               if (tbody) {
-                const cellsByIndex = tbody.querySelectorAll(`td.column-${colIndex}`);
-                const cellsByField = tbody.querySelectorAll(`td[data-column="${columnField}"]`);
+                const cellsByIndex = tbody.querySelectorAll<HTMLElement>(`td.column-${colIndex}`);
+                const cellsByField = tbody.querySelectorAll<HTMLElement>(`td[data-column="${columnField}"]`);
 
                 // Combinar ambos selectores para asegurar que todas las celdas se actualicen
                 const allCells = new Set([...cellsByIndex, ...cellsByField]);
@@ -4633,8 +4732,8 @@ const uiInlineEditableFields = {
               // Asegurar que las columnas visibles estén visibles
               // Buscar tanto por índice como por data-column para asegurar que todas las celdas se actualicen
               if (tbody) {
-                const cellsByIndex = tbody.querySelectorAll(`td.column-${colIndex}`);
-                const cellsByField = tbody.querySelectorAll(`td[data-column="${columnField}"]`);
+                const cellsByIndex = tbody.querySelectorAll<HTMLElement>(`td.column-${colIndex}`);
+                const cellsByField = tbody.querySelectorAll<HTMLElement>(`td[data-column="${columnField}"]`);
 
                 // Combinar ambos selectores para asegurar que todas las celdas se actualicen
                 const allCells = new Set([...cellsByIndex, ...cellsByField]);
@@ -4664,7 +4763,7 @@ const uiInlineEditableFields = {
       // ⚠️ FIX ESPECÍFICO: Asegurar que HorasProd sea visible después del reordenamiento
       // Esperar un momento para que el DOM se actualice completamente
       setTimeout(() => {
-        const horasProdHeader = document.querySelector('#mainTable thead th[data-column="HorasProd"]');
+        const horasProdHeader = document.querySelector<HTMLElement>('#mainTable thead th[data-column="HorasProd"]');
         if (horasProdHeader) {
           const isHeaderHidden = horasProdHeader.style.display === 'none' ||
                                   horasProdHeader.classList.contains('hidden') ||
@@ -4672,7 +4771,7 @@ const uiInlineEditableFields = {
 
           if (!isHeaderHidden) {
             // Si el header está visible, forzar visibilidad de todas las celdas de HorasProd
-            const horasProdCells = document.querySelectorAll('#mainTable tbody td[data-column="HorasProd"]');
+            const horasProdCells = document.querySelectorAll<HTMLElement>('#mainTable tbody td[data-column="HorasProd"]');
             horasProdCells.forEach((cell) => {
               cell.style.display = '';
               cell.style.visibility = '';
@@ -4687,7 +4786,7 @@ const uiInlineEditableFields = {
       }, 0);
 
       if (window.dragDropMode) {
-        window.allRows.forEach((row) => {
+        window.allRows.forEach((row: any) => {
           const meta = rowMeta(row);
           row.draggable = !meta.enProceso;
           row.classList.toggle('cursor-move', !meta.enProceso);
@@ -4715,14 +4814,14 @@ const uiInlineEditableFields = {
       const menu = qs('#contextMenu');
       if (!menu) return null;
 
-      let menuRow = null;
+      let menuRow: any = null;
 
       function hide() {
         menu.classList.add('hidden');
         menuRow = null;
       }
 
-      function show(e, row) {
+      function show(e: any, row: any) {
         // Cerrar el menú de encabezados si está abierto
         if (PT.contextMenuHeader && typeof PT.contextMenuHeader.hide === 'function') {
           PT.contextMenuHeader.hide();
@@ -4804,7 +4903,7 @@ const uiInlineEditableFields = {
         if (tb) {
           // Clic derecho, mantener presionado (tablet) o el botón "⋮" del navbar (UX-06):
           // el mismo menú por los tres caminos.
-          const abrirMenuFila = (clickedRow, pos) => {
+          const abrirMenuFila = (clickedRow: any, pos: any) => {
             // Obtener todas las filas para encontrar el índice
             const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
             const clickedRowIndex = rows.indexOf(clickedRow);
@@ -4846,13 +4945,13 @@ const uiInlineEditableFields = {
         // Abrir catÃ¡logo de CodificaciÃ³n en nueva ventana
         qs('#contextMenuCodificacion')?.addEventListener('click', () => {
           hide();
-          window.open(PT_BOOT.routes.codificacion, '_blank');
+          window.open(PT_BOOT.routes!.codificacion, '_blank');
         });
 
         // Abrir catÃ¡logo de CodificaciÃ³n de Modelos en nueva ventana
         qs('#contextMenuModelos')?.addEventListener('click', () => {
           hide();
-          window.open(PT_BOOT.routes.codificacionModelos, '_blank');
+          window.open(PT_BOOT.routes!.codificacionModelos, '_blank');
         });
 
         // Redbooth - vincular la fila seleccionada.
@@ -4943,7 +5042,7 @@ const uiInlineEditableFields = {
     // =========================
     // Helper para escapar valores CSS
     // =========================
-    function escapeCSSValue(value) {
+    function escapeCSSValue(value: any) {
       if (typeof value !== 'string') {
         value = String(value);
       }
@@ -4965,8 +5064,8 @@ const uiInlineEditableFields = {
       const menu = qs('#contextMenuHeader');
       if (!menu) return null;
 
-      let menuColumnIndex = null;
-      let menuColumnField = null;
+      let menuColumnIndex: any = null;
+      let menuColumnField: any = null;
 
       function hide() {
         menu.classList.add('hidden');
@@ -4974,7 +5073,7 @@ const uiInlineEditableFields = {
         menuColumnField = null;
       }
 
-      function show(e, columnIndex, columnField) {
+      function show(e: any, columnIndex: any, columnField: any) {
         // Cerrar el menú de filas si está abierto
         if (PT.contextMenu && typeof PT.contextMenu.hide === 'function') {
           PT.contextMenu.hide();
@@ -5024,7 +5123,7 @@ const uiInlineEditableFields = {
         if (thead) {
           // Clic derecho o mantener presionado (UX-06); el helper hace el preventDefault.
           thead.classList.add('towell-acciones-zona');
-          ptAccionesTactiles(thead, 'th', (th, pos) => {
+          ptAccionesTactiles(thead, 'th', (th: any, pos) => {
             const e = { clientX: pos.x, clientY: pos.y };
 
             // Intentar obtener el índice de varias formas
@@ -5145,7 +5244,7 @@ const uiInlineEditableFields = {
      * @param {number} columnIndex - Índice de la columna en el DOM
      * @param {string} columnField - Campo de datos de la columna (data-column)
      */
-    function openFilterModal(columnIndex, columnField) {
+    function openFilterModal(columnIndex: any, columnField: any) {
       // Validar parámetros
       if (columnIndex === null || columnIndex === undefined || columnIndex < 0) {
         console.error('[openFilterModal] Índice de columna inválido:', columnIndex);
@@ -5183,7 +5282,7 @@ const uiInlineEditableFields = {
       const values = new Set();
       const valueCounts = new Map();
 
-      rows.forEach(row => {
+      rows.forEach((row: any) => {
         const escapedField = escapeCSSValue(columnField);
         const selector = '[data-column="' + escapedField + '"]';
         const cell = row.querySelector(selector);
@@ -5266,27 +5365,27 @@ const uiInlineEditableFields = {
           // Restaurar estado de checkboxes si hay filtros activos para esta columna
           // Usar la variable global 'filters' directamente
           const currentFilters = (typeof filters !== 'undefined' ? filters : window.filters) || [];
-          const activeFiltersForColumn = currentFilters.filter(f => f.column === columnField);
+          const activeFiltersForColumn = currentFilters.filter((f: any) => f.column === columnField);
           if (activeFiltersForColumn.length > 0) {
-            activeFiltersForColumn.forEach(filter => {
+            activeFiltersForColumn.forEach((filter: any) => {
               const filterValue = String(filter.value || '').trim();
               const escapedValueAttr = filterValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-              const label = Array.from(document.querySelectorAll('.filter-checkbox-item')).find(l => {
+              const label = Array.from(document.querySelectorAll<HTMLElement>('.filter-checkbox-item')).find(l => {
                 return l.dataset.value === filterValue || l.dataset.value === escapedValueAttr;
               });
               if (label) {
-                const checkbox = label.querySelector('.filter-checkbox');
+                const checkbox = label.querySelector<HTMLInputElement>('.filter-checkbox');
                 if (checkbox) checkbox.checked = true;
               }
             });
           }
 
           // Búsqueda en tiempo real
-          const searchInput = document.getElementById('filterSearchInput');
-          const container = document.getElementById('filterCheckboxesContainer');
-          const items = container.querySelectorAll('.filter-checkbox-item');
+          const searchInput = document.getElementById('filterSearchInput')!;
+          const container = document.getElementById('filterCheckboxesContainer')!;
+          const items = container.querySelectorAll<HTMLElement>('.filter-checkbox-item');
 
-          searchInput.addEventListener('input', (e) => {
+          searchInput.addEventListener('input', (e: any) => {
             const searchTerm = e.target.value.toLowerCase();
             items.forEach(item => {
               const value = item.dataset.value || '';
@@ -5305,24 +5404,24 @@ const uiInlineEditableFields = {
           selectAllBtn.className = 'text-xs text-blue-600 hover:text-blue-800 mt-2';
           selectAllBtn.textContent = 'Seleccionar todos';
           selectAllBtn.addEventListener('click', () => {
-            container.querySelectorAll('.filter-checkbox').forEach(cb => cb.checked = true);
+            container.querySelectorAll<HTMLInputElement>('.filter-checkbox').forEach(cb => cb.checked = true);
           });
-          container.parentElement.insertBefore(selectAllBtn, container);
+          container.parentElement!.insertBefore(selectAllBtn, container);
 
           const deselectAllBtn = document.createElement('button');
           deselectAllBtn.type = 'button';
           deselectAllBtn.className = 'text-xs text-red-600 hover:text-red-800 ml-2 mt-2';
           deselectAllBtn.textContent = 'Deseleccionar todos';
           deselectAllBtn.addEventListener('click', () => {
-            container.querySelectorAll('.filter-checkbox').forEach(cb => cb.checked = false);
+            container.querySelectorAll<HTMLInputElement>('.filter-checkbox').forEach(cb => cb.checked = false);
           });
-          container.parentElement.insertBefore(deselectAllBtn, container);
+          container.parentElement!.insertBefore(deselectAllBtn, container);
         },
         preConfirm: () => {
           // ⚡ FIX: Obtener el valor desde data-value en lugar de value para evitar problemas con CSS.escape()
-          const checked = Array.from(document.querySelectorAll('.filter-checkbox:checked')).map(cb => {
+          const checked = Array.from(document.querySelectorAll<HTMLInputElement>('.filter-checkbox:checked')).map(cb => {
             // Siempre obtener el valor desde el data-value del label padre para evitar problemas con escape
-            const label = cb.closest('label.filter-checkbox-item');
+            const label = cb.closest<HTMLElement>('label.filter-checkbox-item');
             if (label && label.dataset.value !== undefined) {
               // El data-value ya está en el formato correcto (sin escape de CSS)
               return label.dataset.value;
@@ -5353,7 +5452,7 @@ const uiInlineEditableFields = {
      * @param {string} columnField - Campo de datos de la columna (data-column)
      * @param {string[]} selectedValues - Valores a filtrar; array vacío remueve el filtro
      */
-    function applyColumnFilterManual(columnField, selectedValues) {
+    function applyColumnFilterManual(columnField: any, selectedValues: any) {
       if (!Array.isArray(selectedValues) || selectedValues.length === 0) {
         // Remover filtro
         // Usar la variable global 'filters' directamente
@@ -5361,7 +5460,7 @@ const uiInlineEditableFields = {
           filters = filters.filter(f => f.column !== columnField);
           window.filters = filters;
         } else if (window.filters) {
-          window.filters = window.filters.filter(f => f.column !== columnField);
+          window.filters = window.filters.filter((f: any) => f.column !== columnField);
           filters = window.filters;
         }
         // Aplicar filtros usando el sistema existente para actualizar correctamente
@@ -5458,7 +5557,7 @@ const uiInlineEditableFields = {
 
       // Recorrer todos los encabezados
       const allHeaders = thead.querySelectorAll('th[data-column]');
-      allHeaders.forEach(th => {
+      allHeaders.forEach((th: any) => {
         const columnField = th.dataset.column || th.getAttribute('data-column');
         if (!columnField) return;
 
@@ -5474,7 +5573,7 @@ const uiInlineEditableFields = {
             filterIcon.style.cursor = 'pointer';
 
             // Agregar event listener para eliminar filtro al hacer clic
-            filterIcon.addEventListener('click', (e) => {
+            filterIcon.addEventListener('click', (e: any) => {
               e.preventDefault();
               e.stopPropagation();
 
@@ -5483,7 +5582,7 @@ const uiInlineEditableFields = {
                 filters = filters.filter(f => f.column !== columnField);
                 window.filters = filters;
               } else if (window.filters) {
-                window.filters = window.filters.filter(f => f.column !== columnField);
+                window.filters = window.filters.filter((f: any) => f.column !== columnField);
                 filters = window.filters;
               }
 
@@ -5531,12 +5630,12 @@ const uiInlineEditableFields = {
           pinned.forEach(idx => pinnedIndices.add(idx));
         }
       } else if (window.pinnedColumns && Array.isArray(window.pinnedColumns)) {
-        window.pinnedColumns.forEach(idx => pinnedIndices.add(idx));
+        window.pinnedColumns.forEach((idx: any) => pinnedIndices.add(idx));
       }
 
       // Recorrer todos los encabezados
       const allHeaders = thead.querySelectorAll('th[data-index], th[class*="column-"]');
-      allHeaders.forEach(th => {
+      allHeaders.forEach((th: any) => {
         // Obtener el índice de la columna
         let columnIndex = null;
         if (th.dataset.index) {
@@ -5565,7 +5664,7 @@ const uiInlineEditableFields = {
           pinIcon.classList.add('cursor-pointer');
           pinIcon.title = 'Desfijar columna';
           if (!pinIcon.dataset.pinBound) {
-            pinIcon.addEventListener('click', (e) => {
+            pinIcon.addEventListener('click', (e: any) => {
               e.preventDefault();
               e.stopPropagation();
               const idx = parseInt(pinIcon.dataset.columnIndex || String(columnIndex), 10);
@@ -5596,7 +5695,7 @@ const uiInlineEditableFields = {
     const originalUpdatePinnedColumnsPositions = window.updatePinnedColumnsPositions;
     if (typeof originalUpdatePinnedColumnsPositions === 'function') {
       window.updatePinnedColumnsPositions = function() {
-        const result = originalUpdatePinnedColumnsPositions.apply(this, arguments);
+        const result = originalUpdatePinnedColumnsPositions.apply(this, arguments as any);
         // Actualizar iconos después de actualizar posiciones
         setTimeout(() => {
           if (typeof window.updateColumnPinIcons === 'function') {
@@ -5670,7 +5769,7 @@ const uiInlineEditableFields = {
       console.warn('La funcionalidad de nuevo registro ha sido reemplazada por duplicar/vincular/dividir');
     };
 
-    PT.actions.eliminarRegistro = function eliminarRegistro(id) {
+    PT.actions.eliminarRegistro = function eliminarRegistro(id: any) {
       const applyDeleteSuccessDom = () => {
             // Buscar la fila por su data-id
             const tb = tbodyEl();
@@ -5712,7 +5811,7 @@ const uiInlineEditableFields = {
                   if (!tb) return;
 
                   // Obtener todas las filas del mismo telar (después de eliminar)
-                  const filasMismoTelar = Array.from(tb.querySelectorAll('.selectable-row')).filter(f => {
+                  const filasMismoTelar = Array.from(tb.querySelectorAll<HTMLElement>('.selectable-row')).filter(f => {
                     const rowId = f.getAttribute('data-id');
                     const fSalon = f.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim();
                     const fTelar = f.querySelector('[data-column="NoTelarId"]')?.textContent?.trim();
@@ -5739,13 +5838,13 @@ const uiInlineEditableFields = {
 
                       try {
                         // Intentar parsear fecha con formato d/m/Y o d/m/Y H:i
-                        let partesA = fechaA.split(' ');
-                        let partesB = fechaB.split(' ');
+                        let partesA: any[] = fechaA.split(' ');
+                        let partesB: any[] = fechaB.split(' ');
                         let fechaSoloA = partesA[0];
                         let fechaSoloB = partesB[0];
 
-                        const datePartsA = fechaSoloA.split('/');
-                        const datePartsB = fechaSoloB.split('/');
+                        const datePartsA: any[] = fechaSoloA.split('/');
+                        const datePartsB: any[] = fechaSoloB.split('/');
 
                         if (datePartsA.length === 3 && datePartsB.length === 3) {
                           const dateA = new Date(datePartsA[2], datePartsA[1] - 1, datePartsA[0]);
@@ -5773,7 +5872,7 @@ const uiInlineEditableFields = {
                     // La primera fila después de ordenar es la última (más reciente)
                     const nuevoUltimo = filasMismoTelar[0];
                     if (nuevoUltimo) {
-                      const nuevoUltimoCell = nuevoUltimo.querySelector('[data-column="Ultimo"]');
+                      const nuevoUltimoCell = nuevoUltimo.querySelector<HTMLElement>('[data-column="Ultimo"]');
                       if (nuevoUltimoCell) {
                         // Actualizar visualmente el campo Ultimo
                         nuevoUltimoCell.innerHTML = '<strong>ULTIMO</strong>';
@@ -5790,10 +5889,10 @@ const uiInlineEditableFields = {
               }
 
               // Actualizar window.allRows removiendo la fila eliminada y actualizar índices
-              window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+              window.allRows = Array.from(tb!.querySelectorAll('.selectable-row'));
 
               // Actualizar data-row-index de todas las filas restantes
-              window.allRows.forEach((fila, index) => {
+              window.allRows.forEach((fila: any, index: any) => {
                 fila.setAttribute('data-row-index', index);
               });
 
@@ -5804,7 +5903,7 @@ const uiInlineEditableFields = {
                 // También limpiar cualquier referencia visual de selección
                 if (tb) {
                   const selectedRows = tb.querySelectorAll('.selectable-row.selected, .selectable-row.bg-blue-200');
-                  selectedRows.forEach(row => {
+                  selectedRows.forEach((row: any) => {
                     row.classList.remove('selected', 'bg-blue-200');
                   });
                 }
@@ -5846,7 +5945,7 @@ const uiInlineEditableFields = {
         }
       }).then(r => r.json().catch(() => ({})));
 
-      const handleDeleteFailure = (data) => {
+      const handleDeleteFailure = (data: any) => {
         if (data && data.codigo === 'registro_no_encontrado') {
           const ghost = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
           if (ghost) {
@@ -5937,8 +6036,8 @@ const uiInlineEditableFields = {
     // =========================
     // Eliminar en proceso
     // =========================
-    window.eliminarEnProcesoRegistro = async function eliminarEnProcesoRegistro(id) {
-      const applyEnProcesoSuccess = async (data) => {
+    window.eliminarEnProcesoRegistro = async function eliminarEnProcesoRegistro(id: any) {
+      const applyEnProcesoSuccess = async (data: any) => {
         const tb = tbodyEl();
         const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
         if (rowToDelete) {
@@ -6030,7 +6129,7 @@ const uiInlineEditableFields = {
     // =========================
     // Desvincular registro
     // =========================
-    window.desvincularRegistro = async function desvincularRegistro(id) {
+    window.desvincularRegistro = async function desvincularRegistro(id: any) {
       const doDesvincular = async () => {
         PT.loader.show();
         try {
@@ -6112,7 +6211,7 @@ const uiInlineEditableFields = {
         } else {
           // Fallback: activar manualmente cada celda editable
           const editableCells = row.querySelectorAll('td[data-column]');
-          editableCells.forEach(cell => {
+          editableCells.forEach((cell: any) => {
             const col = cell.getAttribute('data-column');
             if (col && typeof uiInlineEditableFields !== 'undefined' && uiInlineEditableFields[col]) {
               if (typeof window.enableInlineEditForCell === 'function') {
@@ -6134,7 +6233,7 @@ const uiInlineEditableFields = {
     // Drag & Drop
     // =========================
     PT.dragdrop = PT.dragdrop || (function(){
-      const state = {
+      const state: any = {
         enabled: false,
         draggedRow: null,
         origin: { telar:'', salon:'', cambioHilo:'', posicion: null },
@@ -6150,7 +6249,7 @@ const uiInlineEditableFields = {
         state.telarCache = { telar: null, rows: null, indexMap: null, lastEnProceso: -1 };
       }
 
-      function buildTelarCache(telarId) {
+      function buildTelarCache(telarId: any) {
         const tb = tbodyEl();
         if (!tb) return { rows: [], indexMap: new Map(), lastEnProceso: -1 };
 
@@ -6176,7 +6275,7 @@ const uiInlineEditableFields = {
         return state.telarCache;
       }
 
-      function calcTargetPosition(telarId, targetRow, isBefore) {
+      function calcTargetPosition(telarId: any, targetRow: any, isBefore: any) {
         const cache = buildTelarCache(telarId);
         if (!targetRow) return cache.rows.length;
 
@@ -6198,8 +6297,8 @@ const uiInlineEditableFields = {
         return cache.rows.length;
       }
 
-      function findClosestRow(tb, y) {
-        const rows = Array.from(tb.querySelectorAll('.selectable-row'));
+      function findClosestRow(tb: any, y: any) {
+        const rows = Array.from<HTMLElement>(tb.querySelectorAll('.selectable-row'));
         let closest = null;
         let best = Infinity;
         for (const r of rows) {
@@ -6211,7 +6310,7 @@ const uiInlineEditableFields = {
         return closest;
       }
 
-      function setRowDraggable(row, draggable) {
+      function setRowDraggable(row: any, draggable: any) {
         if (!row) return;
         row.draggable = !!draggable;
         row.classList.toggle('cursor-move', !!draggable);
@@ -6233,7 +6332,7 @@ const uiInlineEditableFields = {
         // Remover listeners de selecciÃ³n antes de activar drag and drop
         // La seleccion es un listener delegado que se desactiva solo mirando
         // window.dragDropMode; no hay nada que desenganchar por fila.
-        window.allRows.forEach(row => setRowDraggable(row, !rowMeta(row).enProceso));
+        window.allRows.forEach((row: any) => setRowDraggable(row, !rowMeta(row).enProceso));
 
         if (!tb.dataset.ddBound) {
           tb.dataset.ddBound = '1';
@@ -6257,7 +6356,7 @@ const uiInlineEditableFields = {
         refreshAllRows();
 
         // Remover todos los listeners anteriores y restaurar los de selecciÃ³n
-        window.allRows.forEach((row) => {
+        window.allRows.forEach((row: any) => {
           row.draggable = false;
           row.classList.remove('cursor-move', 'cursor-not-allowed');
           row.style.opacity = '';
@@ -6274,12 +6373,12 @@ const uiInlineEditableFields = {
       }
 
       function clearVisualRows() {
-        (window.allRows || []).forEach(r =>
+        (window.allRows || []).forEach((r: any) =>
           r.classList.remove('drag-over', 'drag-over-warning', 'drop-not-allowed', 'dd-drop-before', 'dd-drop-after')
         );
       }
 
-      function onDragStart(e) {
+      function onDragStart(e: any) {
         if (!state.enabled) return;
 
         const row = e.target.closest('.selectable-row');
@@ -6310,7 +6409,7 @@ const uiInlineEditableFields = {
         e.dataTransfer.setData('text/plain', row.getAttribute('data-id') || '');
       }
 
-      function onDragOver(e) {
+      function onDragOver(e: any) {
         if (!state.enabled) return;
         if (!state.draggedRow) return;
 
@@ -6363,7 +6462,7 @@ const uiInlineEditableFields = {
         return false;
       }
 
-      async function onDrop(e) {
+      async function onDrop(e: any) {
         if (!state.enabled) return;
         if (!state.draggedRow) return;
 
@@ -6394,7 +6493,7 @@ const uiInlineEditableFields = {
           if (!tb) return false;
 
           refreshAllRows();
-          const telarRows = window.allRows.filter(r => isSameTelar(rowMeta(r).telar, state.origin.telar));
+          const telarRows = window.allRows.filter((r: any) => isSameTelar(rowMeta(r).telar, state.origin.telar));
           if (telarRows.length < 2) {
             toast('Se requieren al menos dos registros para reordenar la prioridad', 'info');
             clearVisualRows();
@@ -6434,7 +6533,7 @@ const uiInlineEditableFields = {
             if (typeof window.updateTableAfterDragDrop === 'function') {
               window.updateTableAfterDragDrop(data.detalles, registroId, data.updates || {});
             }
-          } catch (err) {
+          } catch (err: any) {
             PT.loader.hide();
             // Sin este aviso el fallo es invisible: la fila queda movida en pantalla
             // y el usuario asume que se guardo. Pasa con 419 (CSRF vencido), 500, o
@@ -6456,11 +6555,11 @@ const uiInlineEditableFields = {
         return false;
       }
 
-      async function procesarMovimientoOtroTelar(registroId, nuevoTelar, targetPosition, nuevoSalon = '') {
+      async function procesarMovimientoOtroTelar(registroId: any, nuevoTelar: any, targetPosition: any, nuevoSalon = '') {
         refreshAllRows();
 
         if (!nuevoSalon) {
-          const sample = window.allRows.find(r => isSameTelar(rowMeta(r).telar, nuevoTelar));
+          const sample = window.allRows.find((r: any) => isSameTelar(rowMeta(r).telar, nuevoTelar));
           nuevoSalon = sample ? rowMeta(sample).salon : '';
         }
 
@@ -6554,7 +6653,7 @@ const uiInlineEditableFields = {
           if (typeof window.updateTableAfterDragDrop === 'function') {
             window.updateTableAfterDragDrop(cambio.detalles, cambio.registro_id || registroId, cambio.updates || {});
           }
-        } catch (err) {
+        } catch (err: any) {
           PT.loader.hide();
           window.notify.alert('Ocurrió un error al procesar el cambio de telar: ' + (err.message || 'Error desconocido'), 'Error', 'error');
           clearVisualRows();
@@ -6652,7 +6751,7 @@ const uiInlineEditableFields = {
       toast(window.multiSelectMode ? 'Modo selección múltiple activado. Selecciona al menos 2 registros. Si el primer registro tiene OrdCompartida, se usará ese para vincular los demás. Click sin selecciones para cancelar.' : 'Modo selección múltiple desactivado', 'info');
     }
 
-    function toggleRowSelection(row) {
+    function toggleRowSelection(row: any) {
       if (!window.multiSelectMode) return;
 
       const id = row.getAttribute('data-id');
@@ -6672,7 +6771,7 @@ const uiInlineEditableFields = {
         let primerOrdCompartida = null;
         if (window.selectedRowsOrder.length > 0) {
           const primerId = window.selectedRowsOrder[0];
-          const primerRow = window.allRows?.find(r => r.getAttribute('data-id') === primerId);
+          const primerRow = window.allRows?.find((r: any) => r.getAttribute('data-id') === primerId);
           if (primerRow) {
             const primerOrd = primerRow.getAttribute('data-ord-compartida');
             if (primerOrd && primerOrd.trim() !== '') {
@@ -6699,7 +6798,7 @@ const uiInlineEditableFields = {
       if (window.selectedRowsIds.has(id)) {
         window.selectedRowsIds.delete(id);
         // Remover del array de orden
-        window.selectedRowsOrder = window.selectedRowsOrder.filter(selectedId => selectedId !== id);
+        window.selectedRowsOrder = window.selectedRowsOrder.filter((selectedId: any) => selectedId !== id);
         row.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-500', 'text-white');
       } else {
         window.selectedRowsIds.add(id);
@@ -6723,7 +6822,7 @@ const uiInlineEditableFields = {
       let primerOrdCompartida = null;
       if (window.selectedRowsOrder.length > 0) {
         const primerId = window.selectedRowsOrder[0];
-        const primerRow = rows.find(r => r.getAttribute('data-id') === primerId);
+        const primerRow = rows.find((r: any) => r.getAttribute('data-id') === primerId);
         if (primerRow) {
           const primerOrd = primerRow.getAttribute('data-ord-compartida');
           if (primerOrd && primerOrd.trim() !== '') {
@@ -6732,7 +6831,7 @@ const uiInlineEditableFields = {
         }
       }
 
-      rows.forEach(row => {
+      rows.forEach((row: any) => {
         const id = row.getAttribute('data-id');
         const ordCompartida = row.getAttribute('data-ord-compartida');
         const tieneOrdCompartida = ordCompartida && ordCompartida.trim() !== '';
@@ -6817,11 +6916,11 @@ const uiInlineEditableFields = {
       }
 
       // Usar el array de orden para asegurar que el primero es realmente el primero seleccionado
-      const selectedIdsOrdenados = window.selectedRowsOrder.filter(id => selectedIds.includes(id));
+      const selectedIdsOrdenados = window.selectedRowsOrder.filter((id: any) => selectedIds.includes(id));
 
       // Obtener el OrdCompartida del primer registro para el mensaje
       const primerId = selectedIdsOrdenados[0] || selectedIds[0];
-      const primerRow = window.allRows?.find(r => r.getAttribute('data-id') === primerId);
+      const primerRow = window.allRows?.find((r: any) => r.getAttribute('data-id') === primerId);
       const primerOrdCompartida = primerRow?.getAttribute('data-ord-compartida');
       const primerTieneOrdCompartida = primerOrdCompartida && primerOrdCompartida.trim() !== '';
 
@@ -6845,10 +6944,10 @@ const uiInlineEditableFields = {
           cancelText: 'Cancelar',
           width: 'md',
           preConfirm: async (ctx) => {
-            const registrosIdsOrdenados = window.selectedRowsOrder.filter(iid => selectedIds.includes(iid));
+            const registrosIdsOrdenados = window.selectedRowsOrder.filter((iid: any) => selectedIds.includes(iid));
             const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : selectedIds;
             try {
-              const r = await fetch(PT_BOOT.routes.vincularRegistros, {
+              const r = await fetch(PT_BOOT.routes!.vincularRegistros, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -6890,7 +6989,7 @@ const uiInlineEditableFields = {
     };
 
     // Función para actualizar registros vinculados sin recargar
-    async function actualizarRegistrosVinculados(registrosIds, ordCompartida) {
+    async function actualizarRegistrosVinculados(registrosIds: any, ordCompartida: any) {
       const tb = document.querySelector('#mainTable tbody');
       if (!tb) return;
 
@@ -6906,13 +7005,13 @@ const uiInlineEditableFields = {
       if (!columns || columns.length === 0) return;
 
       // Función para obtener el tipo de fecha de una columna
-      const getDateType = (field) => {
+      const getDateType = (field: any) => {
         const col = columns.find(c => c.field === field);
         return col?.dateType || null;
       };
 
       // Función para formatear valor (usar la función global si existe, sino básica)
-      const formatearValor = (registro, field, value) => {
+      const formatearValor = (registro: any, field: any, value: any) => {
         if (typeof formatearValorCelda === 'function') {
           return formatearValorCelda(registro, field, value, getDateType(field));
         }
@@ -6939,7 +7038,7 @@ const uiInlineEditableFields = {
       const idsUnicos = Array.from(new Set(registrosIds || [])).filter(Boolean);
       if (idsUnicos.length === 0) return;
 
-      const fetchDetalle = async (registroId) => {
+      const fetchDetalle = async (registroId: any) => {
         try {
           const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
             headers: {
@@ -6980,25 +7079,25 @@ const uiInlineEditableFields = {
 
         columns.forEach(col => {
           const field = col.field;
-          const value = registro[field] !== undefined ? registro[field] : null;
+          const value = registro[field as string] !== undefined ? registro[field as string] : null;
           const celda = fila.querySelector(`td[data-column="${field}"]`);
           if (!celda) return;
           celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
           celda.innerHTML = formatearValor(registro, field, value);
         });
 
-        window.PT?.filterIndex?.updateRow(fila);
+        window.PT?.filterIndex?.updateRow(fila as HTMLElement);
       }
     }
 
-    function doVincular(registrosIds) {
+    function doVincular(registrosIds: any) {
       PT.loader.show();
 
       // Usar el array de orden para asegurar que el primero es realmente el primero seleccionado
-      const registrosIdsOrdenados = window.selectedRowsOrder.filter(id => registrosIds.includes(id));
+      const registrosIdsOrdenados = window.selectedRowsOrder.filter((id: any) => registrosIds.includes(id));
       const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : registrosIds;
 
-      fetch(PT_BOOT.routes.vincularRegistros, {
+      fetch(PT_BOOT.routes!.vincularRegistros, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -7045,7 +7144,7 @@ const uiInlineEditableFields = {
         // Interceptar clicks en filas cuando estÃ¡ activo el modo selecciÃ³n mÃºltiple
         const tb = tbodyEl();
         if (tb) {
-          tb.addEventListener('click', (e) => {
+          tb.addEventListener('click', (e: any) => {
             if (!window.multiSelectMode) return;
 
             const row = e.target.closest('.selectable-row');
@@ -7068,7 +7167,7 @@ const uiInlineEditableFields = {
       if (!tb) return;
 
       // Obtener todas las filas y filtrar solo las visibles
-      const allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+      const allRows = Array.from(tb.querySelectorAll<HTMLElement>('.selectable-row'));
       // Filtrar filas visibles - verificar mÃºltiples condiciones
       // IMPORTANTE: Verificar primero la clase filter-hidden ya que es lo que usa el sistema de filtros
       const visibleRows = allRows.filter(row => {
@@ -7113,7 +7212,7 @@ const uiInlineEditableFields = {
 
       visibleRows.forEach(row => {
         // Obtener TotalPedido - usar data-value primero, luego textContent
-        const pedidoCell = row.querySelector('[data-column="TotalPedido"]');
+        const pedidoCell = row.querySelector<HTMLElement>('[data-column="TotalPedido"]');
         if (pedidoCell) {
           let pedidoValue = pedidoCell.getAttribute('data-value') || '';
           // Si data-value estÃ¡ vacÃ­o o no existe, usar textContent
@@ -7129,7 +7228,7 @@ const uiInlineEditableFields = {
         }
 
         // Obtener Produccion - usar data-value primero, luego textContent
-        const produccionCell = row.querySelector('[data-column="Produccion"]');
+        const produccionCell = row.querySelector<HTMLElement>('[data-column="Produccion"]');
         if (produccionCell) {
           let produccionValue = produccionCell.getAttribute('data-value') || '';
           // Si data-value estÃ¡ vacÃ­o o no existe, usar textContent
@@ -7145,7 +7244,7 @@ const uiInlineEditableFields = {
         }
 
         // Obtener SaldoPedido - usar data-value primero, luego textContent
-        const saldosCell = row.querySelector('[data-column="SaldoPedido"]');
+        const saldosCell = row.querySelector<HTMLElement>('[data-column="SaldoPedido"]');
         if (saldosCell) {
           let saldosValue = saldosCell.getAttribute('data-value') || '';
           // Si data-value estÃ¡ vacÃ­o o no existe, usar textContent
@@ -7180,7 +7279,7 @@ const uiInlineEditableFields = {
     // =========================
     // Reset (filtros + columnas)
     // =========================
-    function resetAllView(e) {
+    function resetAllView(e: any) {
       if (e) e.preventDefault();
 
       if (typeof window.filters !== 'undefined') window.filters = [];
@@ -7286,7 +7385,7 @@ const uiInlineEditableFields = {
       if (!idToUse) return;
 
       const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
-      const targetRow = rows.find(r => r.getAttribute('data-id') == idToUse);
+      const targetRow = rows.find((r: any) => r.getAttribute('data-id') == idToUse);
       if (!targetRow) return;
 
       const idx = rows.indexOf(targetRow);
@@ -7331,7 +7430,7 @@ const uiInlineEditableFields = {
     // =========================
     (function() {
       // Cerrar dropdown al hacer click fuera
-      document.addEventListener('click', (e) => {
+      document.addEventListener('click', (e: any) => {
         const dropdown = document.getElementById('actualizarDropdownMenu');
         const btn = document.getElementById('btnActualizarDropdown');
         if (dropdown && btn && !dropdown.contains(e.target) && !btn.contains(e.target)) {
@@ -7477,7 +7576,7 @@ const uiInlineEditableFields = {
     // =========================
     (function() {
       // Función para procesar la selección
-      async function procesarSeleccionReprogramar(registroId, valor, checkbox, texto) {
+      async function procesarSeleccionReprogramar(registroId: any, valor: any, checkbox: any, texto: any) {
         // Estado previo, para poder revertir al valor real y no a vacio: un registro
         // en "P. Siguiente" que falle al pasar a "P. Ultima" quedaba en blanco en
         // pantalla mientras la BD seguia en 1.
@@ -7541,7 +7640,7 @@ const uiInlineEditableFields = {
         tb.dataset.reprogramarListenerAdded = 'true';
 
         // Usar delegación de eventos en el tbody
-        tb.addEventListener('click', async (e) => {
+        tb.addEventListener('click', async (e: any) => {
           // Verificar si el click fue en el checkbox directamente
           if (!e.target || e.target.type !== 'checkbox') return;
           if (!e.target.classList || !e.target.classList.contains('reprogramar-checkbox')) return;
@@ -7718,11 +7817,11 @@ const uiInlineEditableFields = {
       const tb = tbodyEl();
       if (!tb) { window.PT_FILTER_INDEX = new Map(); return; }
       const index = new Map();
-      tb.querySelectorAll('.selectable-row').forEach(row => {
+      tb.querySelectorAll('.selectable-row').forEach((row: any) => {
         const id = row.dataset.id;
         if (!id) return;
-        const data = {};
-        row.querySelectorAll('[data-column]').forEach(cell => {
+        const data: Record<string, string> = {};
+        row.querySelectorAll('[data-column]').forEach((cell: any) => {
           const col = cell.dataset.column;
           if (col) data[col] = (cell.dataset.value ?? cell.textContent ?? '').trim();
         });
@@ -7732,12 +7831,12 @@ const uiInlineEditableFields = {
       window.PT_FILTER_INDEX = index;
     }
 
-    function updatePTFilterIndexRow(rowElement) {
+    function updatePTFilterIndexRow(rowElement: any) {
       if (!window.PT_FILTER_INDEX) return;
       const id = rowElement?.dataset?.id;
       if (!id) return;
-      const data = {};
-      rowElement.querySelectorAll('[data-column]').forEach(cell => {
+      const data: Record<string, string> = {};
+      rowElement.querySelectorAll('[data-column]').forEach((cell: any) => {
         const col = cell.dataset.column;
         if (col) data[col] = (cell.dataset.value ?? cell.textContent ?? '').trim();
       });
@@ -7745,7 +7844,7 @@ const uiInlineEditableFields = {
       window.PT_FILTER_INDEX.set(id, data);
     }
 
-    function removePTFilterIndexRow(rowId) {
+    function removePTFilterIndexRow(rowId: any) {
       window.PT_FILTER_INDEX?.delete(String(rowId));
     }
 

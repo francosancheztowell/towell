@@ -27,4 +27,4 @@
 ];
 @endphp
 <script type="application/json" id="pt-boot">@json($ptBoot)</script>
-@vite('resources/js/programa-tejido/index.js')
+@vite('resources/js/programa-tejido/index.ts')

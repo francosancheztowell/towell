@@ -1,7 +1,7 @@
 /**
- * rutaSuperficie() (rutas.ts) debe dar lo mismo que el parche de window.fetch de index.js,
+ * rutaSuperficie() (rutas.ts) debe dar lo mismo que el parche de window.fetch de index.ts,
  * que siguen usando los fetch que quedan en la grilla (PT-TS 2). Se extrae rewriteUrl del
- * propio index.js para que, si alguien cambia uno, el test lo note.
+ * propio index.ts para que, si alguien cambia uno, el test lo note.
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,11 +9,11 @@ import test from 'node:test';
 
 import { rutaSuperficie, type RutasSuperficie } from '../../resources/js/programa-tejido/rutas.ts';
 
-const fuente = readFileSync(new URL('../../resources/js/programa-tejido/index.js', import.meta.url), 'utf8');
-const cuerpo = fuente.match(/const rewriteUrl = \(url\) => \{([\s\S]*?)\n {4}\};/)?.[1];
+const fuente = readFileSync(new URL('../../resources/js/programa-tejido/index.ts', import.meta.url), 'utf8');
+const cuerpo = fuente.match(/const rewriteUrl = \(url: any\) => \{([\s\S]*?)\n {4}\};/)?.[1];
 
 function parcheDeIndex(boot: RutasSuperficie): (url: string) => string {
-    assert.ok(cuerpo, 'no se encontró rewriteUrl en index.js');
+    assert.ok(cuerpo, 'no se encontró rewriteUrl en index.ts');
     const fabrica = new Function(
         'PT_BASE_PATH',
         'PT_API_PATH',

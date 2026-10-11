@@ -14,7 +14,7 @@ use Tests\TestCase;
 /**
  * PT 03 · shell Livewire v2 detrás de canary (PLANEACION_SHELL_V2 / _CANARY).
  * Apagado: la página es la legacy, sin rastro de v2; su único Livewire es el modal Duplicar/Dividir
- * (la grilla sigue siendo HTML + index.js). Encendido: el shell
+ * (la grilla sigue siendo HTML + index.ts). Encendido: el shell
  * resuelve la superficie en mount() y la conserva en /livewire/update.
  */
 class ProgramaTejidoShellV2Test extends TestCase
