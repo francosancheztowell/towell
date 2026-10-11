@@ -61,10 +61,7 @@
                             @endforeach
                         </select>
                         <span wire:loading wire:target="telarId" class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                            <svg class="h-5 w-5 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
+                            <flux:icon.loading class="size-5 text-blue-600" />
                         </span>
                     </div>
 
@@ -85,10 +82,7 @@
                                     {{ $this->hayCambioTelar ? 'En proceso en el destino' : 'En proceso' }}
                                 </span>
                                 <span wire:loading wire:target="telarId,telarDestino" class="ml-auto">
-                                    <svg class="h-4 w-4 animate-spin text-amber-700" fill="none" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                    </svg>
+                                    <flux:icon.loading class="size-4 text-amber-700" />
                                 </span>
                             </div>
                             <p class="mt-2 text-base font-bold text-amber-900">{{ $enProceso['noProduccion'] }}</p>
@@ -690,10 +684,7 @@
                                         class="min-h-13 w-full rounded-lg border-2 border-slate-300 px-8 text-base font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-56">
                                     <span wire:loading.remove wire:target="cancelar">Cancelar</span>
                                     <span wire:loading wire:target="cancelar" class="inline-flex items-center justify-center gap-2">
-                                        <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                        </svg>
+                                        <flux:icon.loading class="size-5" />
                                         Cancelando…
                                     </span>
                                 </button>
@@ -705,10 +696,7 @@
                                                {{ $esMuestras ? 'bg-violet-600 hover:bg-violet-700' : 'bg-blue-600 hover:bg-blue-700' }}">
                                     <span wire:loading.remove wire:target="guardar">{{ $esMuestras ? 'Guardar y consumir muestra' : 'Guardar' }}</span>
                                     <span wire:loading wire:target="guardar" class="inline-flex items-center justify-center gap-2">
-                                        <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                        </svg>
+                                        <flux:icon.loading class="size-5" />
                                         Guardando…
                                     </span>
                                 </button>
@@ -758,11 +746,13 @@
     {{-- Guardar se detuvo: la orden que se va a finalizar aun tiene marbetes por producir. --}}
     @if ($alertaSaldo)
         @php($enProcesoAlerta = $this->ordenEnProceso)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
-             x-data x-init="$nextTick(() => $el.querySelector('[data-cancelar]').focus())"
-             x-on:keydown.escape.window="$wire.cerrarAlertaSaldo()">
-            <div role="alertdialog" aria-modal="true" aria-labelledby="alerta-saldo-titulo" aria-describedby="alerta-saldo-texto"
-                 class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl">
+        {{-- <dialog> nativo: foco atrapado y Esc los da el navegador; cerrar = cancelar. --}}
+        <dialog wire:key="alerta-saldo" wire:ignore.self x-data
+                x-init="$el.showModal(); $el.querySelector('[data-cancelar]').focus()"
+                x-on:close="$wire.cerrarAlertaSaldo()"
+                role="alertdialog" aria-labelledby="alerta-saldo-titulo" aria-describedby="alerta-saldo-texto"
+                class="ui-dialogo">
+            <div>
                 <div class="flex items-start gap-3 border-b border-amber-200 bg-amber-50 px-5 py-4">
                     <svg class="mt-0.5 h-7 w-7 shrink-0 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008M10.34 3.94 1.82 18a1.88 1.88 0 0 0 1.6 2.82h17.16a1.88 1.88 0 0 0 1.6-2.82L13.66 3.94a1.88 1.88 0 0 0-3.32 0Z"/></svg>
                     <div>
@@ -790,13 +780,13 @@
                             class="min-h-12 rounded-lg bg-blue-600 px-4 text-base font-bold text-white transition hover:bg-blue-700 disabled:opacity-60">
                         Reprogramar al final
                     </button>
-                    <button type="button" data-cancelar wire:click="cerrarAlertaSaldo"
+                    <button type="button" data-cancelar x-on:click="$el.closest('dialog').close()"
                             wire:loading.attr="disabled" wire:target="elegirAccionSaldo"
                             class="min-h-12 rounded-lg border border-slate-300 bg-white px-4 text-base font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60">
                         Cancelar, no guardar
                     </button>
                 </div>
             </div>
-        </div>
+        </dialog>
     @endif
 </div>
