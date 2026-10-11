@@ -66,7 +66,7 @@
                 title="Actualizar ahora"
                 aria-label="Actualizar tablero ahora"
             >
-                <i class="fa-solid fa-rotate" wire:loading.class="fa-spin" wire:target="refreshNow"></i>
+                <i class="fa-solid fa-rotate" wire:loading.class="fa-spin" wire:target="refreshNow" aria-hidden="true"></i>
             </button>
 
             @if ($puedeDescargarReporte)
@@ -78,7 +78,7 @@
                     title="Descargar reporte del día en Excel"
                     aria-label="Descargar reporte del día en Excel"
                 >
-                    <i class="fa-solid fa-file-excel"></i>
+                    <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
                 </a>
             @endif
 
@@ -89,7 +89,7 @@
                 title="Pantalla completa"
                 aria-label="Mostrar tablero en pantalla completa"
             >
-                <i class="fa-solid fa-expand"></i>
+                <i class="fa-solid fa-expand" aria-hidden="true"></i>
             </button>
 
             @php
@@ -132,7 +132,7 @@
                 <strong>No fue posible cargar el tablero</strong>
                 <p>{{ $dataError }}</p>
             </div>
-            <button type="button" wire:click="refreshNow">Reintentar</button>
+            <button type="button" wire:click="refreshNow" wire:loading.attr="disabled" wire:target="refreshNow">Reintentar</button>
         </div>
     @elseif ($sourceError)
         <div class="crudo-alert crudo-alert-warning" role="status">
