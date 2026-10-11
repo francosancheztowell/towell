@@ -4,15 +4,15 @@
 
 @section('navbar-right')
     @if ($reporte)
-        <button type="button" onclick="descargarOtDiarias('excel')"
+        <button type="button" data-ot-descargar="excel"
             class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
             <i class="fas fa-file-excel"></i> Excel
         </button>
-        <button type="button" onclick="descargarOtDiarias('pdf')"
+        <button type="button" data-ot-descargar="pdf"
             class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
             <i class="fas fa-file-pdf"></i> PDF
         </button>
-        <button type="button" onclick="descargarImagenOtDiarias()"
+        <button type="button" data-ot-imagen
             class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">
             <i class="fas fa-image"></i> Imagen
         </button>
@@ -20,7 +20,13 @@
 @endsection
 
 @section('content')
-    <div class="w-full p-4">
+    <div class="w-full p-4" id="reporte-ot-diarias"
+         data-excel-url="{{ route('mecanicos.reportes.ot-diarias.excel') }}"
+         data-pdf-url="{{ route('mecanicos.reportes.ot-diarias.pdf') }}"
+         data-imagen-url="{{ route('mecanicos.reportes.ot-diarias.telegram-imagen') }}"
+         data-fecha="{{ $fecha }}"
+         data-nombre-imagen="{{ $reporte ? 'ot-diarias_'.$reporte['desde'].'_'.$reporte['hasta'].'.png' : 'ot-diarias.png' }}"
+         data-filas="{{ json_encode($reporte['mecanicos'] ?? []) }}">
         @if ($error)
             <div class="mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">{{ $error }}</div>
         @endif
@@ -70,167 +76,5 @@
         @endif
     </div>
 
-    <script>
-        const excelUrl = @json(route('mecanicos.reportes.ot-diarias.excel'));
-        const pdfUrl = @json(route('mecanicos.reportes.ot-diarias.pdf'));
-        const imagenTelegramUrl = @json(route('mecanicos.reportes.ot-diarias.telegram-imagen'));
-        const fechaActual = @json($fecha);
-        const hayReporte = @json((bool) $reporte);
-        const nombreImagen = @json($reporte ? 'ot-diarias_'.$reporte['desde'].'_'.$reporte['hasta'].'.png' : 'ot-diarias.png');
-        const filas = @json($reporte['mecanicos'] ?? []);
-
-        const fechaInput = document.getElementById('fecha');
-        const btnConsultar = document.getElementById('btn-consultar');
-
-        function actualizarConsultar() {
-            btnConsultar.disabled = !fechaInput.value;
-        }
-        fechaInput.addEventListener('change', actualizarConsultar);
-        actualizarConsultar();
-
-        function numero(valor) {
-            const n = Number.parseFloat(String(valor ?? '').replace(',', '.'));
-            return Number.isFinite(n) ? n : 0;
-        }
-
-        function fmt1(n) {
-            return n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-        }
-
-        function inputsPayload() {
-            const payload = {};
-            document.querySelectorAll('.js-ot-input').forEach((input) => {
-                const cve = input.dataset.cve;
-                const campo = input.dataset.campo;
-                if (!cve || !campo) return;
-                payload[cve] = payload[cve] || {};
-                payload[cve][campo] = input.value;
-            });
-            return payload;
-        }
-
-        function recalcularFila(cve) {
-            const fila = filas.find((item) => item.cve === cve);
-            if (!fila) return;
-            const payload = inputsPayload()[cve] || {};
-            const otTrama = numero(payload.ot_trama);
-            const cumplidasTrama = numero(payload.cumplidas_trama);
-            const ocupacionPct = numero(payload.ocupacion_pct);
-            const totalRealizadas = numero(fila.realizadas_semana) + otTrama;
-            const totalCumplidas = numero(fila.firmadas_semana) + cumplidasTrama;
-            const pctCumplimiento = totalRealizadas === 0 ? 0 : (totalCumplidas / totalRealizadas) * 100;
-            const pctOtFinal = (ocupacionPct + Math.round(pctCumplimiento * 10) / 10) / 2;
-            const celdaR = document.querySelector(`.js-total-realizadas[data-cve="${cve}"]`);
-            const celdaC = document.querySelector(`.js-total-cumplidas[data-cve="${cve}"]`);
-            const celdaP = document.querySelector(`.js-pct-cumplimiento[data-cve="${cve}"]`);
-            const celdaF = document.querySelector(`.js-pct-ot-final[data-cve="${cve}"]`);
-            if (celdaR) celdaR.textContent = fmt1(totalRealizadas);
-            if (celdaC) celdaC.textContent = fmt1(totalCumplidas);
-            if (celdaP) celdaP.textContent = fmt1(Math.round(pctCumplimiento * 10) / 10);
-            if (celdaF) celdaF.textContent = fmt1(Math.round(pctOtFinal * 10) / 10);
-            fila._otFinal = Math.round(pctOtFinal * 10) / 10;
-            fila._otTrama = otTrama;
-            fila._cumplidasTrama = cumplidasTrama;
-            actualizarPie();
-        }
-
-        function actualizarPie() {
-            let ot = 0;
-            let cumplidas = 0;
-            let otFinal = 0;
-            filas.forEach((fila) => {
-                const payload = inputsPayload()[fila.cve] || {};
-                ot += numero(payload.ot_trama);
-                cumplidas += numero(payload.cumplidas_trama);
-                const ocupacionPct = numero(payload.ocupacion_pct);
-                const totalRealizadas = numero(fila.realizadas_semana) + numero(payload.ot_trama);
-                const totalCumplidas = numero(fila.firmadas_semana) + numero(payload.cumplidas_trama);
-                const pctCumplimiento = totalRealizadas === 0 ? 0 : (totalCumplidas / totalRealizadas) * 100;
-                otFinal += (ocupacionPct + Math.round(pctCumplimiento * 10) / 10) / 2;
-            });
-            const n = filas.length;
-            const pieOt = document.querySelector('.js-pie-ot-trama');
-            const pieC = document.querySelector('.js-pie-cumplidas-trama');
-            const pieF = document.querySelector('.js-pie-ot-final');
-            if (pieOt) pieOt.textContent = fmt1(ot);
-            if (pieC) pieC.textContent = fmt1(cumplidas);
-            if (pieF) pieF.textContent = fmt1(n === 0 ? 0 : Math.round((otFinal / n) * 10) / 10);
-        }
-
-        document.querySelectorAll('.js-ot-input').forEach((input) => {
-            input.addEventListener('input', () => recalcularFila(input.dataset.cve));
-        });
-
-        function descargarOtDiarias(tipo) {
-            const form = document.getElementById('form-export-ot-diarias');
-            const holder = document.getElementById('inputs-export-ot-diarias');
-            holder.innerHTML = '';
-            Object.entries(inputsPayload()).forEach(([cve, campos]) => {
-                Object.entries(campos).forEach(([campo, valor]) => {
-                    const hidden = document.createElement('input');
-                    hidden.type = 'hidden';
-                    hidden.name = `inputs[${cve}][${campo}]`;
-                    hidden.value = valor;
-                    holder.appendChild(hidden);
-                });
-            });
-            form.action = tipo === 'pdf' ? pdfUrl : excelUrl;
-            form.submit();
-        }
-
-        async function descargarImagenOtDiarias() {
-            if (!hayReporte) {
-                window.notify.error('No se puede generar la imagen todavía.');
-                return;
-            }
-
-            const hoja = document.getElementById('hoja-ot-diarias');
-            window.notify.loading('Generando imagen...');
-            try {
-                const html2canvas = await window.librerias.html2canvas();
-                const canvas = await html2canvas(hoja, {
-                    backgroundColor: '#ffffff',
-                    scale: 2,
-                    useCORS: true,
-                    width: hoja.scrollWidth,
-                    windowWidth: Math.max(hoja.scrollWidth, hoja.clientWidth),
-                });
-                const blob = await new Promise((resolve, reject) => {
-                    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo crear la imagen.'))), 'image/png');
-                });
-                const file = new File([blob], nombreImagen, { type: 'image/png' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = nombreImagen;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                URL.revokeObjectURL(url);
-
-                const formData = new FormData();
-                formData.append('imagen', file, file.name);
-                formData.append('fecha', fechaActual);
-                Object.entries(inputsPayload()).forEach(([cve, campos]) => {
-                    Object.entries(campos).forEach(([campo, valor]) => {
-                        formData.append(`inputs[${cve}][${campo}]`, valor);
-                    });
-                });
-                try {
-                    await window.http.upload(imagenTelegramUrl, formData);
-                } catch (err) {
-                    window.notify.warning('La imagen se descargó, pero no se pudo enviar por Telegram.');
-                    return;
-                }
-                window.notify.success('Imagen descargada y enviada por Telegram.');
-            } catch (err) {
-                window.notify.error(err.message || 'No se pudo generar la imagen.');
-            } finally {
-                window.notify.close();
-            }
-        }
-
-        window.descargarOtDiarias = descargarOtDiarias;
-        window.descargarImagenOtDiarias = descargarImagenOtDiarias;
-    </script>
+    @vite('resources/js/modulos/mecanicos/reportes/ot-diarias/index.ts')
 @endsection
