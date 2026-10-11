@@ -24,8 +24,12 @@
    - Táctil: todo control de los componentes nuevos mide >= 44 px (min-h-touch / size-touch).
    - Color: los componentes usan los semánticos; mapean a la paleta que ya usa la app
      (blue-500 de los botones del navbar, etc.), así que adoptarlos no cambia el aspecto. */
-/* Alto del navbar (navbar.blade.php, h-14). Programa Tejido lo re-mide en JS. */
+/* Alto del navbar (navbar.blade.php): fila h-14; debajo de md las acciones de la vista bajan
+   a una segunda fila h-12. Programa Tejido lo re-mide en JS. */
 :root { --pt-navbar-height: 3.5rem; }
+@media (max-width: 767.98px) {
+    :root:has([data-navbar][data-con-acciones]) { --pt-navbar-height: 6.5rem; }
+}
 
 @theme {
     --text-caption: 0.75rem;

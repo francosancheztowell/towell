@@ -25,7 +25,7 @@
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-blue-400 relative" style="touch-action: manipulation; -webkit-touch-callout: none;">
+<body class="min-h-dvh flex flex-col overflow-hidden h-dvh bg-blue-400 relative" style="touch-action: manipulation; -webkit-touch-callout: none;">
     {{-- UX-05: sin user-select:none global (impedía copiar folios); solo el chrome lo lleva
          (app.css). touch-callout se queda: los long-press existentes dependen de él y no
          impide seleccionar. touch-action: manipulation quita el doble toque, no el pinch. --}}
@@ -40,7 +40,10 @@
     @endif
 
 
-        <main class="app-main overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: var(--pt-navbar-height); height: 100vh; max-height: 100vh; min-height: -webkit-fill-available;">
+        {{-- dvh y no vh: en móvil 100vh incluye la barra del navegador y el body no scrollea, así que
+             el fondo de la página quedaba inalcanzable. overflow-x auto y no hidden: lo que no quepa
+             se desplaza en vez de recortarse en silencio (Usuarios y Crudo perdían botones a 390 px). --}}
+        <main class="app-main overflow-x-auto overflow-y-auto max-w-full flex-1 h-dvh max-h-dvh" style="padding-top: var(--pt-navbar-height);">
             @yield('content')
         </main>
 

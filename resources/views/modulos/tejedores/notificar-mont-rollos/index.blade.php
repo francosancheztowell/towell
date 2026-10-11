@@ -34,7 +34,7 @@
       {{-- Menú dropdown --}}
       <div
         id="menuDropdownTelaresCortado"
-        class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 max-h-96 overflow-y-auto z-50"
+        class="hidden fixed right-2 top-(--pt-navbar-height) w-48 bg-white rounded-lg border border-gray-200 max-h-96 overflow-y-auto z-50"
       >
         <div class="py-2">
           <button

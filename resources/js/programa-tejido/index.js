@@ -4185,7 +4185,7 @@ const uiInlineEditableFields = {
     const qsa = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
     const tbodyEl = () => qs('#mainTable tbody');
     const setNavbarHeightVar = () => {
-      const nav = document.querySelector('nav');
+      const nav = document.querySelector('[data-navbar]');
       if (!nav) return;
       document.documentElement.style.setProperty('--pt-navbar-height', `${nav.offsetHeight}px`);
     };

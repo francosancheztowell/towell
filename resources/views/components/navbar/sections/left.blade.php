@@ -6,10 +6,10 @@
         : app(\App\Services\ModuloService::class)->rutaPadreDe(request()->path());
 @endphp
 
-<div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
-    {{-- En el inicio no hay padre: invisible para no mover el logo. --}}
+<div class="flex h-14 items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
+    {{-- En el inicio no hay padre: invisible para no mover el logo; en móvil se quita para dejarle sitio al título. --}}
     <flux:button id="btn-back" :href="$rutaPadre" variant="filled" color="blue" icon="chevron-left"
-                 class="min-h-touch min-w-touch {{ $isProduccionIndex ? 'invisible' : '' }}"
+                 class="min-h-touch min-w-touch {{ $isProduccionIndex ? 'invisible max-sm:hidden' : '' }}"
                  title="Volver atrás" aria-label="Volver atrás"
                  :tabindex="$isProduccionIndex ? -1 : null" :aria-hidden="$isProduccionIndex ? 'true' : null" />
 
@@ -22,7 +22,7 @@
                  height="227"
                  fetchpriority="high"
                  decoding="async"
-                 class="h-9 md:h-10 w-auto">
+                 class="h-7 sm:h-9 md:h-10 w-auto">
         </picture>
     </a>
 </div>

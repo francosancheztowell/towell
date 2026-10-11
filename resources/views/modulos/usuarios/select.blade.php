@@ -80,8 +80,8 @@
                         </div>
 
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1 basis-64">
                                     <div class="flex items-center gap-2 mb-2">
                                         <h3 class="text-base font-semibold text-gray-900">{{ $u->nombre }}</h3>
                                         <span class="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
@@ -117,7 +117,7 @@
                                     </div>
                                 </div>
 
-                                <div class="flex items-center gap-2 ml-4 flex-shrink-0">
+                                <div class="flex flex-wrap items-center gap-2">
                                     <a href="{{ route('configuracion.usuarios.edit', $u->idusuario) }}"
                                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors">
                                         <i class="fas fa-edit mr-1"></i>

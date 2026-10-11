@@ -15,7 +15,7 @@
 --}}
 
 <div id="modalMover" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" style="display: none;">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden" style="min-width: 1200px;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[min(95vw,1600px)] max-h-[90dvh] flex flex-col overflow-hidden">
 
         {{-- ? Header --}}
         <div class="flex items-center justify-between px-6 py-4 ">
@@ -28,11 +28,12 @@
         </div>
 
         {{-- ? Body: Paneles --}}
-        <div class="flex-1 overflow-hidden px-6 py-5 bg-gray-50/30">
-            <div class="flex gap-6 h-full" style="min-height: 450px;">
+        {{-- Debajo de lg los paneles se apilan y el cuerpo scrollea: antes min-width 1200px los cortaba. --}}
+        <div class="flex-1 overflow-y-auto lg:overflow-hidden px-3 py-3 sm:px-6 sm:py-5 bg-gray-50/30">
+            <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:h-full lg:min-h-[450px]">
 
                 {{-- Panel ORIGEN --}}
-                <div class="flex-1 flex flex-col border border-gray-100 rounded-xl overflow-hidden bg-white transition-all duration-200"
+                <div class="flex-1 max-lg:min-h-64 max-lg:max-h-[60dvh] flex flex-col border border-gray-100 rounded-xl overflow-hidden bg-white transition-all duration-200"
                      id="panelOrigenContainer">
                     <div class="px-4 py-3 bg-amber-100 border-b border-gray-200">
                         <div class="flex items-center justify-between gap-2 mb-2">
@@ -70,7 +71,7 @@
                 </div>
 
                 {{-- Panel DESTINO --}}
-                <div class="flex-1 flex flex-col border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm transition-all duration-200"
+                <div class="flex-1 max-lg:min-h-64 max-lg:max-h-[60dvh] flex flex-col border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm transition-all duration-200"
                      id="panelDestinoContainer">
                     <div class="px-4 py-3 bg-blue-100 border-b border-gray-200">
                         <div class="flex items-center justify-between gap-2 mb-2">
