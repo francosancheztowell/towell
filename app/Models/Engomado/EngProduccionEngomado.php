@@ -6,6 +6,10 @@ use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property int|null $Finalizar
+ * @property bool|null $Impresion
+ */
 class EngProduccionEngomado extends Model
 {
     protected $connection = 'sqlsrv';

@@ -879,7 +879,7 @@ class MarcasController extends Controller
             ->get()
             ->unique('Turno')
             ->keyBy('Turno');
-        $lineasPorFolio = TejMarcasLine::whereIn('Folio', $foliosPorTurno->pluck('Folio')->all())
+        $lineasPorFolio = $foliosPorTurno->isEmpty() ? collect() : TejMarcasLine::whereIn('Folio', $foliosPorTurno->pluck('Folio')->all())
             ->orderBy('NoTelarId')
             ->get()
             ->groupBy(fn ($linea) => trim((string) $linea->Folio));
