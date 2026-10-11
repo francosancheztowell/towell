@@ -50,145 +50,73 @@
         </x-slot:filtros>
     </x-tabla>
 
-    {{-- Alta / edicion --}}
+    {{-- Alta / edicion. <dialog> nativo como los demas catalogos (Esc, foco y fondo los da el
+         navegador); wire:ignore.self evita que un refresco le quite `open`. --}}
     @if ($editando !== null)
-        <div class="fixed inset-0 z-50 overflow-y-auto bg-black/40" role="dialog" aria-modal="true">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <form wire:submit="guardar"
-                      class="w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-                    <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
-                        <h2 class="text-base font-bold uppercase tracking-wide text-slate-800">
-                            {{ $editando === '' ? 'Nuevo calibre' : 'Editar calibre' }}
-                        </h2>
-                        <button type="button" wire:click="cerrar" aria-label="Cerrar"
-                                class="rounded p-1 text-slate-500 transition hover:bg-slate-200 hover:text-slate-700">
-                            <i class="fa-solid fa-times"></i>
-                        </button>
-                    </div>
+        <dialog wire:key="calibre-{{ $editando }}" wire:ignore.self x-data x-init="$el.showModal()"
+                x-on:close="$wire.cerrar()" x-on:click="if ($event.target === $el) $el.close()"
+                aria-labelledby="calibre-titulo" class="ui-dialogo ui-dialogo--lg ui-dialogo--formulario">
+            <form wire:submit="guardar" class="ui-dialogo__cuerpo" novalidate>
+                <flux:heading id="calibre-titulo" size="xl">{{ $editando === '' ? 'Nuevo calibre' : 'Editar calibre' }}</flux:heading>
 
-                    <div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
-                        <label>
-                            <span class="mb-1 block text-xs font-semibold text-slate-500">
-                                Codigo AX <span class="text-red-500">*</span>
-                            </span>
-                            <input type="text" wire:model="form.Codigo" autocomplete="off"
-                                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                                   @error('form.Codigo') aria-invalid="true" @enderror>
-                            <span class="mt-1 block text-xs text-slate-500">
-                                El ItemId tal como esta en AX: <code>600/1T</code>. Con el se piden fibra y color.
-                            </span>
-                            @error('form.Codigo')
-                                <span class="mt-1 block text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <flux:input wire:model="form.Codigo" label="Codigo AX" maxlength="20" required autofocus autocomplete="off"
+                                class:input="uppercase"
+                                description:trailing="El ItemId tal como esta en AX: 600/1T. Con el se piden fibra y color." />
+                    <flux:input wire:model="form.Nombre" label="Nombre" maxlength="60" required autocomplete="off"
+                                description:trailing="Lo que ve el operador en el desplegable." />
+                    <flux:input wire:model="form.CodigoInterno" label="Calibre" maxlength="20" required autocomplete="off"
+                                description:trailing="Lo que se escribe en la orden: 600/1T se guarda como 600.1." />
+                    <flux:input type="number" step="0.01" min="0.01" inputmode="decimal" wire:model="form.Divisor"
+                                label="Hilo (divisor)" required autocomplete="off"
+                                description:trailing="El denominador con el que L.Mat calcula el peso. Dos calibres iguales con divisor distinto hacen que la captura ofrezca elegir el hilo." />
 
-                        <label>
-                            <span class="mb-1 block text-xs font-semibold text-slate-500">
-                                Nombre <span class="text-red-500">*</span>
+                    <label class="sm:col-span-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                        <input type="checkbox" wire:model="form.Vigente" value="1"
+                               class="h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-2 focus:ring-blue-300">
+                        <span>
+                            <span class="block text-sm font-semibold text-slate-700">Vigente</span>
+                            <span class="block text-xs text-slate-500">
+                                Solo los vigentes se ofrecen en la captura de desarrolladores.
                             </span>
-                            <input type="text" wire:model="form.Nombre" autocomplete="off"
-                                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                                   @error('form.Nombre') aria-invalid="true" @enderror>
-                            <span class="mt-1 block text-xs text-slate-500">Lo que ve el operador en el desplegable.</span>
-                            @error('form.Nombre')
-                                <span class="mt-1 block text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
+                        </span>
+                        @error('form.Vigente')
+                            <span class="text-xs font-medium text-red-600">{{ $message }}</span>
+                        @enderror
+                    </label>
+                </div>
 
-                        <label>
-                            <span class="mb-1 block text-xs font-semibold text-slate-500">
-                                Calibre <span class="text-red-500">*</span>
-                            </span>
-                            <input type="text" wire:model="form.CodigoInterno" autocomplete="off"
-                                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                                   @error('form.CodigoInterno') aria-invalid="true" @enderror>
-                            <span class="mt-1 block text-xs text-slate-500">
-                                Lo que se escribe en la orden: <code>600/1T</code> se guarda como <code>600.1</code>.
-                            </span>
-                            @error('form.CodigoInterno')
-                                <span class="mt-1 block text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
-
-                        <label>
-                            <span class="mb-1 block text-xs font-semibold text-slate-500">
-                                Hilo (divisor) <span class="text-red-500">*</span>
-                            </span>
-                            <input type="number" step="0.01" min="0.01" inputmode="decimal"
-                                   wire:model="form.Divisor" autocomplete="off"
-                                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                                   @error('form.Divisor') aria-invalid="true" @enderror>
-                            <span class="mt-1 block text-xs text-slate-500">
-                                El denominador con el que L.Mat calcula el peso. Dos calibres iguales con
-                                divisor distinto hacen que la captura ofrezca elegir el hilo.
-                            </span>
-                            @error('form.Divisor')
-                                <span class="mt-1 block text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
-
-                        <label class="sm:col-span-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
-                            <input type="checkbox" wire:model="form.Vigente" value="1"
-                                   class="h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-2 focus:ring-blue-300">
-                            <span>
-                                <span class="block text-sm font-semibold text-slate-700">Vigente</span>
-                                <span class="block text-xs text-slate-500">
-                                    Solo los vigentes se ofrecen en la captura de desarrolladores.
-                                </span>
-                            </span>
-                            @error('form.Vigente')
-                                <span class="text-xs font-medium text-red-600">{{ $message }}</span>
-                            @enderror
-                        </label>
-                    </div>
-
-                    <div class="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
-                        <button type="button" wire:click="cerrar"
-                                class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100">
-                            Cancelar
-                        </button>
-                        <button type="submit" wire:loading.attr="disabled"
-                                class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 disabled:opacity-60">
-                            <i class="fa-solid fa-circle-notch fa-spin" wire:loading wire:target="guardar"></i>
-                            Guardar
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <x-dialogo-botones />
+            </form>
+        </dialog>
     @endif
 
-    {{-- Baja / reactivacion --}}
+    {{-- Baja / reactivacion: mismo aspecto que notify.confirm. --}}
     @if ($confirmandoBaja && $seleccion)
-        <div class="fixed inset-0 z-50 overflow-y-auto bg-black/40" role="dialog" aria-modal="true">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 text-center shadow-xl">
-                    <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-full {{ $seleccion->Vigente ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600' }}">
-                        <i class="fa-solid {{ $seleccion->Vigente ? 'fa-ban' : 'fa-rotate-left' }} text-lg"></i>
-                    </span>
-                    <p class="mt-3 font-bold text-slate-800">
+        <dialog wire:key="calibre-baja-{{ $seleccion->getKey() }}" wire:ignore.self x-data x-init="$el.showModal()"
+                x-on:close="$wire.cerrar()" x-on:click="if ($event.target === $el) $el.close()"
+                aria-labelledby="calibre-baja-titulo" class="ui-dialogo">
+            <div class="ui-dialogo__cuerpo">
+                <span class="ui-dialogo__icono {{ $seleccion->Vigente ? 'ui-dialogo__icono--warning' : 'ui-dialogo__icono--success' }}">
+                    <i class="fa-solid {{ $seleccion->Vigente ? 'fa-ban' : 'fa-rotate-left' }} text-3xl" aria-hidden="true"></i>
+                </span>
+                <div class="ui-dialogo__textos">
+                    <p id="calibre-baja-titulo" class="ui-dialogo__titulo">
                         {{ $seleccion->Vigente ? '¿Dar de baja' : '¿Reactivar' }} {{ $seleccion->Nombre }} ({{ $seleccion->Codigo }})?
                     </p>
-                    <p class="mt-1 text-sm text-slate-500">
-                        @if ($seleccion->Vigente)
-                            Deja de ofrecerse en la captura. Las ordenes que ya lo traian quedan marcadas
-                            en rojo y no se pueden guardar hasta reelegir el hilo. Se puede reactivar.
-                        @else
-                            Vuelve a aparecer en el desplegable de la captura.
-                        @endif
-                    </p>
-                    <div class="mt-4 flex justify-center gap-2">
-                        <button type="button" wire:click="cerrar"
-                                class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100">
-                            Cancelar
-                        </button>
-                        <button type="button" wire:click="alternarVigencia"
-                                class="rounded-lg px-4 py-2 text-sm font-bold text-white transition {{ $seleccion->Vigente ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-600 hover:bg-emerald-700' }}">
-                            {{ $seleccion->Vigente ? 'Dar de baja' : 'Reactivar' }}
-                        </button>
-                    </div>
+                    <p class="ui-dialogo__texto">{{ $seleccion->Vigente
+                        ? 'Deja de ofrecerse en la captura. Las ordenes que ya lo traian quedan marcadas en rojo y no se pueden guardar hasta reelegir el hilo. Se puede reactivar.'
+                        : 'Vuelve a aparecer en el desplegable de la captura.' }}</p>
+                </div>
+                <div class="ui-dialogo__botones">
+                    <button type="button" class="ui-dialogo__boton ui-dialogo__boton--secundario"
+                            x-on:click="$el.closest('dialog').close()">Cancelar</button>
+                    <button type="button" wire:click="alternarVigencia" wire:loading.attr="data-ocupado" wire:target="alternarVigencia"
+                            class="ui-dialogo__boton {{ $seleccion->Vigente ? 'ui-dialogo__boton--peligro' : 'ui-dialogo__boton--primario' }}">
+                        {{ $seleccion->Vigente ? 'Dar de baja' : 'Reactivar' }}
+                    </button>
                 </div>
             </div>
-        </div>
+        </dialog>
     @endif
 </div>
