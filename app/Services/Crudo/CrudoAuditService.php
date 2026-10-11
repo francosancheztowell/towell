@@ -294,7 +294,7 @@ final class CrudoAuditService
     {
         $timezone = config('app.timezone');
         $productionDay = CrudoProductionDay::forInstant(now($timezone));
-        $startMinutes = (int) config('crudo.production_day_start_minutes', 390);
+        $startMinutes = CrudoProductionDay::startMinutes();
         $from = Carbon::parse($productionDay, $timezone)->addMinutes($startMinutes);
 
         return [$from, $from->copy()->addDay()];
