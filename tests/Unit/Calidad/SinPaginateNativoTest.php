@@ -10,7 +10,7 @@ use RecursiveIteratorIterator;
 
 /**
  * Producción corre SQL Server 2008 R2: paginate(), simplePaginate() y cursorPaginate()
- * de Laravel emiten OFFSET … FETCH (2012+) y fallan desde la página 2. Los tests
+ * —y forPage(), offset(), skip()— de Laravel emiten OFFSET … FETCH (2012+) y fallan desde la página 2. Los tests
  * corren en SQLite, que sí lo acepta, así que el único guardián posible es este.
  * Usar App\Support\PaginacionCompat::paginar().
  */
@@ -27,7 +27,7 @@ final class SinPaginateNativoTest extends TestCase
                 continue;
             }
             foreach (file($archivo->getPathname()) as $n => $linea) {
-                if (preg_match('/->(paginate|simplePaginate|cursorPaginate)\s*\(/', $linea)) {
+                if (preg_match('/->(paginate|simplePaginate|cursorPaginate|forPage|offset|skip)\s*\(/', $linea)) {
                     $hallazgos[] = substr($archivo->getPathname(), strlen($base) + 1).':'.($n + 1);
                 }
             }

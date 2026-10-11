@@ -212,7 +212,8 @@ final class ProgramaTejidoReadService
         // SQL Server rechaza COUNT(*) con ORDER BY: el total va sin orden.
         $total = (clone $base)->reorder()->count();
 
-        $filas = $base->select($columnas)->forPage($pagina, $porPagina)->get();
+        // forPage() emite OFFSET/FETCH, que SQL Server 2008 R2 no tiene: TOP y recorte en PHP (como PaginacionCompat).
+        $filas = $base->select($columnas)->take($pagina * $porPagina)->get()->slice(($pagina - 1) * $porPagina)->values(); // @phpstan-ignore larastan.noUnnecessaryCollectionCall (la alternativa SQL es OFFSET)
 
         return [
             'data' => $filas->map(fn ($fila) => $this->fila((array) $fila))->all(),

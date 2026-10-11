@@ -78,7 +78,7 @@ function mensajeError(error: unknown, defecto: string): string {
         filtrosPorColumna: [] as { column: string; value: string }[], // desde menú contextual
         pinnedColumns: [] as number[],
         page: 1,
-        perPage: 500,
+        perPage: 100, // reflow lineal en celdas: 500 filas × 160 cols ≈ 5 s, 100 ≈ 1 s
         total: CONFIG.totalRegistros || 0,
         loading: false,
         fullLoaded: false, // el GET inicial trae solo 6 meses; al filtrar se carga todo
@@ -684,12 +684,14 @@ function mensajeError(error: unknown, defecto: string): string {
             state.filtered = [...state.data];
             state.total    = json.t || state.data.length;
 
+            // aplicarFiltrosAND() ya pinta y actualiza contador y botones; repetirlo costaba ~5 s por carga.
             aplicarFiltrosAND();
-
-            renderPage();
-            updateFilterCount();
-            actualizarEstadoBotonReimprimir();
-            actualizarEstadoBotonRevivir();
+            if (!state.data.length) {
+                renderPage();
+                updateFilterCount();
+                actualizarEstadoBotonReimprimir();
+                actualizarEstadoBotonRevivir();
+            }
 
             setLoading(false);
         } catch (error) {
@@ -878,9 +880,14 @@ function mensajeError(error: unknown, defecto: string): string {
         return qsa('#mainTable .column-' + index);
     }
 
+    // Sin columnas fijadas las celdas recién pintadas no traen estilos: limpiar solo si antes hubo.
+    let habiaFijadas = false;
+
     function updatePinnedPositions(): void {
         const table = qs('#mainTable');
         if (!table || !state.pinnedColumns || !state.pinnedColumns.length) {
+            if (!habiaFijadas) return;
+            habiaFijadas = false;
             qsa('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
                 el.classList.remove('codificacion-pinned');
                 el.style.left = '';
@@ -890,6 +897,7 @@ function mensajeError(error: unknown, defecto: string): string {
             });
             return;
         }
+        habiaFijadas = true;
         let left = 0;
         state.pinnedColumns.forEach(idx => {
             const els = getColumnElements(idx);
