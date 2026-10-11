@@ -85,13 +85,7 @@ class EngProduccionFormulacionController extends Controller
         }
 
         // Si hay folio, obtener orden_id para el enlace "Volver a producción"
-        $ordenIdProduccion = null;
-        if (! empty($folioFiltro)) {
-            $ordenEngomado = EngProgramaEngomado::where('Folio', $folioFiltro)->first();
-            if ($ordenEngomado) {
-                $ordenIdProduccion = $ordenEngomado->Id;
-            }
-        }
+        $ordenIdProduccion = empty($folioFiltro) ? null : EngProgramaEngomado::where('Folio', $folioFiltro)->value('Id');
 
         return view('modulos.engomado.captura-formula.index', compact('items', 'limitado', 'foliosPrograma', 'folioSugerido', 'folioFiltro', 'ordenIdProduccion'));
     }

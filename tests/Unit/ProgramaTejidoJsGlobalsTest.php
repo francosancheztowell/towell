@@ -36,7 +36,7 @@ class ProgramaTejidoJsGlobalsTest extends TestCase
 
     public function test_todo_lo_que_se_lee_por_window_esta_publicado(): void
     {
-        $js = file_get_contents(base_path('resources/js/programa-tejido/index.js'));
+        $js = file_get_contents(base_path('resources/js/programa-tejido/index.ts'));
         $this->assertNotEmpty($js);
 
         preg_match_all('/window\.([A-Za-z_$][\w$]*)/', $js, $leidos);

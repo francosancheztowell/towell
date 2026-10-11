@@ -224,6 +224,6 @@ function openLinesModal(programaId: string | number): void {
     });
 }
 
-// PUENTE PT-TS 1: index.js (selección de fila y botón "Ver líneas") los llama.
+// PUENTE PT-TS 1: index.ts (selección de fila y botón "Ver líneas") los llama.
 window.loadReqProgramaTejidoLines = loadReqProgramaTejidoLines;
 window.openLinesModal = openLinesModal;

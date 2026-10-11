@@ -404,9 +404,6 @@ class ModulosController extends Controller
     private function actualizarPermisosNuevoModulo(SYSRoles $modulo): int
     {
         try {
-            $usuarios = SYSUsuario::select('idusuario')->get();
-            $registrosActualizados = 0;
-
             $permisosSoloEsteModulo = [
                 'acceso' => (int) ($modulo->acceso ?? 0),
                 'crear' => (int) ($modulo->crear ?? 0),
@@ -415,29 +412,24 @@ class ModulosController extends Controller
                 'registrar' => (int) (($modulo->reigstrar ?? $modulo->registrar ?? 0)),
             ];
 
-            foreach ($usuarios as $usuario) {
-                $existe = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
-                    ->where('idrol', $modulo->idrol)
-                    ->exists();
+            // Antes eran 2 consultas por usuario; ahora un UPDATE para los que ya tienen fila
+            // (solo usuarios existentes) y INSERTs por lotes para los que no.
+            $registrosActualizados = SYSUsuariosRoles::where('idrol', $modulo->idrol)
+                ->whereHas('usuario')
+                ->update($permisosSoloEsteModulo);
 
-                if ($existe) {
-                    // Actualizar SOLO la fila (usuario, este modulo): usar query explícita para no depender de PK del modelo
-                    $afectados = SYSUsuariosRoles::where('idusuario', $usuario->idusuario)
-                        ->where('idrol', $modulo->idrol)
-                        ->update($permisosSoloEsteModulo);
-                    if ($afectados > 0) {
-                        $registrosActualizados++;
-                    }
-                } else {
-                    // Crear solo la fila para (usuario, este modulo)
-                    SYSUsuariosRoles::create(array_merge([
-                        'idusuario' => $usuario->idusuario,
-                        'idrol' => $modulo->idrol,
-                        'assigned_at' => now(),
-                    ], $permisosSoloEsteModulo));
-                    $registrosActualizados++;
-                }
+            $faltantes = SYSUsuario::whereDoesntHave('roles', fn ($q) => $q->where('idrol', $modulo->idrol))
+                ->pluck('idusuario');
+            $ahora = now();
+            // 8 columnas x 200 filas = 1600 parámetros (SQL Server admite 2100).
+            foreach ($faltantes->chunk(200) as $lote) {
+                SYSUsuariosRoles::insert($lote->map(fn ($idusuario) => [
+                    'idusuario' => $idusuario,
+                    'idrol' => $modulo->idrol,
+                    'assigned_at' => $ahora,
+                ] + $permisosSoloEsteModulo)->values()->all());
             }
+            $registrosActualizados += $faltantes->count();
 
             return $registrosActualizados;
         } catch (\Exception $e) {

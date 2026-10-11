@@ -55,7 +55,7 @@ class CatLMatController extends Controller
     public function getRegistroCatCodificadosPorOrden(string $orden): JsonResponse
     {
         $registro = CatCodificados::query()
-            ->where('OrdenTejido', trim($orden))
+            ->ordenesTejido([trim($orden)])
             ->first();
 
         if (! $registro) {
@@ -195,7 +195,7 @@ class CatLMatController extends Controller
                 : false;
 
             // 1) CatCodificados: BomId/BomName solo si BomId actual es ESTAND y Act L.Mat activo.
-            $q = CatCodificados::query()->where('OrdenTejido', $orden);
+            $q = CatCodificados::query()->ordenesTejido([$orden]);
             if ($telarId !== '') {
                 $q->where('TelarId', $telarId);
             }

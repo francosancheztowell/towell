@@ -64,7 +64,7 @@ class ProgramaTejidoGridMarkupTest extends TestCase
         // Y el front tiene que recibir la lista para no volver a pedirla por HTTP
         // ni reescribir el DOM celda por celda. Va sobre el bundle: apuntar esto a
         // scripts/columns.blade.php era mirar una copia muerta que ya no se carga.
-        $js = $this->src('resources/js/programa-tejido/index.js');
+        $js = $this->src('resources/js/programa-tejido/index.ts');
         $this->assertStringContainsString('const SSR_HIDDEN_FIELDS = PT_BOOT.hiddenFields', $js);
         $this->assertStringContainsString('if (Array.isArray(SSR_HIDDEN_FIELDS) && SSR_HIDDEN_FIELDS.length > 0) {', $js);
     }
@@ -73,7 +73,7 @@ class ProgramaTejidoGridMarkupTest extends TestCase
     {
         // Si _shared-helpers se desincroniza, las filas insertadas tras duplicar/dividir
         // se ven distintas a las del SSR.
-        $js = $this->src('resources/js/programa-tejido/index.js');
+        $js = $this->src('resources/js/programa-tejido/index.ts');
         $this->assertStringContainsString("let clases = 'column-' + colIndex;", $js);
         $this->assertStringContainsString("clases += ' pt-wrap'", $js);
         $this->assertStringNotContainsString("'px-3 py-2 text-sm text-gray-700 column-'", $js);
@@ -84,7 +84,7 @@ class ProgramaTejidoGridMarkupTest extends TestCase
         // main.css decide el color desde la clase de la fila, con !important en ambos
         // lados (tbody td:not(.pinned-column) y .selectable-row.bg-blue-700 td), asi
         // que el loop por celda eran ~15 600 classList.toggle por clic sin efecto.
-        $js = $this->src('resources/js/programa-tejido/index.js');
+        $js = $this->src('resources/js/programa-tejido/index.ts');
         $this->assertStringNotContainsString("cell.classList.add('text-white')", $js);
         $this->assertStringNotContainsString("td.classList.toggle('text-white'", $js);
 

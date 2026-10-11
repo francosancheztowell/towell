@@ -97,10 +97,18 @@
     }
 
     @media (prefers-reduced-motion: no-preference) {
+        dialog.ui-modal:not(.hidden) {
+            animation: ui-fondo-entrada 120ms ease-out;
+        }
+
         dialog.ui-modal:not(.hidden) .ui-modal-panel {
             animation: ui-modal-entrada 120ms ease-out;
         }
     }
+}
+
+@keyframes ui-fondo-entrada {
+    from { opacity: 0; }
 }
 
 @keyframes ui-modal-entrada {
@@ -314,8 +322,9 @@
 }
 .ui-dialogo::backdrop { background: rgb(0 0 0 / .5); }
 .ui-dialogo[open] { animation: ui-dialogo-in .15s ease-out; }
+.ui-dialogo[open]::backdrop { animation: ui-fondo-entrada .15s ease-out; }
 @keyframes ui-dialogo-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .ui-dialogo[open] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ui-dialogo[open], .ui-dialogo[open]::backdrop { animation: none; } }
 .ui-dialogo__cuerpo { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 2rem; text-align: center; }
 .ui-dialogo__icono { display: flex; align-items: center; justify-content: center; width: 5rem; height: 5rem; border-radius: 9999px; }
 .ui-dialogo__icono > svg { width: 2.75rem; height: 2.75rem; }
@@ -330,7 +339,9 @@
 .ui-dialogo__titulo { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); font-weight: 600; color: var(--color-zinc-800); }
 .ui-dialogo__texto { margin-top: .5rem; font-size: var(--text-base); color: var(--color-zinc-500); white-space: pre-line; overflow-wrap: anywhere; }
 .ui-dialogo__texto ul { margin: 0; padding-left: 1.25rem; list-style: disc; text-align: left; }
-.ui-dialogo__botones { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .75rem; width: 100%; }
+/* Pegados abajo: con contenido largo el <dialog> hace scroll y Guardar/Cancelar no se van del alto de la tablet. */
+.ui-dialogo__botones { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .75rem; width: 100%;
+    position: sticky; bottom: 0; z-index: 1; background: var(--color-white); padding-block: .5rem; }
 .ui-dialogo__boton {
     display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
     height: 3.5rem; padding: 0 1rem; border-radius: .5rem; border: 1px solid transparent;
@@ -357,7 +368,12 @@
 .ui-dialogo__boton:active:not(:disabled) { transform: scale(.97); box-shadow: none; }
 [data-ocupado] { cursor: progress; }
 .ui-dialogo[aria-busy='true'] .ui-dialogo__boton[data-ocupado] { opacity: 1; }
-[data-ocupado]::before {
+/* x-ui.button durante una petición de Livewire 4, que pone data-loading en quien la dispara
+   (wire:click en el botón; wire:submit en el form): spinner en lugar del ícono y sin doble clic. */
+:is([data-ui-button][data-loading], form[data-loading] [data-ui-button][type='submit']) { pointer-events: none; opacity: .8; }
+:is([data-ui-button][data-loading], form[data-loading] [data-ui-button][type='submit']) > :is(i, svg) { display: none; }
+[data-ocupado]::before,
+:is([data-ui-button][data-loading], form[data-loading] [data-ui-button][type='submit'])::before {
     content: ''; flex: none; width: 1.1em; height: 1.1em; border-radius: 9999px;
     border: 2px solid currentColor; border-right-color: transparent;
     animation: loader-giro .7s linear infinite;
@@ -381,6 +397,22 @@
 .ui-dialogo :where(label) { font-size: var(--text-sm); font-weight: 500; color: var(--color-zinc-700); }
 .ui-dialogo :where(input[type='checkbox'], input[type='radio']) { width: 1.125rem; height: 1.125rem; accent-color: var(--color-blue-600); }
 } /* @layer components: las utilidades de Tailwind de cada pantalla le ganan a .ui-dialogo */
+
+/* x-ui.skeleton: brillo que recorre el marcador; quieto si el usuario pidió menos movimiento. */
+@layer components {
+    .ui-skeleton { background-color: var(--color-slate-200); }
+    @media (prefers-reduced-motion: no-preference) {
+        .ui-skeleton {
+            background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / .6), transparent);
+            background-size: 200% 100%; background-repeat: no-repeat;
+            animation: ui-skeleton-brillo 1.4s ease-in-out infinite;
+        }
+    }
+}
+@keyframes ui-skeleton-brillo {
+    from { background-position: 150% 0; }
+    to { background-position: -50% 0; }
+}
 
 /* Menú de clic derecho para fijar columnas (componentes/tabla-fijar.ts). */
 .tabla-fijar-menu {

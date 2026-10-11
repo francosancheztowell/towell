@@ -76,18 +76,19 @@ trait ProduccionTrait
      */
     protected function jsonIfKgNetoExceedsLimit(?float $kgNeto): ?JsonResponse
     {
-        $max = $this->maxKgNetoAllowed();
-        if ($max === null || $kgNeto === null) {
+        return $this->jsonSiExcedeMaximo('Kg. Neto', $kgNeto, $this->maxKgNetoAllowed());
+    }
+
+    private function jsonSiExcedeMaximo(string $campo, ?float $valor, ?float $max): ?JsonResponse
+    {
+        if ($max === null || $valor === null || $valor <= $max) {
             return null;
         }
-        if ($kgNeto > $max) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Kg. Neto no puede ser mayor a '.rtrim(rtrim(number_format($max, 2, '.', ''), '0'), '.').' kg.',
-            ], 422);
-        }
 
-        return null;
+        return response()->json([
+            'success' => false,
+            'error' => $campo.' no puede ser mayor a '.decimales($max).' kg.',
+        ], 422);
     }
 
     /**
@@ -166,18 +167,7 @@ trait ProduccionTrait
      */
     protected function jsonIfKgBrutoExceedsLimit(?float $kgBruto): ?JsonResponse
     {
-        $max = $this->maxKgBrutoAllowed();
-        if ($max === null || $kgBruto === null) {
-            return null;
-        }
-        if ($kgBruto > $max) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Kg. Bruto no puede ser mayor a '.rtrim(rtrim(number_format($max, 2, '.', ''), '0'), '.').' kg.',
-            ], 422);
-        }
-
-        return null;
+        return $this->jsonSiExcedeMaximo('Kg. Bruto', $kgBruto, $this->maxKgBrutoAllowed());
     }
 
     /**
@@ -215,11 +205,6 @@ trait ProduccionTrait
             ->whereNotNull('KgNeto')
             ->where('KgNeto', '<', 0)
             ->exists();
-    }
-
-    protected function traitHasHoraInicialCaptured($registro): bool
-    {
-        return $registro->HoraInicial !== null && trim((string) $registro->HoraInicial) !== '';
     }
 
     /**

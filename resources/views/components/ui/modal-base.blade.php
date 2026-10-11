@@ -44,7 +44,7 @@ $tituloColor = $tone === 'danger' ? 'text-red-700' : 'text-gray-800';
         <button type="button"
                 onclick="{{ $closeJs }}"
                 data-ui-modal-close
-                class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-gray-300"
+                class="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 aria-label="Cerrar">
           <i class="fas fa-times" aria-hidden="true"></i>
         </button>

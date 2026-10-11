@@ -2,17 +2,23 @@
 
 namespace App\Models\Engomado;
 
-use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property int|null $Finalizar
+ * @property bool|null $Impresion
+ */
 class EngProduccionEngomado extends Model
 {
     protected $connection = 'sqlsrv';
+
     protected $table = 'EngProduccionEngomado';
 
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     public $timestamps = false;
@@ -133,4 +139,3 @@ class EngProduccionEngomado extends Model
             ->all();
     }
 }
-

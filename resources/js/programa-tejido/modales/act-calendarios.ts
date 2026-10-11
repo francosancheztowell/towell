@@ -1,6 +1,7 @@
 // Modal "Actualizar calendarios" (menú Actualizar del navbar de la grilla).
 import { mensajeDelServidor } from '../respuesta.ts';
 import { rutaSuperficie } from '../rutas.ts';
+import { recargarConservando } from '../vista.ts';
 
 interface Calendario {
     CalendarioId: string;
@@ -172,8 +173,10 @@ async function guardarCalendariosSeleccionados(): Promise<void> {
                     `Se actualizaron ${registrosSeleccionados.length} registro(s) con el calendario ${calendarioId}${tiempoMsg}`,
             );
             cerrarModalActCalendarios();
-            // Recargar la página para reflejar los cambios
-            setTimeout(() => window.location.reload(), 500);
+            // Solo los telares tocados, en su lugar; recargar perdía scroll y selección.
+            const ids = registrosSeleccionados.filter((id): id is string => !!id);
+            if (window.ptRefrescarTelares) await window.ptRefrescarTelares(ids);
+            else recargarConservando();
         });
     } catch (error) {
         console.error('Error al actualizar calendarios:', error);
@@ -181,7 +184,7 @@ async function guardarCalendariosSeleccionados(): Promise<void> {
     }
 }
 
-// PUENTE PT-TS 1: index.js (menú Actualizar → Calendarios) abre el modal.
+// PUENTE PT-TS 1: index.ts (menú Actualizar → Calendarios) abre el modal.
 window.abrirModalActCalendarios = abrirModalActCalendarios;
 // PUENTE PT-TS 1: x-ui.modal-base (onclose del botón × y Esc) en modal/act-calendarios.blade.php.
 window.cerrarModalActCalendarios = cerrarModalActCalendarios;

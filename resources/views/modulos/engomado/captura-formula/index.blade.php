@@ -320,8 +320,7 @@
 
                     <!-- Loading -->
                     <div id="create_componentes_loading" class="hidden text-center py-6">
-                        <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500" aria-hidden="true"></i>
-                        <p class="text-gray-600 mt-2 text-sm">Cargando componentes...</p>
+                        <x-ui.spinner label="Cargando componentes…" :inline="true" />
                     </div>
 
                     <!-- Error -->

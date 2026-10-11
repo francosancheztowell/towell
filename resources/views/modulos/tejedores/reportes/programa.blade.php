@@ -3,7 +3,7 @@
 @section('page-title', 'Reporte Tejedores')
 
 @section('navbar-right')
-    <button type="button" onclick="mostrarModalConsultarReportesTejedores()"
+    <button type="button" data-ui-modal-open="modalRangoTejido"
         class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
         <i class="fas fa-search"></i> Consultar
     </button>
@@ -16,10 +16,10 @@
 @endsection
 
 @section('content')
-    <div class="w-full p-4">
+    <div class="w-full p-4" id="reporte-programa" data-indice="{{ route('tejedores.reportes-tejedores.index') }}">
         <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
-                <h1 class="text-xl font-bold text-white">Reporte de Tejedores</h1>
+                <h2 class="text-xl font-bold text-white">Reporte de Tejedores</h2>
                 @if (!empty($fechaIni) && !empty($fechaFin))
                     <span class="text-white text-sm">
                         {{ \Carbon\Carbon::parse($fechaIni)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
@@ -32,7 +32,7 @@
                     <div class="text-center py-12">
                         <i class="fas fa-calendar-alt text-6xl text-gray-300 mb-4"></i>
                         <p class="text-gray-500 text-lg">Seleccione un rango de fechas para consultar el reporte</p>
-                        <button type="button" onclick="mostrarModalConsultarReportesTejedores()"
+                        <button type="button" data-ui-modal-open="modalRangoTejido"
                             class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
                             <i class="fas fa-search mr-2"></i> Seleccionar Fechas
                         </button>
@@ -53,61 +53,15 @@
             </div>
         </div>
     </div>
+
+    @include('modulos.tejido.reportes.partials.rango-fechas', [
+        'ruta' => route('tejedores.reportes-tejedores.programa'),
+        'titulo' => 'Consultar en rango',
+        'descripcion' => 'Seleccione la fecha inicial y final del reporte.',
+        'abrirAlCargar' => empty($fechaIni) || empty($fechaFin),
+    ])
 @endsection
 
 @push('scripts')
-<script>
-    window.volverAlIndice = function() {
-        window.location.href = '{{ route("tejedores.reportes-tejedores.index") }}';
-    };
-
-    function mostrarModalConsultarReportesTejedores() {
-        const hoy = new Date().toISOString().split('T')[0];
-        const fechaIni = '{{ $fechaIni ?? '' }}' || hoy;
-        const fechaFin = '{{ $fechaFin ?? '' }}' || hoy;
-
-        notify.form({
-            title: 'Consultar en rango',
-            html: `
-                <div class="text-left space-y-4">
-                    <div>
-                        <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                        <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="w-full">
-                    </div>
-                    <div>
-                        <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                        <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="w-full">
-                    </div>
-                </div>
-            `,
-            icon: 'question',
-            confirmText: 'Consultar',
-            cancelText: 'Cancelar',
-            preConfirm: (ctx) => {
-                const fi = document.getElementById('swal_fecha_ini')?.value;
-                const ff = document.getElementById('swal_fecha_fin')?.value;
-                if (!fi || !ff) {
-                    ctx.error('Seleccione fecha inicial y final');
-                    return false;
-                }
-                if (new Date(fi) > new Date(ff)) {
-                    ctx.error('La fecha inicial no puede ser mayor que la final');
-                    return false;
-                }
-                return { fecha_ini: fi, fecha_fin: ff };
-            }
-        }).then((valor) => {
-            if (valor) {
-                const params = new URLSearchParams(valor);
-                window.location.href = '{{ route("tejedores.reportes-tejedores.programa") }}?' + params.toString();
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        @if (empty($fechaIni) || empty($fechaFin))
-        mostrarModalConsultarReportesTejedores();
-        @endif
-    });
-</script>
+    @vite('resources/js/modulos/tejedores/reportes/programa/index.ts')
 @endpush

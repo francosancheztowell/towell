@@ -48,9 +48,7 @@
                     <flux:table.rows id="tbody-paros" aria-busy="true">
                         <flux:table.row>
                             <flux:table.cell colspan="10" class="text-center">
-                                <span role="status">
-                                    <i class="fa-solid fa-spinner fa-spin mr-2" aria-hidden="true"></i>Cargando datos...
-                                </span>
+                                <x-ui.spinner size="sm" label="Cargando datos…" :inline="true" />
                             </flux:table.cell>
                         </flux:table.row>
                     </flux:table.rows>

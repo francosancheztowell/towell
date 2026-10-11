@@ -300,24 +300,15 @@ class AtadoresController extends Controller
         $noJulio = $request->query('no_julio');
         $noOrden = $request->query('no_orden');
 
-        // Si se proporcionan parámetros, filtrar por ellos para obtener el registro específico
-        if ($noJulio && $noOrden) {
-            // Buscar el registro específico en cualquier estado activo o Autorizado
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
-                ->where('NoJulio', $noJulio)
-                ->where('NoProduccion', $noOrden)
-                ->orderBy('Fecha', 'desc')
-                ->orderBy('Turno', 'desc')
-                ->orderByDesc('Id')
-                ->get();
-        } else {
-            // Si no se proporcionan parámetros, obtener todos los procesos activos (incluyendo Autorizado)
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
-                ->orderBy('Fecha', 'desc')
-                ->orderBy('Turno', 'desc')
-                ->orderByDesc('Id')
-                ->get();
-        }
+        // La vista solo usa el primero: se trae una fila (TOP 1), no todos los atados activos.
+        // Con julio y orden se busca ese registro en cualquier estado activo o Autorizado.
+        $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
+            ->when($noJulio && $noOrden, fn ($q) => $q->where('NoJulio', $noJulio)->where('NoProduccion', $noOrden))
+            ->orderBy('Fecha', 'desc')
+            ->orderBy('Turno', 'desc')
+            ->orderByDesc('Id')
+            ->take(1)
+            ->get();
 
         $actual = $montadoTelas->first();
         $esKm = $actual && $this->esAtadoKarlMayer($actual->Tipo, $actual->NoTelarId);

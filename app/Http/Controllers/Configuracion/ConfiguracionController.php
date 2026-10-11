@@ -81,60 +81,7 @@ class ConfiguracionController extends Controller
                 $this->processedRows = $estadisticas['processed_rows'];
                 $this->skippedRows = $estadisticas['skipped_rows'];
 
-                // Regenerar líneas para todos los registros importados (de forma eficiente y en batch)
-                // Obtener solo registros con fechas válidas en batch
-                $registrosConFechas = ReqProgramaTejido::whereNotNull('FechaInicio')
-                    ->whereNotNull('FechaFinal')
-                    ->where('FechaInicio', '!=', '')
-                    ->where('FechaFinal', '!=', '')
-                    ->select('Id', 'FechaInicio', 'FechaFinal', 'SalonTejidoId', 'NoTelarId')
-                    ->get();
-
-                $totalRegenerados = 0;
-                $saltadosPorFecha = 0;
-                $errores = 0;
-                $observer = new ReqProgramaTejidoObserver;
-
-                // Procesar en chunks para evitar sobrecarga de memoria
-                $idsValidos = [];
-                foreach ($registrosConFechas as $registro) {
-                    try {
-                        // Validar que las fechas sean razonables (no años antiguos como 1933)
-                        $fechaInicio = Carbon::parse($registro->FechaInicio);
-                        $fechaFinal = Carbon::parse($registro->FechaFinal);
-
-                        // Validar que las fechas sean del año 2000 en adelante
-                        if ($fechaInicio->year < 2000 || $fechaFinal->year < 2000) {
-                            $saltadosPorFecha++;
-
-                            continue;
-                        }
-
-                        // Validar que FechaFinal sea mayor que FechaInicio
-                        if ($fechaFinal->lte($fechaInicio)) {
-                            $saltadosPorFecha++;
-
-                            continue;
-                        }
-
-                        $idsValidos[] = $registro->Id;
-                    } catch (\Throwable $lineEx) {
-                        $saltadosPorFecha++;
-                    }
-                }
-
-                // Cargar y procesar registros en batch para mejor rendimiento
-                // Procesar en chunks más grandes para reducir consultas
-                $chunks = array_chunk($idsValidos, 100);
-                foreach ($chunks as $chunkIds) {
-                    $registrosCompletos = ReqProgramaTejido::whereIn('Id', $chunkIds)->get();
-                    try {
-                        ReqProgramaTejido::regenerarLineas($registrosCompletos);
-                        $totalRegenerados += $registrosCompletos->count();
-                    } catch (\Throwable $lineEx) {
-                        $errores += $registrosCompletos->count();
-                    }
-                }
+                $this->regenerarLineasConFechasValidas();
 
                 // Actualizar estado EnProceso automáticamente (no romper si el comando no está registrado)
                 try {
@@ -256,54 +203,7 @@ class ConfiguracionController extends Controller
                 $this->skippedRows = $estadisticas['skipped_rows'];
                 $updatedRows = $estadisticas['updated_rows'] ?? 0;
 
-                // Regenerar líneas para registros actualizados (solo los que tienen fechas válidas)
-                $registrosConFechas = ReqProgramaTejido::whereNotNull('FechaInicio')
-                    ->whereNotNull('FechaFinal')
-                    ->where('FechaInicio', '!=', '')
-                    ->where('FechaFinal', '!=', '')
-                    ->select('Id', 'FechaInicio', 'FechaFinal', 'SalonTejidoId', 'NoTelarId')
-                    ->get();
-
-                $totalRegenerados = 0;
-                $saltadosPorFecha = 0;
-                $errores = 0;
-                $observer = new ReqProgramaTejidoObserver;
-
-                $idsValidos = [];
-                foreach ($registrosConFechas as $registro) {
-                    try {
-                        $fechaInicio = Carbon::parse($registro->FechaInicio);
-                        $fechaFinal = Carbon::parse($registro->FechaFinal);
-
-                        if ($fechaInicio->year < 2000 || $fechaFinal->year < 2000) {
-                            $saltadosPorFecha++;
-
-                            continue;
-                        }
-
-                        if ($fechaFinal->lte($fechaInicio)) {
-                            $saltadosPorFecha++;
-
-                            continue;
-                        }
-
-                        $idsValidos[] = $registro->Id;
-                    } catch (\Throwable $lineEx) {
-                        $saltadosPorFecha++;
-                    }
-                }
-
-                // Procesar en chunks
-                $chunks = array_chunk($idsValidos, 100);
-                foreach ($chunks as $chunkIds) {
-                    $registrosCompletos = ReqProgramaTejido::whereIn('Id', $chunkIds)->get();
-                    try {
-                        ReqProgramaTejido::regenerarLineas($registrosCompletos);
-                        $totalRegenerados += $registrosCompletos->count();
-                    } catch (\Throwable $lineEx) {
-                        $errores += $registrosCompletos->count();
-                    }
-                }
+                $this->regenerarLineasConFechasValidas();
 
                 // Actualizar estado EnProceso automáticamente
                 try {
@@ -375,6 +275,40 @@ class ConfiguracionController extends Controller
                     'line' => $e->getLine(),
                 ] : null,
             ], 500);
+        }
+    }
+
+    /**
+     * Regenera las líneas de los programas con FechaInicio/FechaFinal válidas (año >= 2000 y
+     * final > inicio), en lotes de 100. Un lote que falla se omite sin abortar la importación.
+     */
+    private function regenerarLineasConFechasValidas(): void
+    {
+        $idsValidos = ReqProgramaTejido::whereNotNull('FechaInicio')
+            ->whereNotNull('FechaFinal')
+            ->where('FechaInicio', '!=', '')
+            ->where('FechaFinal', '!=', '')
+            ->get(['Id', 'FechaInicio', 'FechaFinal'])
+            ->filter(function (ReqProgramaTejido $registro): bool {
+                try {
+                    $inicio = Carbon::parse($registro->FechaInicio);
+                    $final = Carbon::parse($registro->FechaFinal);
+                } catch (\Throwable) {
+                    return false;
+                }
+
+                return $inicio->year >= 2000 && $final->year >= 2000 && $final->gt($inicio);
+            })
+            ->pluck('Id')
+            ->all();
+
+        foreach (array_chunk($idsValidos, 100) as $chunkIds) {
+            $registros = ReqProgramaTejido::whereIn('Id', $chunkIds)->get();
+            try {
+                ReqProgramaTejido::regenerarLineas($registros);
+            } catch (\Throwable) {
+                // Igual que antes: el lote se omite y la importación sigue.
+            }
         }
     }
 }

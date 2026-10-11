@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Actions\Planeacion\ProgramaTejido\MutacionRechazada;
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\ProgramaTejidoSecuenciaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
+use App\Support\Planeacion\NumeroPrograma;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +36,7 @@ class EliminarTejido
         try {
             $registro = ReqProgramaTejido::findOrFail($id);
             if ($registro->EnProceso == 1) {
-                throw new \RuntimeException('No se puede eliminar un registro que está en proceso.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'No se puede eliminar un registro que está en proceso.']);
             }
 
             $salon = $registro->SalonTejidoId;
@@ -49,7 +52,7 @@ class EliminarTejido
                 ->get();
             $idx = $registros->search(fn ($r) => $r->Id === $registro->Id);
             if ($idx === false) {
-                throw new \RuntimeException('No se encontró el registro a eliminar dentro del telar.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'No se encontró el registro a eliminar dentro del telar.']);
             }
 
             // Verificar si tiene Reprogramar
@@ -70,7 +73,7 @@ class EliminarTejido
             $primero = $registros->first();
             $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
             if (! $inicioOriginal) {
-                throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'El primer registro debe tener una fecha de inicio válida.']);
             }
 
             // Guardar valor de Ultimo antes de eliminar
@@ -151,7 +154,7 @@ class EliminarTejido
             ReqProgramaTejido::restoreObservers($dispatcher);
             Log::error('destroy error', ['id' => $id, 'msg' => $e->getMessage()]);
 
-            return response()->json(['success' => false, 'message' => $e->getMessage()], $e instanceof \RuntimeException ? 422 : 500);
+            return self::respuestaError($e);
         }
     }
 
@@ -171,7 +174,7 @@ class EliminarTejido
             $registro = ReqProgramaTejido::findOrFail($id);
 
             if ($registro->EnProceso != 1) {
-                throw new \RuntimeException('El registro seleccionado no está en proceso.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'El registro seleccionado no está en proceso.']);
             }
 
             $salon = $registro->SalonTejidoId;
@@ -187,7 +190,7 @@ class EliminarTejido
 
             $idx = $registros->search(fn ($r) => $r->Id === $registro->Id);
             if ($idx === false) {
-                throw new \RuntimeException('No se encontró el registro dentro del telar.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'No se encontró el registro dentro del telar.']);
             }
 
             $ahora = Carbon::now();
@@ -276,10 +279,7 @@ class EliminarTejido
             ReqProgramaTejido::restoreObservers($dispatcher);
             Log::error('eliminarEnProceso error', ['id' => $id, 'msg' => $e->getMessage()]);
 
-            return response()->json(
-                ['success' => false, 'message' => $e->getMessage()],
-                $e instanceof \RuntimeException ? 422 : 500
-            );
+            return self::respuestaError($e);
         }
     }
 
@@ -299,13 +299,13 @@ class EliminarTejido
         try {
             // Validar que hay al menos 2 registros
             if ($registros->count() < 2) {
-                throw new \RuntimeException('Se requieren al menos dos registros para mover.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'Se requieren al menos dos registros para mover.']);
             }
 
             $primero = $registros->first();
             $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
             if (! $inicioOriginal) {
-                throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'El primer registro debe tener una fecha de inicio válida.']);
             }
 
             // Reordenar colección en memoria
@@ -406,7 +406,7 @@ class EliminarTejido
                 $primero = $registros->first();
                 $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
                 if (! $inicioOriginal) {
-                    throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
+                    throw MutacionRechazada::con(['success' => false, 'message' => 'El primer registro debe tener una fecha de inicio válida.']);
                 }
 
                 // Guardar valor de Ultimo antes de eliminar
@@ -450,26 +450,21 @@ class EliminarTejido
             // Identificar el líder
             $lider = $registrosCompartidos->firstWhere('OrdCompartidaLider', 1);
             if (! $lider) {
-                throw new \RuntimeException('No se encontró el registro líder del grupo compartido.');
+                throw MutacionRechazada::con(['success' => false, 'message' => 'No se encontró el registro líder del grupo compartido.']);
             }
 
             $esLider = ($registro->Id === $lider->Id);
             $totalPedidoAEliminar = (float) ($registro->TotalPedido ?? 0);
 
             if ($esLider) {
-                // Si es el líder, transferir al otro registro o al último
-                if ($registrosCompartidos->count() == 2) {
-                    // Si hay solo 2, transferir al otro
-                    $receptor = $registrosCompartidos->firstWhere('Id', '!=', $registro->Id);
-                } else {
-                    // Si hay más de 2, transferir al último (que no sea el que se elimina)
-                    $receptor = $registrosCompartidos->filter(function ($r) use ($registro) {
-                        return $r->Id !== $registro->Id;
-                    })->last();
-                }
+                // Nuevo líder con la misma regla que Dividir/Duplicar/Vincular: el de FechaInicio más
+                // antigua que tenga NoProduccion (confirmada por el owner 2026-10-10). Si ninguno tiene
+                // NoProduccion, el más antiguo (la consulta viene ordenada por FechaInicio).
+                $restantes = $registrosCompartidos->reject(fn ($r) => $r->Id === $registro->Id)->values();
+                $receptor = OrdCompartida::seleccionarLider($restantes) ?? $restantes->first();
 
                 if (! $receptor || $receptor->Id === $registro->Id) {
-                    throw new \RuntimeException('No se encontró el registro receptor para transferir el pedido.');
+                    throw MutacionRechazada::con(['success' => false, 'message' => 'No se encontró el registro receptor para transferir el pedido.']);
                 }
 
                 // Transferir TotalPedido
@@ -478,7 +473,7 @@ class EliminarTejido
 
                 // Calcular nuevo SaldoPedido considerando la producción
                 $produccionReceptor = (float) ($receptor->Produccion ?? 0);
-                $nuevoSaldoPedido = max(0, $nuevoTotalPedido - $produccionReceptor);
+                $nuevoSaldoPedido = NumeroPrograma::saldoDesdePedido($nuevoTotalPedido, $produccionReceptor, $receptor->PorcentajeSegundos);
 
                 // Actualizar receptor: TotalPedido, SaldoPedido y convertirlo en líder
                 $receptorActualizado = ReqProgramaTejido::find($receptor->Id);
@@ -496,7 +491,7 @@ class EliminarTejido
 
                 // Calcular nuevo SaldoPedido considerando la producción
                 $produccionLider = (float) ($lider->Produccion ?? 0);
-                $nuevoSaldoPedido = max(0, $nuevoTotalPedido - $produccionLider);
+                $nuevoSaldoPedido = NumeroPrograma::saldoDesdePedido($nuevoTotalPedido, $produccionLider, $lider->PorcentajeSegundos);
 
                 // Actualizar líder: TotalPedido y SaldoPedido
                 $liderActualizado = ReqProgramaTejido::find($lider->Id);
@@ -550,6 +545,7 @@ class EliminarTejido
             // Eliminar registro
             AuditoriaHelper::contexto('ELIMINAR_ORD_COMPARTIDA');
             $registro->delete();
+            self::disolverGrupoDeUno($ordCompartida);
 
             // Recalcular posiciones del telar eliminado solo si NO tenía Ultimo = 1
             if (! $tieneUltimo) {
@@ -671,5 +667,25 @@ class EliminarTejido
                 'msg' => $e->getMessage(),
             ]);
         }
+    }
+
+    /** Un grupo que queda con un solo miembro deja de ser compartido (como VincularTejido::desvincular con 2). */
+    private static function disolverGrupoDeUno($ordCompartida): void
+    {
+        $restantes = ReqProgramaTejido::query()->where('OrdCompartida', $ordCompartida);
+        if ((clone $restantes)->count() === 1) {
+            $restantes->update(['OrdCompartida' => null, 'OrdCompartidaLider' => null]);
+        }
+    }
+
+    /** Rechazo de negocio → 422 con su mensaje; cualquier otro fallo (BD incluida) → 500 con mensaje fijo. */
+    private static function respuestaError(\Throwable $e): JsonResponse
+    {
+        if ($e instanceof MutacionRechazada) {
+            return response()->json($e->cuerpo, $e->status);
+        }
+        report($e);
+
+        return response()->json(['success' => false, 'message' => 'No se pudo eliminar el registro. Intente de nuevo.'], 500);
     }
 }

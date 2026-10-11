@@ -9,8 +9,9 @@
         return $registro->Id ?? $registro->id ?? '';
       };
 
-      $formatValue = function($registro, $field, $dateType = null) use ($getRegistroId) {
-        $value = $registro->{$field} ?? null;
+      // $value llega ya leído: cada lectura de Eloquent pasa por los casts y se hacía dos veces
+      // por celda (6 600 celdas). ponytail: si esto vuelve a pesar, leer getAttributes() por fila.
+      $formatValue = function($registro, $field, $dateType, $value) use ($getRegistroId) {
 
         if ($field === 'Reprogramar') {
           $registroId = $getRegistroId($registro);
@@ -100,7 +101,8 @@
 
       $celda = function($registro, $colIndex, $col) use ($formatValue, $ocultas) {
         $field = $col['field'];
-        $rawValue = $registro->{$field} ?? '';
+        $valor = $registro->getAttribute($field); // una lectura: "?? null" sobre la propiedad mágica son dos (__isset + __get)
+        $rawValue = $valor ?? '';
         if ($rawValue instanceof \Carbon\Carbon) {
           $rawValue = $rawValue->format('Y-m-d H:i:s');
         }
@@ -117,7 +119,7 @@
           .' data-column="'.e($field).'"'
           .' data-value="'.e(is_scalar($rawValue) ? $rawValue : json_encode($rawValue)).'"'
           .($esNegativo ? ' data-es-negativo="1"' : '')
-          .'>'.$formatValue($registro, $field, $col['dateType'] ?? null).'</td>';
+          .'>'.$formatValue($registro, $field, $col['dateType'] ?? null, $valor).'</td>';
       };
     @endphp
 
@@ -178,6 +180,13 @@
             </tfoot>
 
           </table>
+          {{-- Filtros sin coincidencias (barra-filtros.ts lo muestra/oculta). Sticky a la izquierda:
+               se ve aunque se haya hecho scroll horizontal por las 116 columnas. --}}
+          <div id="ptSinResultados" hidden class="sticky left-0 w-[calc(100vw-1rem)] max-w-full" role="status">
+            <x-empty.empty-state title="Ningún registro coincide con los filtros" message="Prueba con otro valor o quita algún filtro." icon="fa-filter-circle-xmark">
+              <x-ui.button type="button" variant="neutral" data-quitar-tipo="todo" class="mt-4 min-h-touch">Limpiar filtros</x-ui.button>
+            </x-empty.empty-state>
+          </div>
         </div>
       </div>
     @elseif(!empty($error))

@@ -5,11 +5,11 @@ namespace Tests\Feature;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Sistema\Usuario;
 use App\Services\Planeacion\ProgramaTejido\DividirTejido;
 use App\Services\Planeacion\ProgramaTejido\DuplicarTejido;
 use App\Services\Planeacion\ProgramaTejido\FormulasEficiencia;
 use Illuminate\Support\Facades\Route;
+use Tests\Feature\Planeacion\Concerns\ConPermisosPlaneacion;
 use Tests\TestCase;
 
 /**
@@ -18,19 +18,7 @@ use Tests\TestCase;
  */
 class ProgramaTejidoBalanceoIntegrationTest extends TestCase
 {
-    private function actingUsuario(): Usuario
-    {
-        $user = new Usuario([
-            'idusuario' => 1,
-            'numero_empleado' => '00001',
-            'nombre' => 'Test User',
-            'contrasenia' => 'hashed',
-            'area' => 'TEST',
-        ]);
-        $user->idusuario = 1;
-
-        return $user;
-    }
+    use ConPermisosPlaneacion;
 
     /**
      * Verifica que los métodos públicos de BalancearTejido existen.
@@ -58,7 +46,7 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
      */
     public function test_preview_fechas_validation_requiere_cambios(): void
     {
-        $user = $this->actingUsuario();
+        $user = $this->usuarioConPermisos([2 => ['modificar']]);
 
         $response = $this->actingAs($user)->postJson(
             route('programa-tejido.preview-fechas-balanceo'),
@@ -74,7 +62,7 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
      */
     public function test_preview_fechas_validation_requiere_id_y_total_pedido(): void
     {
-        $user = $this->actingUsuario();
+        $user = $this->usuarioConPermisos([2 => ['modificar']]);
 
         $response = $this->actingAs($user)->postJson(
             route('programa-tejido.preview-fechas-balanceo'),

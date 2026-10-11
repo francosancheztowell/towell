@@ -16,7 +16,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UsuarioController extends Controller
@@ -145,7 +144,8 @@ class UsuarioController extends Controller
     public function obtenerEmpleados(string $area)
     {
         try {
-            return Usuario::where('area', $area)->get();
+            // Los selects de Atadores solo leen clave y nombre: no viajan correo, teléfono ni foto.
+            return Usuario::where('area', $area)->get(['numero_empleado', 'nombre']);
         } catch (\Throwable $e) {
             return [];
         }
@@ -260,34 +260,24 @@ class UsuarioController extends Controller
             $campo = $request->input('campo'); // 'acceso', 'crear', 'modificar', 'eliminar', 'registrar'
             $valor = $request->input('valor') ? 1 : 0;
 
-            // Buscar el registro existente
-            $permiso = SYSUsuariosRoles::where('idusuario', $id)
-                ->where('idrol', $idrol)
-                ->first();
-
-            if ($permiso) {
-                // Si existe, solo actualizar el campo específico usando DB directo
-                DB::connection('sqlsrv')
-                    ->table('SYSUsuariosRoles')
-                    ->where('idusuario', $id)
-                    ->where('idrol', $idrol)
-                    ->update([
-                        $campo => $valor,
-                        'assigned_at' => now(),
-                    ]);
-            } else {
-                // Si no existe, crear con todos los campos inicializados
-                SYSUsuariosRoles::create([
-                    'idusuario' => $id,
-                    'idrol' => $idrol,
-                    'acceso' => $campo === 'acceso' ? $valor : 0,
-                    'crear' => $campo === 'crear' ? $valor : 0,
-                    'modificar' => $campo === 'modificar' ? $valor : 0,
-                    'eliminar' => $campo === 'eliminar' ? $valor : 0,
-                    'registrar' => $campo === 'registrar' ? $valor : 0,
-                    'assigned_at' => now(),
-                ]);
+            // $campo llega como nombre de columna: solo se aceptan los cinco permisos.
+            if (! in_array($campo, ['acceso', 'crear', 'modificar', 'eliminar', 'registrar'], true)) {
+                return response()->json(['success' => false, 'message' => 'Permiso no válido'], 422);
             }
+
+            // Un solo UPDATE; si no tocó filas, el permiso no existía y se crea.
+            $actualizados = SYSUsuariosRoles::where('idusuario', $id)
+                ->where('idrol', $idrol)
+                ->update([$campo => $valor, 'assigned_at' => now()]);
+
+            if ($actualizados === 0) {
+                SYSUsuariosRoles::create(array_merge(
+                    array_fill_keys(['acceso', 'crear', 'modificar', 'eliminar', 'registrar'], 0),
+                    [$campo => $valor, 'idusuario' => $id, 'idrol' => $idrol, 'assigned_at' => now()],
+                ));
+            }
+
+            $this->moduloService->limpiarCacheUsuario($id);
 
             return response()->json([
                 'success' => true,

@@ -14,7 +14,22 @@
 <div class="w-full px-4 py-4">
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-auto max-h-[calc(100vh-12rem)]">
-            <table class="min-w-full text-base" id="tabla-departamentos">
+            @php
+                $crud = [
+                    'store' => route('configuracion.departamentos.store'),
+                    'update' => route('configuracion.departamentos.update', ['id' => ':id']),
+                    'destroy' => route('configuracion.departamentos.destroy', ['id' => ':id']),
+                    'campos' => ['Depto', 'Descripcion'],
+                    'llaveId' => 'id',
+                    'tituloNuevo' => 'Nuevo departamento',
+                    'tituloEditar' => 'Editar departamento',
+                    'tituloEliminar' => '¿Eliminar departamento?',
+                    'campoNombre' => 'Depto',
+                    'nombrePorDefecto' => 'este registro',
+                    'vacio' => 'No hay departamentos registrados.',
+                ];
+            @endphp
+            <table class="min-w-full text-base" id="tabla-departamentos" data-crud='@json($crud)'>
                 <thead class="sticky top-0 z-10 bg-blue-500 text-white shadow-sm">
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Id</th>
@@ -26,8 +41,8 @@
                     @forelse($departamentos as $d)
                         <tr class="depto-row border-b border-gray-100 hover:bg-gray-50 cursor-pointer {{ $loop->even ? 'bg-gray-50/50' : '' }}"
                             data-id="{{ $d->id }}"
-                            data-depto="{{ e($d->Depto) }}"
-                            data-descripcion="{{ e($d->Descripcion ?? '') }}">
+                            data-depto="{{ $d->Depto }}"
+                            data-descripcion="{{ $d->Descripcion ?? '' }}">
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $d->id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900 text-base">{{ $d->Depto }}</td>
                             <td class="px-4 py-3 text-gray-600 text-base">{{ $d->Descripcion ?? '—' }}</td>
@@ -71,171 +86,8 @@
     </div>
 </div>
 
-<script>
-(function(){
-    const modal = document.getElementById('modal-form');
-    const form = document.getElementById('form-depto');
-    const modalTitle = document.getElementById('modal-title');
-    const formMethod = document.getElementById('form-method');
-    const tbody = document.getElementById('tbody-departamentos');
-    const trEmpty = document.getElementById('tr-empty');
-    const storeUrl = @json(route('configuracion.departamentos.store'));
-    const updateUrlTpl = @json(route('configuracion.departamentos.update', ['id' => ':id']));
-    const destroyUrlTpl = @json(route('configuracion.departamentos.destroy', ['id' => ':id']));
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-    let selectedRow = null;
-
-    function openModal() {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-    function closeModal() {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-
-    function setActionsState(hasSelection) {
-        document.getElementById('btn-editar').disabled = !hasSelection;
-        document.getElementById('btn-eliminar').disabled = !hasSelection;
-    }
-
-    function clearSelection() {
-        document.querySelectorAll('.depto-row.selected').forEach(r => {
-            r.classList.remove('selected', 'bg-blue-500', 'text-white', 'hover:bg-blue-600');
-            r.classList.add('hover:bg-gray-50');
-        });
-        document.querySelectorAll('.depto-row td').forEach(td => td.classList.remove('text-white'));
-        selectedRow = null;
-        setActionsState(false);
-    }
-
-    function selectRow(tr) {
-        clearSelection();
-        if (!tr || !tr.classList.contains('depto-row')) return;
-        tr.classList.remove('hover:bg-gray-50');
-        tr.classList.add('selected', 'bg-blue-500', 'text-white', 'hover:bg-blue-600');
-        tr.querySelectorAll('td').forEach(td => td.classList.add('text-white'));
-        selectedRow = tr;
-        setActionsState(true);
-    }
-
-    tbody?.addEventListener('click', function(e) {
-        const tr = e.target.closest('tr.depto-row');
-        if (tr) selectRow(tr);
-    });
-
-    document.getElementById('btn-nuevo').addEventListener('click', function(){
-        modalTitle.textContent = 'Nuevo departamento';
-        form.action = storeUrl;
-        formMethod.value = 'POST';
-        form.reset();
-        openModal();
-    });
-
-    document.getElementById('btn-editar').addEventListener('click', function(){
-        if (!selectedRow) return;
-        const id = selectedRow.dataset.id;
-        const depto = selectedRow.dataset.depto || '';
-        const descripcion = selectedRow.dataset.descripcion || '';
-        modalTitle.textContent = 'Editar departamento';
-        form.action = updateUrlTpl.replace(':id', id);
-        formMethod.value = 'PUT';
-        document.getElementById('Depto').value = depto;
-        document.getElementById('Descripcion').value = descripcion;
-        openModal();
-    });
-
-    document.getElementById('btn-eliminar').addEventListener('click', function(){
-        if (!selectedRow) return;
-        const id = selectedRow.dataset.id;
-        const depto = selectedRow.dataset.depto || 'este registro';
-        notify.confirm({
-            title: '¿Eliminar departamento?',
-            text: 'Se eliminará "' + depto + '".',
-            icon: 'warning',
-            confirmColor: '#dc2626',
-            confirmText: 'Sí, eliminar',
-            cancelText: 'Cancelar'
-        }).then(async r => {
-            if (!r) return;
-            try {
-                const fd = new FormData();
-                fd.append('_token', csrf);
-                fd.append('_method', 'DELETE');
-                let data;
-                try { data = await http.post(destroyUrlTpl.replace(':id', id), fd); }
-                catch (e) { if (!e.status) throw e; data = e.data || {}; }
-                if (data.ok) {
-                    selectedRow.remove();
-                    selectedRow = null;
-                    setActionsState(false);
-                    if (tbody.querySelectorAll('tr.depto-row').length === 0) {
-                        const empty = document.createElement('tr');
-                        empty.id = 'tr-empty';
-                        empty.innerHTML = '<td colspan="3" class="px-4 py-8 text-center text-gray-500">No hay departamentos registrados.</td>';
-                        tbody.appendChild(empty);
-                    }
-                    notify.success(data.message || 'Eliminado');
-                } else {
-                    notify.alert('', data.message || 'No se pudo eliminar', 'error');
-                }
-            } catch (err) {
-                notify.alert('', 'Error de conexión', 'error');
-            }
-        });
-    });
-
-    document.getElementById('modal-cerrar').addEventListener('click', closeModal);
-    document.getElementById('form-cancelar').addEventListener('click', closeModal);
-
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const isPut = formMethod.value === 'PUT';
-        const url = form.action;
-        const body = new FormData(form);
-        if (isPut) body.append('_method', 'PUT');
-
-        const submitBtn = document.getElementById('form-submit');
-        submitBtn.disabled = true;
-
-        try {
-            let data;
-            try { data = await http.post(url, body); }
-            catch (e) { if (!e.status) throw e; data = e.data || {}; }
-
-            if (data.ok) {
-                closeModal();
-                const item = data.item || {};
-                if (isPut && selectedRow) {
-                    selectedRow.dataset.depto = item.Depto || '';
-                    selectedRow.dataset.descripcion = item.Descripcion || '';
-                    selectedRow.cells[0].textContent = item.id;
-                    selectedRow.cells[1].textContent = item.Depto;
-                    selectedRow.cells[2].textContent = item.Descripcion || '—';
-                } else {
-                    if (trEmpty) trEmpty.remove();
-                    const even = tbody.querySelectorAll('tr.depto-row').length % 2 === 0;
-                    const tr = document.createElement('tr');
-                    tr.className = 'depto-row border-b border-gray-100 hover:bg-gray-50 cursor-pointer ' + (even ? 'bg-gray-50/50' : '');
-                    tr.dataset.id = item.id;
-                    tr.dataset.depto = item.Depto || '';
-                    tr.dataset.descripcion = item.Descripcion || '';
-                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.Depto || '') + '</td><td class="px-4 py-3 text-gray-600 text-base">' + (item.Descripcion || '—') + '</td>';
-                    tbody.appendChild(tr);
-                }
-                notify.success(data.message || 'Guardado');
-            } else {
-                const msg = (data.errors && Object.values(data.errors).flat().length) ? Object.values(data.errors).flat().join(' ') : (data.message || 'No se pudo guardar');
-                notify.alert('', msg, 'error');
-            }
-        } catch (err) {
-            notify.alert('', 'Error de conexión', 'error');
-        }
-        submitBtn.disabled = false;
-    });
-
-    setActionsState(false);
-})();
-</script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/configuracion/catalogo-simple/index.ts')
+@endpush

@@ -129,14 +129,19 @@ trait ProgramaTejidoFixtures
     private function crearCabecera(string $tabla, array $ausentes): void
     {
         $modelo = new ReqProgramaTejido;
-        $casts = $modelo->getCasts();
+        // Posicion es int en live; sin cast quedaría TEXT y orderBy ordenaría '10002' < '2'.
+        $casts = ['Posicion' => 'integer'] + $modelo->getCasts();
         // ProduccionMarbetes existe en live (Programa) aunque el modelo no la tenga en $fillable.
         $columnas = array_diff(array_unique([...$modelo->getFillable(), 'ProduccionMarbetes']), $ausentes, ['Id']);
 
-        Schema::create($tabla, function (Blueprint $table) use ($columnas, $casts) {
+        Schema::create($tabla, function (Blueprint $table) use ($columnas, $casts, $tabla) {
             $table->increments('Id');
             foreach ($columnas as $columna) {
                 $this->columnaSegunCast($table, $columna, $casts[$columna] ?? 'string');
+            }
+            // Igual que UX_ReqProgramaTejido_Telar_Posicion en live (MuestrasPrograma no lo tiene).
+            if ($tabla === 'ReqProgramaTejido') {
+                $table->unique(['SalonTejidoId', 'NoTelarId', 'Posicion'], 'UX_ReqProgramaTejido_Telar_Posicion');
             }
         });
     }

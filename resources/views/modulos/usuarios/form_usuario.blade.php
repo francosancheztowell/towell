@@ -15,30 +15,7 @@
             </script>
         @endif
 
-        @if (session('error'))
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    notify.alert(@json(session('error')), 'Ocurrió un problema', 'error');
-                });
-            </script>
-        @endif
-
-        @if ($errors->any())
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    const errs = @json($errors->all());
-                    // Cada error va por textContent: el mensaje puede traer datos del usuario.
-                    const ul = document.createElement('ul');
-                    ul.style.cssText = 'text-align:left;margin-left:0.5rem;';
-                    errs.forEach(e => {
-                        const li = document.createElement('li');
-                        li.textContent = `• ${e}`;
-                        ul.appendChild(li);
-                    });
-                    notify.html(ul.outerHTML, 'Revisa los campos', 'error');
-                });
-            </script>
-        @endif
+        {{-- session('error') y los errores de validación los muestra x-ui.flash del layout --}}
         <!-- Formulario -->
         <form action="{{ $isEdit ? route('configuracion.usuarios.update', $usuario) : route('configuracion.usuarios.store') }}"
               method="POST"

@@ -11,7 +11,7 @@
 
 import { http, HttpError } from '../utils/http.ts'
 import { notify } from '../utils/notifications.ts'
-import { ErrorApi, mensajeError } from '../modulos/tejido/comun/pagina.ts'
+import { mensajeError } from '../modulos/tejido/comun/pagina.ts'
 
 /** Valor tal como llega del servidor: string, número o null. */
 type Crudo = any
@@ -307,7 +307,7 @@ function handleRequerimientoChange(checkbox: HTMLInputElement, telarId: TelarId,
             fechaISO = fechaCompletaAttr || fechaOriginalAttr;
             // Convertir fecha ISO a formato dd/mm para el texto
             if (fechaISO) {
-                const [y, m, d] = fechaISO.split('-');
+                const [, m, d] = fechaISO.split('-');
                 fecha = `${d}/${m}`;
             }
         } else {
@@ -747,11 +747,6 @@ function loadRequerimientos(telarId: TelarId, salon: string, tipo: string | null
                     console.error('Error al parsear fecha:', fechaISO, e);
                 }
                 return null;
-            }
-
-            // Función para obtener la primera tabla del calendario (hoy)
-            function obtenerPrimeraTabla() {
-                return primeraTabla; // Primera tabla = hoy (primer día del calendario)
             }
 
             // Marcar por coincidencia de telar+tipo+fecha+turno Y SALON
@@ -1359,7 +1354,6 @@ function confirmarSeleccion() {
     // Guardar valores antes del setTimeout para evitar que se pierdan
     const telarIdParaFiltro = window.modalData.telarId;
     const tipoParaFiltro = window.modalData.tipo;
-    const esProceso = seleccionado.value === 'proceso';
 
     // Debug: mostrar la fibra seleccionada
 
@@ -1468,11 +1462,6 @@ async function obtenerDatosSiguienteOrden(telarId: TelarId, fibra: Crudo = null)
     } catch (error) {
         return null;
     }
-}
-
-// Función para obtener el inventario completo de telares (usa caché)
-async function obtenerInventarioTelares() {
-    return await obtenerInventarioConCache();
 }
 
 // Variable global para almacenar datos de eliminación pendiente
@@ -1712,8 +1701,6 @@ window.mostrarModalTelaReservada = function() {
     // Obtener los botones de eliminar y actualizar
     const btnEliminar = modal.querySelector<HTMLButtonElement>('#btnEliminarReservado');
     const btnActualizar = modal.querySelector<HTMLButtonElement>('#btnActualizarReservado');
-    // Obtener valores de las variables globales - convertir explícitamente a booleano
-    const puedeEliminar = window.puedeEliminar === false ? false : (window.puedeEliminar === true ? true : true);
     const statusUrdido = window.statusUrdido || null;
 
     // Debug: mostrar valores antes de evaluar
@@ -2437,8 +2424,6 @@ window.seleccionarTurno = function(turno: number, btnElement?: HTMLButtonElement
     http.post('/inventario-telares/actualizar-fecha', datosActualizar)
     .then(() => {
         // Recargar la página y hacer scroll al telar actualizado
-        // Usar hash para que al recargar se posicione en el telar
-        const anchorId = 'telar-' + telarId;
         // Guardar el telar en sessionStorage para hacer scroll después del reload
         sessionStorage.setItem('scrollToTelar', String(telarId));
         window.location.reload();
@@ -2446,145 +2431,6 @@ window.seleccionarTurno = function(turno: number, btnElement?: HTMLButtonElement
     .catch(error => {
         void notify.alert(mensajeError(error, 'No se pudo actualizar la fecha y turno del registro.'), 'Error al actualizar', 'error');
     });
-}
-
-// Función para actualizar el registro con la nueva fecha
-async function actualizarRegistroConNuevaFecha(checkbox: HTMLInputElement, telarId: TelarId, tipo: string, turno: number, fechaOriginal: string, fechaNueva: string) {
-    // Obtener el salón del contexto guardado o del elemento
-    const salon = window.telarDataPendiente?.salon ||
-                 checkbox.closest<HTMLElement>('.telar-section')?.dataset?.salon ||
-                 checkbox.closest<HTMLElement>('[data-telar]')?.dataset?.salon ||
-                 window.salonTelar ||
-                 'Jacquard';
-
-    try {
-        // Primero intentar usar los datos completos del telar guardados desde handleRequerimientoChange
-        let telarData: Registro | null | undefined = window.telarDataCompleto;
-
-        // Si no están disponibles, intentar obtener desde el caché
-        if (!telarData) {
-            try {
-                // Obtener inventario completo desde el caché
-                const inventario = await obtenerInventarioConCache();
-
-                if (Array.isArray(inventario) && inventario.length > 0) {
-                    telarData = inventario.find(t => String(t.no_telar) === String(telarId) || String(t.Telar) === String(telarId));
-                }
-            } catch (errorCache) {
-                console.warn('Error al obtener desde caché, intentando obtener directamente:', errorCache);
-            }
-
-            // Si no se encontró en el caché, intentar obtener con filtro específico del telar
-            if (!telarData) {
-                try {
-                    const inventarioFiltrado = await obtenerInventarioConCache({ no_telar: String(telarId) });
-                    if (Array.isArray(inventarioFiltrado) && inventarioFiltrado.length > 0) {
-                        telarData = inventarioFiltrado[0]; // El primero debería ser el telar buscado
-                    }
-                } catch (errorFiltrado) {
-                    console.warn('Error al obtener con filtro:', errorFiltrado);
-                }
-            }
-        }
-
-        if (!telarData) {
-            throw new ErrorApi('No se encontraron datos del telar. Por favor, recargue la página.');
-        }
-
-        // Obtener cuenta, calibre, hilo y orden según el tipo
-        // Los datos pueden venir con diferentes nombres de campos según la fuente
-        const cuenta = tipo === 'Rizo'
-            ? (telarData.Cuenta || telarData.cuenta || '')
-            : (telarData.Cuenta_Pie || telarData.CuentaPie || telarData.cuenta_pie || '');
-
-        const calibre = tipo === 'Rizo'
-            ? (telarData.CalibreRizo2 || telarData.CalibreRizo || telarData.calibre_rizo || null)
-            : (telarData.CalibrePie2 || telarData.CalibrePie || telarData.calibre_pie || null);
-
-        const hilo = tipo === 'Rizo'
-            ? (telarData.Fibra_Rizo || telarData.FibraRizo || telarData.fibra_rizo || telarData.hilo || '')
-            : (telarData.Fibra_Pie || telarData.FibraPie || telarData.fibra_pie || telarData.hilo || '');
-
-        const noOrden = telarData.Orden_Prod || telarData.OrdenProd || telarData.orden_prod || telarData.no_orden || '';
-
-        if (!cuenta || cuenta === '') {
-            throw new ErrorApi('No se encontró cuenta para este telar. Verifique los datos del telar.');
-        }
-
-        // Preparar datos para crear el nuevo registro
-        const datosCrear = {
-            no_telar: String(telarId),
-            tipo: tipo,
-            fecha: fechaNueva,
-            turno: turno,
-            cuenta: String(cuenta),
-            calibre: calibre ? parseFloat(calibre) : null,
-            salon: salon,
-            hilo: hilo || '',
-            no_orden: String(noOrden || '')
-        };
-
-        // Actualizar la fecha del registro existente en lugar de eliminar y crear
-        try {
-            const datosActualizar = {
-                no_telar: String(telarId),
-                tipo: tipo,
-                fecha_original: fechaOriginal,
-                turno: turno,
-                fecha_nueva: fechaNueva
-            };
-
-            const responseActualizar = await http.post('/inventario-telares/actualizar-fecha', datosActualizar)
-
-            if (!responseActualizar || responseActualizar.success === false) {
-                throw new ErrorApi(responseActualizar?.message || 'Error al actualizar la fecha del registro');
-            }
-        } catch (errorActualizar) {
-            console.error('Error al actualizar fecha del registro:', errorActualizar);
-            // HANDOFF 15-01 #4: con window.http el mensaje viene en HttpError.data.message
-            // (antes se leía .response.data.message de axios y siempre salía el genérico).
-            throw new ErrorApi(mensajeError(errorActualizar, 'No se pudo actualizar la fecha del registro. El registro original se mantiene.'));
-        }
-
-        // Invalidar caché para forzar recarga
-        invalidarCacheInventario();
-
-        // Desmarcar el checkbox viejo (de la fecha original)
-        checkbox.checked = false;
-        checkbox.setAttribute('data-eliminado', 'true');
-        checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
-
-        // Recargar requerimientos para que aparezca en la nueva fecha y se marque el nuevo checkbox
-        setTimeout(() => {
-            // Obtener el tipo normalizado para la recarga
-            const tipoNormalizado = tipo === 'Rizo' ? 'rizo' : 'pie';
-
-            // Intentar obtener la fibra del telar para recargar con filtro si es necesario
-            const fibraNormalizada = hilo ? String(hilo).trim().toLowerCase() : '';
-            const fibraValida = fibraNormalizada && fibraNormalizada !== '' && fibraNormalizada !== '-';
-
-            if (fibraValida && typeof loadRequerimientosConFiltro === 'function') {
-                loadRequerimientosConFiltro(telarId, salon, tipoNormalizado, fibraNormalizada);
-            } else if (typeof loadRequerimientos === 'function') {
-                loadRequerimientos(telarId, salon);
-            }
-        }, 300);
-
-        // Formatear fecha para mostrar
-        const [año, mes, dia] = fechaNueva.split('-');
-        const fechaFormato = `${dia}/${mes}`;
-
-        notify.success(`Actualizado con éxito. Fecha actualizada a ${fechaFormato}. El registro aparecerá en la nueva fecha.`);
-    } catch (error) {
-        console.error('Error al actualizar registro:', error);
-
-        // Re-marcar el checkbox en caso de error (el registro original sigue existiendo)
-        checkbox.checked = true;
-        checkbox.removeAttribute('data-eliminado');
-        checkbox.removeAttribute('data-cambio-reciente');
-
-        notify.error(`Error al actualizar: ${mensajeError(error, 'No se pudo actualizar el registro. El registro original se mantiene.')}`);
-    }
 }
 
 // Función para cerrar el modal de tela reservada

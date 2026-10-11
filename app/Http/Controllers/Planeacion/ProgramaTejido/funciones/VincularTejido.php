@@ -8,7 +8,6 @@ use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-use Illuminate\Validation\Rule;
 
 class VincularTejido
 {
@@ -20,7 +19,8 @@ class VincularTejido
     {
         $request->validate([
             'registros_ids' => 'required|array|min:2',
-            'registros_ids.*' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
+            // Sin Rule::exists (un count por Id): el whereIn+count de abajo responde el mismo 422.
+            'registros_ids.*' => ['required', 'integer'],
         ]);
 
         $registrosIds = $request->input('registros_ids');
@@ -32,7 +32,7 @@ class VincularTejido
             return response()->json([
                 'success' => false,
                 'message' => 'Uno o más registros no fueron encontrados',
-            ], 404);
+            ], 422);
         }
 
         // Obtener el primer registro (el primero en el array de IDs - orden de selección)
@@ -102,19 +102,12 @@ class VincularTejido
             OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartidaAVincular);
 
             // PASO 5: Actualizar OrdCompartida y OrdCompartidaLider en CatCodificados si NoProduccion y Programado están llenos
-            // Obtener todos los registros vinculados con sus valores actualizados
-            // Los valores ya están actualizados en la transacción, así que los obtenemos frescos de la BD
+            // Esta lectura ya es posterior a los UPDATE de la transacción: no hace falta fresh() por fila.
             $registrosVinculadosActualizados = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
                 ->get();
 
             foreach ($registrosVinculadosActualizados as $registro) {
-                if ($registro) {
-                    // Obtener valores frescos usando fresh() para asegurar que tenemos los valores correctos de la BD
-                    $registroFresco = $registro->fresh();
-                    if ($registroFresco) {
-                        self::actualizarOrdCompartidaEnCatCodificados($registroFresco);
-                    }
-                }
+                self::actualizarOrdCompartidaEnCatCodificados($registro);
             }
 
             DBFacade::commit();

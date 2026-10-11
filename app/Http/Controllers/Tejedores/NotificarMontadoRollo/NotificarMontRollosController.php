@@ -320,8 +320,10 @@ class NotificarMontRollosController extends Controller
                 ], 404);
             }
 
-            // Obtener los PurchBarCode que ya están liberados en TelMarbeteLiberado
-            $marbetesLiberados = TelMarbeteLiberadoModel::pluck('PurchBarCode')->toArray();
+            // De estos marbetes, los que ya están en TelMarbeteLiberado (no la tabla entera, que solo crece).
+            $marbetesLiberados = $this->marbetesYaLiberados(
+                $datosProduccion->map(fn ($dato) => $dato->PurchBarCode ?? ($dato->Marbete ?? null))->all()
+            );
 
             // Formatear datos para el modal
             $datosFormateados = [];
@@ -331,7 +333,7 @@ class NotificarMontRollosController extends Controller
                 $barCode = $dato->PurchBarCode ?? ($dato->Marbete ?? null);
 
                 // Saltar este registro si ya fue liberado
-                if ($barCode && in_array($barCode, $marbetesLiberados)) {
+                if ($barCode && in_array($this->llaveMarbete($barCode), $marbetesLiberados, true)) {
                     $excluidos++;
 
                     continue;
@@ -394,12 +396,11 @@ class NotificarMontRollosController extends Controller
             $yaExistian = 0;
             $errores = [];
 
+            $liberados = $this->marbetesYaLiberados(array_column($marbetesSeleccionados, 'PurchBarCode'));
+
             foreach ($marbetesSeleccionados as $marbete) {
                 try {
-                    // Verificar si ya existe
-                    $marbeteExistente = TelMarbeteLiberadoModel::where('PurchBarCode', $marbete['PurchBarCode'])->first();
-
-                    if ($marbeteExistente) {
+                    if (in_array($this->llaveMarbete($marbete['PurchBarCode']), $liberados, true)) {
                         // Si ya existe, solo contamos pero no actualizamos
                         $yaExistian++;
 
@@ -419,6 +420,7 @@ class NotificarMontRollosController extends Controller
                     ];
 
                     TelMarbeteLiberadoModel::create($datosAGuardar);
+                    $liberados[] = $this->llaveMarbete($marbete['PurchBarCode']);
                     $insertados++;
                 } catch (\Exception $e) {
                     $errores[] = "Error en marbete {$marbete['PurchBarCode']}: ".$e->getMessage();
@@ -442,5 +444,29 @@ class NotificarMontRollosController extends Controller
                 'error' => 'Error al insertar marbetes: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * PurchBarCode de la lista que ya están liberados, como llaveMarbete(). Por bloques:
+     * SQL Server admite ~2100 parámetros.
+     *
+     * @param  array<int, mixed>  $codigos
+     * @return array<int, string>
+     */
+    private function marbetesYaLiberados(array $codigos): array
+    {
+        return collect($codigos)
+            ->filter(fn ($codigo) => is_scalar($codigo) && $codigo !== '')
+            ->unique()
+            ->chunk(1000)
+            ->flatMap(fn ($bloque) => TelMarbeteLiberadoModel::whereIn('PurchBarCode', $bloque->values()->all())->pluck('PurchBarCode'))
+            ->map(fn ($codigo) => $this->llaveMarbete($codigo))
+            ->all();
+    }
+
+    /** Como compara SQL Server: sin espacios al final y sin distinguir mayúsculas. */
+    private function llaveMarbete(mixed $codigo): string
+    {
+        return mb_strtoupper(rtrim((string) $codigo));
     }
 }

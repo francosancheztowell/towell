@@ -13,6 +13,9 @@ use App\Support\Planeacion\TelarSalonResolver;
  */
 final class HorasProduccion
 {
+    /** @var array<string, ReqModelosCodificados|null> */
+    private static array $modelosCache = [];
+
     /**
      * Horas de producción del programa. Karl Mayer usa su meta fija de kg/día.
      *
@@ -140,14 +143,35 @@ final class HorasProduccion
 
     private static function buscarModelo(ReqProgramaTejido $programa, string $key, ?callable $obtenerModeloCallback): mixed
     {
-        if ($obtenerModeloCallback === null) {
-            // Fallback: buscar directamente sin salón
-            return ReqModelosCodificados::where('TamanoClave', $key)->first();
-        }
-
         $salonTejidoId = $programa->getAttribute('SalonTejidoId');
         $salonParaCallback = $salonTejidoId !== null && $salonTejidoId !== '' ? (string) $salonTejidoId : null;
 
-        return $obtenerModeloCallback($key, $salonParaCallback);
+        if ($obtenerModeloCallback !== null) {
+            return $obtenerModeloCallback($key, $salonParaCallback);
+        }
+
+        // Sin callback (observer en cascada): memoizado por (TamanoClave, salón); el mismo
+        // modelo se repite en todo el telar. Se vacía con flushCaches() (observer/tests).
+        $cacheKey = $key.'|'.$salonParaCallback;
+        if (! array_key_exists($cacheKey, self::$modelosCache)) {
+            self::$modelosCache[$cacheKey] = self::modeloPorSalon($key, $salonParaCallback);
+        }
+
+        return self::$modelosCache[$cacheKey];
+    }
+
+    /** El del salón del registro primero; si no hay, cualquiera. Orden determinista. */
+    private static function modeloPorSalon(string $key, ?string $salon): ?ReqModelosCodificados
+    {
+        $query = fn () => ReqModelosCodificados::where('TamanoClave', $key)->orderByDesc('FechaTejido')->orderByDesc('Id');
+
+        $modelo = $salon !== null ? $query()->where('SalonTejidoId', $salon)->first() : null;
+
+        return $modelo ?? $query()->first();
+    }
+
+    public static function flushCaches(): void
+    {
+        self::$modelosCache = [];
     }
 }

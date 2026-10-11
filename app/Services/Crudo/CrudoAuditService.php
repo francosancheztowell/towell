@@ -173,7 +173,7 @@ final class CrudoAuditService
             'Alineación: '.$this->answerLabel($audit->AlineacionOrden),
         ];
 
-        if ($this->isJacquard((string) $audit->Salon)) {
+        if (CrudoSalon::isJacquard((string) $audit->Salon)) {
             $parts[] = 'Dibujo JAC: '.$this->answerLabel($audit->DibujoJacquard);
         }
 
@@ -216,7 +216,7 @@ final class CrudoAuditService
     {
         $defects = $this->normalizeDefects($data['defectos'] ?? []);
         $checklist = is_array($data['checklist'] ?? null) ? $data['checklist'] : [];
-        $isJacquard = $this->isJacquard((string) $data['salon']);
+        $isJacquard = CrudoSalon::isJacquard((string) $data['salon']);
 
         $attributes = [
             'Fecha' => now(config('app.timezone')),
@@ -278,11 +278,6 @@ final class CrudoAuditService
         return CrudoAuditAnswer::fromBool($answer)->label();
     }
 
-    private function isJacquard(string $salon): bool
-    {
-        return CrudoSalon::isJacquard($salon);
-    }
-
     private function userShift(Authenticatable $user): int
     {
         return TurnoHelper::resolverTurnoOperativo(data_get($user, 'turno', 1));
@@ -299,7 +294,7 @@ final class CrudoAuditService
     {
         $timezone = config('app.timezone');
         $productionDay = CrudoProductionDay::forInstant(now($timezone));
-        $startMinutes = (int) config('crudo.production_day_start_minutes', 390);
+        $startMinutes = CrudoProductionDay::startMinutes();
         $from = Carbon::parse($productionDay, $timezone)->addMinutes($startMinutes);
 
         return [$from, $from->copy()->addDay()];

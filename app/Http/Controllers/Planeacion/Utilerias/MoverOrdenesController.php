@@ -351,6 +351,8 @@ class MoverOrdenesController extends Controller
 
         $telarKey = $salon.'|'.$telar;
         $telaresAfectados[$telarKey] = ['salon' => $salon, 'telar' => $telar];
+        // Antes del bump: las filas que la UI no muestra (sin NoProduccion) conservan su lugar.
+        $ordenes = $this->ordenConFilasNoEnviadas($salon, $telar, $ordenes, $estadoOriginalPorId);
 
         // Bump temporal para evitar violación del índice único (NoTelarId, Posicion).
         // Se hace sobre TODOS los registros del telar para que los que no están en $ordenes
@@ -358,8 +360,12 @@ class MoverOrdenesController extends Controller
         TelarSalonResolver::applyTelarFilter(DB::table($tabla), $salon, $telar)
             ->update(['Posicion' => DB::raw('ISNULL(Posicion, 0) + 10000')]);
 
+        // Una lectura con lock para todo el telar (antes una por orden). Va después del bump
+        // para que los originales coincidan con la BD y saveQuietly() solo escriba lo que cambia.
+        $registros = ReqProgramaTejido::query()->whereKey($ordenes)->lockForUpdate()->get()->keyBy('Id');
+
         foreach ($ordenes as $index => $id) {
-            $registro = ReqProgramaTejido::query()->whereKey($id)->lockForUpdate()->first();
+            $registro = $registros->get((int) $id);
             if (! $registro) {
                 continue;
             }
@@ -394,6 +400,43 @@ class MoverOrdenesController extends Controller
             }
             $idsAfectados[$telarKey][] = (int) $id;
         }
+    }
+
+    /**
+     * Intercala en $ordenes las filas del telar que la petición no trae (getRegistrosByTelar no
+     * lista las que no tienen NoProduccion): cada una sigue detrás de la fila enviada que la
+     * precedía en el telar; las que estaban antes de cualquier enviada quedan al inicio.
+     *
+     * @param  array<int, mixed>  $ordenes
+     * @param  array<int, array>  $estadoOriginalPorId  ids enviados (en cualquiera de los dos telares)
+     * @return int[]
+     */
+    private function ordenConFilasNoEnviadas(string $salon, string $telar, array $ordenes, array $estadoOriginalPorId): array
+    {
+        $ordenes = array_map('intval', $ordenes);
+        $actuales = TelarSalonResolver::applyTelarFilter(
+            ReqProgramaTejido::query()->orderBy('Posicion', 'asc')->orderBy('FechaInicio', 'asc'),
+            $salon,
+            $telar
+        )->pluck('Id')->map(fn ($id) => (int) $id)->all();
+
+        $detrasDe = [];
+        $ancla = 0; // 0 = al inicio del telar
+        foreach ($actuales as $id) {
+            if (in_array($id, $ordenes, true)) {
+                $ancla = $id;
+            } elseif (! isset($estadoOriginalPorId[$id])) {
+                $detrasDe[$ancla][] = $id;
+            }
+        }
+
+        $final = $detrasDe[0] ?? [];
+        foreach ($ordenes as $id) {
+            $final[] = $id;
+            array_push($final, ...($detrasDe[$id] ?? []));
+        }
+
+        return $final;
     }
 
     /**

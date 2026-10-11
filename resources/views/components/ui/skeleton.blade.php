@@ -1,6 +1,6 @@
 {{--
-    Skeleton (DS-07): marcador gris mientras llega el contenido. Sin animación infinita si el
-    usuario pidió menos movimiento.
+    Skeleton (DS-07): marcador gris con brillo (.ui-skeleton en app.css) mientras llega el
+    contenido. Sin animación si el usuario pidió menos movimiento.
 
     @prop int    $lines  Renglones de texto (default 3)
     @prop string $shape  'text' (default) | 'block' (usa h-*/w-* del class) | 'circle'
@@ -9,7 +9,7 @@
 --}}
 @props(['lines' => 3, 'shape' => 'text'])
 
-@php $base = 'bg-slate-200 motion-safe:animate-pulse'; @endphp
+@php $base = 'ui-skeleton'; @endphp
 
 @if ($shape === 'text')
     <div {{ $attributes->class(['space-y-2']) }} aria-hidden="true">

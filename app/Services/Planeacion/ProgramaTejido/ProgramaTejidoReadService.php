@@ -233,26 +233,6 @@ final class ProgramaTejidoReadService
     }
 
     /**
-     * Mismas filas que la grilla legacy para esos Id (lo usa la comparación shadow).
-     *
-     * @param  list<int>  $ids
-     * @param  list<string>  $columnas
-     * @return array<int, array<string, mixed>> por Id, en el orden de la grilla
-     */
-    public function filasPorIds(ProgramaTejidoSurface $superficie, array $ids, array $columnas): array
-    {
-        $columnas = array_values(array_unique(['Id', ...array_intersect($columnas, $this->columnasPermitidas($superficie))]));
-        $resultado = [];
-        foreach (array_chunk($ids, 1000) as $lote) {
-            foreach ($this->consulta($superficie)->whereIn('Id', $lote)->select($columnas)->get() as $fila) {
-                $resultado[(int) $fila->Id] = $this->fila((array) $fila);
-            }
-        }
-
-        return $resultado;
-    }
-
-    /**
      * Valor estable para JSON: fechas como 'Y-m-d H:i:s', el resto tal cual viene de BD.
      *
      * @param  array<string, mixed>  $fila

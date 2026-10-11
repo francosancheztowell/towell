@@ -345,3 +345,18 @@ td[data-column="TotalPedido"] .inline-edit-input-container {
   min-width: 90px;
   display: inline-block;
 }
+
+/* Filtro por columna (filtro-columna.ts): el encabezado entero abre su filtro. El embudo tenue
+   avisa en tablet, donde no hay hover; el amarillo de .column-filter-icon lo sustituye al filtrar. */
+#mainTable thead th[data-column] { cursor: pointer; }
+#mainTable thead th[data-column]:hover { background-color: #235a93 !important; }
+#mainTable thead th[data-column]::after {
+  content: ''; display: inline-block; width: 0.7rem; height: 0.7rem; margin-left: 0.35rem; vertical-align: -0.05rem;
+  background-color: currentColor; opacity: 0.45;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 4h18l-7 8.5V19l-4 2v-8.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+#mainTable thead th[data-column]:hover::after { opacity: 0.9; }
+#mainTable thead th[data-column]:has(.column-filter-icon)::after { display: none; }
+.pt-filtro-columna:popover-open { animation: pt-filtro-entrada 0.14s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes pt-filtro-entrada { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .pt-filtro-columna:popover-open { animation: none; } }

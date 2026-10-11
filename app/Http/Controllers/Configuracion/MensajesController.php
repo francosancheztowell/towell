@@ -14,6 +14,11 @@ use Illuminate\View\View;
 
 class MensajesController extends Controller
 {
+    /** Casillas de SYSMensaje: si no llegan en el request se guardan en false. */
+    private const BANDERAS = [
+        'Activo', 'Desarrolladores', 'DesarrolladoresPrue', 'NotificarAtadoJulio', 'CorteSEF', 'MarcasFinales', 'ReporteElectrico', 'ReporteMecanico', 'ReporteTiempoMuerto', 'Atadores', 'InvTrama', 'UrdidoCalidad', 'Calidad', 'Andon',
+    ];
+
     /**
      * Llama getUpdates de Telegram con el token del bot global y devuelve chat_ids encontrados.
      *
@@ -84,52 +89,7 @@ class MensajesController extends Controller
 
     public function store(Request $request): RedirectResponse|JsonResponse
     {
-        $validated = $request->validate([
-            'DepartamentoId' => [
-                'required',
-                'integer',
-                function (string $attribute, mixed $value, \Closure $fail) {
-                    if (! SysDepartamento::where('id', $value)->exists()) {
-                        $fail(__('validation.exists', ['attribute' => $attribute]));
-                    }
-                },
-            ],
-            'UsuarioId' => ['nullable', 'integer', 'exists:sqlsrv.dbo.SYSUsuario,idusuario'],
-            'Telefono' => ['required', 'string', 'max:20'],
-            'Token' => ['required', 'string', 'max:255'],
-            'Activo' => ['nullable', 'boolean'],
-            'Nombre' => ['nullable', 'string', 'max:150'],
-            'Desarrolladores' => ['nullable', 'boolean'],
-            'DesarrolladoresPrue' => ['nullable', 'boolean'],
-            'NotificarAtadoJulio' => ['nullable', 'boolean'],
-            'CorteSEF' => ['nullable', 'boolean'],
-            'MarcasFinales' => ['nullable', 'boolean'],
-            'ReporteElectrico' => ['nullable', 'boolean'],
-            'ReporteMecanico' => ['nullable', 'boolean'],
-            'ReporteTiempoMuerto' => ['nullable', 'boolean'],
-            'Atadores' => ['nullable', 'boolean'],
-            'InvTrama' => ['nullable', 'boolean'],
-            'UrdidoCalidad' => ['nullable', 'boolean'],
-            'Calidad' => ['nullable', 'boolean'],
-            'Andon' => ['nullable', 'boolean'],
-        ]);
-
-        $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
-        $validated['Nombre'] = $request->input('Nombre');
-        $validated['Desarrolladores'] = (bool) ($request->boolean('Desarrolladores') ?? false);
-        $validated['DesarrolladoresPrue'] = (bool) ($request->boolean('DesarrolladoresPrue') ?? false);
-        $validated['NotificarAtadoJulio'] = (bool) ($request->boolean('NotificarAtadoJulio') ?? false);
-        $validated['CorteSEF'] = (bool) ($request->boolean('CorteSEF') ?? false);
-        $validated['MarcasFinales'] = (bool) ($request->boolean('MarcasFinales') ?? false);
-        $validated['ReporteElectrico'] = (bool) ($request->boolean('ReporteElectrico') ?? false);
-        $validated['ReporteMecanico'] = (bool) ($request->boolean('ReporteMecanico') ?? false);
-        $validated['ReporteTiempoMuerto'] = (bool) ($request->boolean('ReporteTiempoMuerto') ?? false);
-        $validated['Atadores'] = (bool) ($request->boolean('Atadores') ?? false);
-        $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
-        $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
-        $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
-        $validated['Andon'] = (bool) ($request->boolean('Andon') ?? false);
-        $validated['UsuarioId'] = $request->filled('UsuarioId') ? (int) $request->input('UsuarioId') : null;
+        $validated = $this->validar($request);
 
         $mensaje = SYSMensaje::create($validated);
 
@@ -152,52 +112,7 @@ class MensajesController extends Controller
     {
         $mensaje = SYSMensaje::findOrFail($id);
 
-        $validated = $request->validate([
-            'DepartamentoId' => [
-                'required',
-                'integer',
-                function (string $attribute, mixed $value, \Closure $fail) {
-                    if (! SysDepartamento::where('id', $value)->exists()) {
-                        $fail(__('validation.exists', ['attribute' => $attribute]));
-                    }
-                },
-            ],
-            'UsuarioId' => ['nullable', 'integer', 'exists:sqlsrv.dbo.SYSUsuario,idusuario'],
-            'Telefono' => ['required', 'string', 'max:20'],
-            'Token' => ['required', 'string', 'max:255'],
-            'Activo' => ['nullable', 'boolean'],
-            'Nombre' => ['nullable', 'string', 'max:150'],
-            'Desarrolladores' => ['nullable', 'boolean'],
-            'DesarrolladoresPrue' => ['nullable', 'boolean'],
-            'NotificarAtadoJulio' => ['nullable', 'boolean'],
-            'CorteSEF' => ['nullable', 'boolean'],
-            'MarcasFinales' => ['nullable', 'boolean'],
-            'ReporteElectrico' => ['nullable', 'boolean'],
-            'ReporteMecanico' => ['nullable', 'boolean'],
-            'ReporteTiempoMuerto' => ['nullable', 'boolean'],
-            'Atadores' => ['nullable', 'boolean'],
-            'InvTrama' => ['nullable', 'boolean'],
-            'UrdidoCalidad' => ['nullable', 'boolean'],
-            'Calidad' => ['nullable', 'boolean'],
-            'Andon' => ['nullable', 'boolean'],
-        ]);
-
-        $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
-        $validated['Nombre'] = $request->input('Nombre');
-        $validated['Desarrolladores'] = (bool) ($request->boolean('Desarrolladores') ?? false);
-        $validated['DesarrolladoresPrue'] = (bool) ($request->boolean('DesarrolladoresPrue') ?? false);
-        $validated['NotificarAtadoJulio'] = (bool) ($request->boolean('NotificarAtadoJulio') ?? false);
-        $validated['CorteSEF'] = (bool) ($request->boolean('CorteSEF') ?? false);
-        $validated['MarcasFinales'] = (bool) ($request->boolean('MarcasFinales') ?? false);
-        $validated['ReporteElectrico'] = (bool) ($request->boolean('ReporteElectrico') ?? false);
-        $validated['ReporteMecanico'] = (bool) ($request->boolean('ReporteMecanico') ?? false);
-        $validated['ReporteTiempoMuerto'] = (bool) ($request->boolean('ReporteTiempoMuerto') ?? false);
-        $validated['Atadores'] = (bool) ($request->boolean('Atadores') ?? false);
-        $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
-        $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
-        $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
-        $validated['Andon'] = (bool) ($request->boolean('Andon') ?? false);
-        $validated['UsuarioId'] = $request->filled('UsuarioId') ? (int) $request->input('UsuarioId') : null;
+        $validated = $this->validar($request);
 
         $mensaje->update($validated);
 
@@ -268,6 +183,34 @@ class MensajesController extends Controller
             'message' => 'Chat ID (Token) actualizado correctamente.',
             'item' => $this->itemToArray($mensaje),
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function validar(Request $request): array
+    {
+        $validated = $request->validate([
+            'DepartamentoId' => [
+                'required',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! SysDepartamento::where('id', $value)->exists()) {
+                        $fail(__('validation.exists', ['attribute' => $attribute]));
+                    }
+                },
+            ],
+            'UsuarioId' => ['nullable', 'integer', 'exists:sqlsrv.dbo.SYSUsuario,idusuario'],
+            'Telefono' => ['required', 'string', 'max:20'],
+            'Token' => ['required', 'string', 'max:255'],
+            'Nombre' => ['nullable', 'string', 'max:150'],
+        ] + array_fill_keys(self::BANDERAS, ['nullable', 'boolean']));
+
+        foreach (self::BANDERAS as $bandera) {
+            $validated[$bandera] = $request->boolean($bandera);
+        }
+        $validated['Nombre'] = $request->input('Nombre');
+        $validated['UsuarioId'] = $request->filled('UsuarioId') ? (int) $request->input('UsuarioId') : null;
+
+        return $validated;
     }
 
     private function itemToArray(SYSMensaje $mensaje): array

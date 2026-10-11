@@ -35,8 +35,9 @@ class ProgramaTejidoOperacionesController extends Controller
             'nuevo_telar' => 'required|string',
         ]);
 
+        $registro = ReqProgramaTejido::findOrFail($id);
+
         try {
-            $registro = ReqProgramaTejido::findOrFail($id);
             $nuevoSalon = $request->input('nuevo_salon');
             $nuevoTelar = $request->input('nuevo_telar');
 
@@ -123,9 +124,11 @@ class ProgramaTejidoOperacionesController extends Controller
                 'cambios' => $cambios,
             ]);
         } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([
                 'puede_mover' => false,
-                'mensaje' => 'Error al verificar: '.$e->getMessage(),
+                'mensaje' => 'Error al verificar el cambio de telar.',
             ], 500);
         }
     }
@@ -192,7 +195,6 @@ class ProgramaTejidoOperacionesController extends Controller
                 ->lockForUpdate()
                 ->get();
 
-            $inicioOrigen = $origenRegistros->first()?->FechaInicio;
             $origenSin = $origenRegistros->reject(fn ($item) => $item->Id === $registro->Id)->values();
 
             $destRegistrosOriginal = ReqProgramaTejido::query()
@@ -259,7 +261,9 @@ class ProgramaTejidoOperacionesController extends Controller
             $destRegistros = $destRegistros->values();
 
             if ($origenSin->count() > 0) {
-                $inicioOrigenCarbon = Carbon::parse($inicioOrigen ?? $registro->FechaInicio ?? now());
+                // Inicio original del telar (el más temprano, incluido el movido, que trae Posicion = -Id):
+                // si se va de en medio los que quedan no se corren; si se va el primero, no dejan hueco.
+                $inicioOrigenCarbon = Carbon::parse($origenRegistros->min('FechaInicio') ?? now());
                 [$updatesOrigen, $detallesOrigen] = DateHelpers::recalcularFechasSecuencia($origenSin, $inicioOrigenCarbon);
                 foreach ($origenSin->values() as $index => $r) {
                     $idRegistro = (int) $r->Id;
@@ -376,45 +380,42 @@ class ProgramaTejidoOperacionesController extends Controller
             $this->sincronizarTelarCatCodificados($registro, $nuevoSalon, $nuevoTelar);
 
             DBFacade::commit();
-
-            $idsAfectados = array_values(array_unique($idsAfectados));
-            $updatesMerged = [];
-            foreach ($updatesOrigen as $idU => $data) {
-                $updatesMerged[(string) $idU] = $data;
-            }
-            foreach ($updatesDestino as $idU => $data) {
-                $updatesMerged[(string) $idU] = array_merge($updatesMerged[(string) $idU] ?? [], $data);
-            }
-
-            ReqProgramaTejido::restoreObservers($dispatcher);
-            if (! empty($idsAfectados)) {
-                ReqProgramaTejido::regenerarLineas(
-                    ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()
-                );
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Telar actualizado correctamente',
-                'registros_afectados' => count($idsAfectados),
-                'detalles' => $detallesTotales,
-                'updates' => $updatesMerged,
-                'registro_id' => $registro->Id,
-            ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
             ReqProgramaTejido::restoreObservers($dispatcher);
             LogFacade::error('cambiarTelar error', [
-                'id' => $id ?? null,
+                'id' => $id,
                 'mensaje' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cambiar de telar: '.$e->getMessage(),
+                'message' => 'Error al cambiar de telar.',
             ], 500);
         }
+
+        // Ya se guardó: lo que sigue no puede responder error (el cliente reintentaría un cambio hecho).
+        ReqProgramaTejido::restoreObservers($dispatcher);
+        $idsAfectados = array_values(array_unique($idsAfectados));
+        $updatesMerged = [];
+        foreach ($updatesOrigen as $idU => $data) {
+            $updatesMerged[(string) $idU] = $data;
+        }
+        foreach ($updatesDestino as $idU => $data) {
+            $updatesMerged[(string) $idU] = array_merge($updatesMerged[(string) $idU] ?? [], $data);
+        }
+
+        $this->regenerarLineasTrasCommit($idsAfectados);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Telar actualizado correctamente',
+            'registros_afectados' => count($idsAfectados),
+            'detalles' => $detallesTotales,
+            'updates' => $updatesMerged,
+            'registro_id' => $registro->Id,
+        ]);
     }
 
     public function moveToPosition(Request $request, int $id)
@@ -458,6 +459,19 @@ class ProgramaTejidoOperacionesController extends Controller
         return (int) $trimmed;
     }
 
+    /** Tras el commit un fallo de líneas no revierte nada: se reporta y la respuesta sigue siendo éxito. */
+    private function regenerarLineasTrasCommit(array $ids): void
+    {
+        if (empty($ids)) {
+            return;
+        }
+        try {
+            ReqProgramaTejido::regenerarLineas(ReqProgramaTejido::whereIn('Id', $ids)->get());
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /**
      * CatCodificados se localiza por OrdenTejido + TelarId al liberar y editar campos:
      * cuando una orden ya liberada (con NoProduccion) cambia de telar/salón, hay que
@@ -471,8 +485,8 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         try {
-            DBFacade::table((new CatCodificados)->getTable())
-                ->where('OrdenTejido', $noProduccion)
+            CatCodificados::query()
+                ->ordenesTejido([$noProduccion])
                 ->update([
                     'TelarId' => $nuevoTelar,
                     'Departamento' => $nuevoSalon,

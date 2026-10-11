@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Actions\Planeacion\ProgramaTejido\RecalcularRegistroPorProduccion;
 use App\Helpers\AuditoriaHelper;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -69,7 +68,7 @@ class RecalcularFechasProduccionCommand extends Command
         $ok = 0;
         $fail = 0;
 
-        ReqProgramaTejido::unsetEventDispatcher();
+        $dispatcher = ReqProgramaTejido::suppressObservers();
         try {
             foreach ($registros as $r) {
                 try {
@@ -91,7 +90,7 @@ class RecalcularFechasProduccionCommand extends Command
                 }
             }
         } finally {
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
         }
 
         $this->info("Listo: {$ok} recalculados, {$fail} omitidos/error.");

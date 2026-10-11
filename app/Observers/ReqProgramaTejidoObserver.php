@@ -92,6 +92,7 @@ class ReqProgramaTejidoObserver
     {
         ColumnasDeTabla::flush();
         GeneradorLineasDiarias::flushCaches();
+        HorasProduccion::flushCaches();
         self::$maestroPesosIlegibleAvisado = false;
     }
 
@@ -404,9 +405,10 @@ class ReqProgramaTejidoObserver
      */
     private function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        $stdToaHraAnteriorRaw = DB::table(ReqProgramaTejido::tableName())
-            ->where('Id', $programa->Id)
-            ->value('StdToaHra');
+        // Ya cargado (select * / recién guardado): igual a la BD, sin releer por registro.
+        $stdToaHraAnteriorRaw = array_key_exists('StdToaHra', $programa->getAttributes())
+            ? $programa->getAttribute('StdToaHra')
+            : DB::table(ReqProgramaTejido::tableName())->where('Id', $programa->Id)->value('StdToaHra');
         $stdToaHraAnterior = $stdToaHraAnteriorRaw !== null ? (float) $stdToaHraAnteriorRaw : 0;
 
         $modeloParams = HorasProduccion::obtenerModeloParams($programa);

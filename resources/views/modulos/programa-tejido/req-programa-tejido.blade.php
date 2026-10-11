@@ -5,6 +5,8 @@
 @section('content')
 <div class="w-full pt-page">
   <div class="bg-white overflow-hidden w-full pt-page-card">
+    {{-- Filtros activos (barra-filtros.ts): oculta mientras no haya filtros. --}}
+    <div id="ptFiltrosBarra" hidden class="flex flex-none items-center gap-3 border-b border-slate-200 bg-white px-3"></div>
 
     
           @include('modulos.programa-tejido.partials.grilla')

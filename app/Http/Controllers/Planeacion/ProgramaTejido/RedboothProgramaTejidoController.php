@@ -145,7 +145,7 @@ final class RedboothProgramaTejidoController extends Controller
                     ->findOrFail((int) $validated['cat_codificados_id']);
                 $orden = trim((string) ($cat->OrdenTejido ?? ''));
                 $catQuery = CatCodificados::query();
-                $orden !== '' ? $catQuery->where('OrdenTejido', $orden) : $catQuery->whereKey($cat->getKey());
+                $orden !== '' ? $catQuery->ordenesTejido([$orden]) : $catQuery->whereKey($cat->getKey());
                 $updated = $catQuery->update([
                     'IdRedbooth' => $taskId,
                     'NombreRedbooth' => $taskName,
@@ -174,7 +174,7 @@ final class RedboothProgramaTejidoController extends Controller
             }
 
             return CatCodificados::query()
-                ->where('OrdenTejido', $orden)
+                ->ordenesTejido([$orden])
                 ->update([
                     'IdRedbooth' => $taskId,
                     'NombreRedbooth' => $taskName,
@@ -344,7 +344,7 @@ final class RedboothProgramaTejidoController extends Controller
                 $cat = CatCodificados::query()->lockForUpdate()->findOrFail($programa);
                 $orden = trim((string) ($cat->OrdenTejido ?? ''));
                 $catQuery = CatCodificados::query();
-                $orden !== '' ? $catQuery->where('OrdenTejido', $orden) : $catQuery->whereKey($cat->getKey());
+                $orden !== '' ? $catQuery->ordenesTejido([$orden]) : $catQuery->whereKey($cat->getKey());
                 $updated = $catQuery->update([
                     'IdRedbooth' => null,
                     'NombreRedbooth' => null,
@@ -371,7 +371,7 @@ final class RedboothProgramaTejidoController extends Controller
             }
 
             return CatCodificados::query()
-                ->where('OrdenTejido', $orden)
+                ->ordenesTejido([$orden])
                 ->update([
                     'IdRedbooth' => null,
                     'NombreRedbooth' => null,

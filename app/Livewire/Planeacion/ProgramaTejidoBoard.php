@@ -21,7 +21,7 @@ use Throwable;
  * Shell Livewire de Programa Tejido / Muestras (PT 03 · PT-UI-01), detrás de ShellV2.
  *
  * Mismo diseño que la vista legacy: pinta el mismo partial de la grilla, dentro de
- * wire:ignore, y el DOM lo sigue manejando resources/js/programa-tejido/index.js.
+ * wire:ignore, y el DOM lo sigue manejando resources/js/programa-tejido/index.ts.
  *
  * - La superficie llega en mount() y queda #[Locked]: en /livewire/update no hay URL de
  *   Programa/Muestras que mirar ni corre ProgramaTejidoContext (Pitfall 1 de 03-RESEARCH).

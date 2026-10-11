@@ -117,5 +117,5 @@
         }
     </style>
 
-    @vite('resources/js/lmat-lista/index.js')
+    @vite('resources/js/lmat-lista/index.ts')
 @endsection

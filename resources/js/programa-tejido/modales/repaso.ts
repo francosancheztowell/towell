@@ -103,7 +103,7 @@ export function mensajeRepaso(res: RespuestaRepaso | null | undefined): string {
 function exito(res: RespuestaRepaso): void {
     cerrarModalRepaso();
     const mensaje = res.message || 'Repaso creado';
-    // agregarRegistroSinRecargar vive en el scope de index.js y hoy no se publica en window,
+    // agregarRegistroSinRecargar vive en el scope de index.ts y hoy no se publica en window,
     // así que esta rama no corre (igual que antes de PT-TS 1: ver HANDOFF para PT-TS 2).
     const agregar = window.agregarRegistroSinRecargar;
     if (typeof agregar !== 'function' || !res.id) {
@@ -166,7 +166,7 @@ async function crearRepasoEnviar(): Promise<void> {
     }
 }
 
-// PUENTE PT-TS 1: index.js (menú contextual de la fila) abre el modal.
+// PUENTE PT-TS 1: index.ts (menú contextual de la fila) abre el modal.
 window.abrirModalRepaso = abrirModalRepaso;
 // PUENTE PT-TS 1: x-ui.modal-base (onclose del botón × y Esc) en modal/repaso.blade.php.
 window.cerrarModalRepaso = cerrarModalRepaso;

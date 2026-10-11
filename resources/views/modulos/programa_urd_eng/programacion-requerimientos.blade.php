@@ -180,11 +180,8 @@
 
 <template id="tpl-resumen-cargando">
     <tr>
-        <td colspan="17" class="px-2 py-4 text-center text-gray-500 text-caption" role="status">
-            <div class="flex items-center justify-center gap-2">
-                <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-500" aria-hidden="true"></div>
-                <span>Cargando datos...</span>
-            </div>
+        <td colspan="17" class="px-2 py-4 text-center">
+            <x-ui.spinner size="sm" label="Cargando datos…" :inline="true" class="text-caption" />
         </td>
     </tr>
 </template>

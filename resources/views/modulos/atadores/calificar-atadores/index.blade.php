@@ -344,10 +344,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr>
-                                    <td colspan="2" class="px-4 py-3 text-center text-sm text-gray-500">No hay máquinas registradas
-                                    </td>
-                                </tr>
+                                <x-ui.table-empty :colspan="2" message="No hay máquinas registradas" />
                             @endforelse
                         </tbody>
                     </table>
@@ -395,10 +392,7 @@
                                     <td class="px-2 py-2 text-sm text-gray-900 operador-cell">{{ $operador }}</td>
                                 </tr>
                             @empty
-                                <tr>
-                                    <td colspan="4" class="px-4 py-3 text-center text-sm text-gray-500">No hay actividades
-                                        registradas</td>
-                                </tr>
+                                <x-ui.table-empty :colspan="4" message="No hay actividades registradas" />
                             @endforelse
                         </tbody>
                     </table>
@@ -531,9 +525,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="9" class="px-3 py-4 text-center text-gray-500">No hay un atado anterior de esta barra. Desmarca Devolución para terminar sin devolver.</td>
-                                    </tr>
+                                    <x-ui.table-empty :colspan="9" message="No hay un atado anterior de esta barra. Desmarca Devolución para terminar sin devolver." icon="fa-circle-info" />
                                 @endforelse
                             </tbody>
                         </table>

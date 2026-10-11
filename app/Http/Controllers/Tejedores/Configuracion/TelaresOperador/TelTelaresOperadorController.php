@@ -122,14 +122,16 @@ class TelTelaresOperadorController extends Controller
 
         DB::beginTransaction();
         try {
-            foreach ($telares as $telar) {
-                // Validación: no permitir asignar el mismo telar al mismo usuario más de una vez
-                $yaExiste = TelTelaresOperador::query()
-                    ->where('numero_empleado', $data['numero_empleado'])
-                    ->where('NoTelarId', $telar)
-                    ->exists();
+            // No se asigna el mismo telar al mismo usuario dos veces: una consulta para todos.
+            $yaAsignados = TelTelaresOperador::query()
+                ->where('numero_empleado', $data['numero_empleado'])
+                ->whereIn('NoTelarId', $telares)
+                ->pluck('NoTelarId')
+                ->map(fn ($telar) => trim((string) $telar))
+                ->all();
 
-                if ($yaExiste) {
+            foreach ($telares as $telar) {
+                if (in_array($telar, $yaAsignados, true)) {
                     $duplicados[] = $telar;
 
                     continue;

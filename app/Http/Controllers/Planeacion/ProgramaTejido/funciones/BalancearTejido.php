@@ -9,6 +9,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
+use App\Support\Planeacion\NumeroPrograma;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -80,7 +81,7 @@ class BalancearTejido
             $produccion = (float) ($registro->Produccion ?? 0);
             $input = (float) $cambio['total_pedido'];
 
-            [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
+            [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total', $registro->PorcentajeSegundos);
 
             $registro->TotalPedido = $total;
             $registro->SaldoPedido = $saldo;
@@ -165,15 +166,7 @@ class BalancearTejido
 
             $rest = array_slice($merged, $idxBase + 1);
             foreach ($rest as $r) {
-                $rid = (int) $r->Id;
-                if (isset($idsActualizados[$rid])) {
-                    if (! empty($r->FechaFinal)) {
-                        $cursor = Carbon::parse($r->FechaFinal);
-                    }
-
-                    continue;
-                }
-
+                // También los que vienen en cambios: se reencadenan desde el cursor (si no, traslapan).
                 [$inicio, $fin] = self::resolverInicioFin($cursor->copy(), $r);
                 $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
                 $r->FechaFinal = $fin->format('Y-m-d H:i:s');
@@ -221,18 +214,19 @@ class BalancearTejido
     {
         AuditoriaHelper::contexto('BALANCEO');
 
+        // Fuera del try: la ValidationException debe salir como 422 con 'errors', no como 500.
+        $request->validate([
+            'cambios' => 'required|array|min:1',
+            'cambios.*.id' => 'required|integer',
+            'cambios.*.total_pedido' => 'required|numeric|min:0',
+            'cambios.*.fecha_final' => 'nullable|string', // la ignoramos
+            'cambios.*.modo' => 'nullable|string|in:saldo,total',
+            'ord_compartida' => 'required|integer',
+        ]);
+
         $dispatcher = null;
 
         try {
-            $request->validate([
-                'cambios' => 'required|array|min:1',
-                'cambios.*.id' => 'required|integer',
-                'cambios.*.total_pedido' => 'required|numeric|min:0',
-                'cambios.*.fecha_final' => 'nullable|string', // la ignoramos
-                'cambios.*.modo' => 'nullable|string|in:saldo,total',
-                'ord_compartida' => 'required|integer',
-            ]);
-
             $cambios = $request->input('cambios', []);
 
             $ids = array_values(array_unique(array_map(fn ($c) => (int) $c['id'], $cambios)));
@@ -272,7 +266,7 @@ class BalancearTejido
                 $produccion = (float) ($registro->Produccion ?? 0);
                 $input = (float) $cambio['total_pedido'];
 
-                [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total');
+                [$total, $saldo] = self::resolverTotalSaldo($input, $produccion, $cambio['modo'] ?? 'total', $registro->PorcentajeSegundos);
 
                 // Comparar ANTES de asignar: un cambio puede solo mover fechas (mismo pedido)
                 // y esos registros no deben disparar recálculo de marbetes.
@@ -364,16 +358,8 @@ class BalancearTejido
                 // Continuar desde el siguiente registro después del base
                 $cascadaCount = 0;
                 foreach ($todosRegistrosTelar->slice($idxBase + 1) as $r) {
-                    // Si ya fue actualizado manualmente, usar su FechaFinal como cursor y continuar
-                    if (isset($idsActualizados[(int) $r->Id])) {
-                        if (! empty($r->FechaFinal)) {
-                            $cursor = Carbon::parse($r->FechaFinal);
-                        }
-
-                        continue;
-                    }
-
-                    // Actualizar este registro en cascada
+                    // Actualizar este registro en cascada (también si vino en cambios: si se
+                    // saltara, conservaría su FechaInicio vieja y traslaparía al anterior).
                     [$inicio, $fin] = self::resolverInicioFin($cursor->copy(), $r);
                     $r->FechaInicio = $inicio->format('Y-m-d H:i:s');
                     $r->FechaFinal = $fin->format('Y-m-d H:i:s');
@@ -522,22 +508,16 @@ class BalancearTejido
     // =========================================================
     // Resolver total/saldo
     // =========================================================
-    private static function resolverTotalSaldo(float $input, float $produccion, ?string $modo): array
+    private static function resolverTotalSaldo(float $input, float $produccion, ?string $modo, mixed $porcSegundos = 0): array
     {
         $input = max(0, $input);
         $produccion = max(0, $produccion);
 
         if ($modo === 'saldo') {
-            $saldo = $input;
-            $total = $produccion + $saldo;
-
-            return [$total, $saldo];
+            return [NumeroPrograma::pedidoDesdeSaldo($input, $produccion, $porcSegundos), $input];
         }
 
-        $total = $input;
-        $saldo = max(0, $total - $produccion);
-
-        return [$total, $saldo];
+        return [$input, NumeroPrograma::saldoDesdePedido($input, $produccion, $porcSegundos)];
     }
 
     /**
@@ -833,11 +813,12 @@ class BalancearTejido
                 [$pedidoActual, $saldoActual] = self::resolverTotalSaldo(
                     (float) ($cambio['total_pedido'] ?? 0),
                     $produccion,
-                    $cambio['modo'] ?? 'total'
+                    $cambio['modo'] ?? 'total',
+                    $reg->PorcentajeSegundos
                 );
             } else {
                 $pedidoActual = (float) ($reg->TotalPedido ?? 0);
-                $saldoActual = max(0, $pedidoActual - $produccion);
+                $saldoActual = NumeroPrograma::saldoDesdePedido($pedidoActual, $produccion, $reg->PorcentajeSegundos);
             }
             $pedidosActuales[(int) $reg->Id] = [
                 'pedido' => $pedidoActual,
@@ -884,7 +865,7 @@ class BalancearTejido
             $produccion = (float) ($reg->Produccion ?? 0);
             $pedidoActualData = $pedidosActuales[(int) $reg->Id] ?? null;
             $pedidoActual = (float) ($pedidoActualData['pedido'] ?? ($reg->TotalPedido ?? 0));
-            $saldoOriginal = (float) ($pedidoActualData['saldo'] ?? max(0, $pedidoActual - $produccion));
+            $saldoOriginal = (float) ($pedidoActualData['saldo'] ?? NumeroPrograma::saldoDesdePedido($pedidoActual, $produccion, $reg->PorcentajeSegundos));
 
             $regTemp = clone $reg;
             $regTemp->TotalPedido = $pedidoActual;
@@ -962,7 +943,7 @@ class BalancearTejido
             $produccion = (float) ($reg->Produccion ?? 0);
             $pedidoActualData = $pedidosActuales[(int) $reg->Id] ?? null;
             $pedidoActual = (float) ($pedidoActualData['pedido'] ?? ($reg->TotalPedido ?? 0));
-            $saldoActual = (float) ($pedidoActualData['saldo'] ?? max(0, $pedidoActual - $produccion));
+            $saldoActual = (float) ($pedidoActualData['saldo'] ?? NumeroPrograma::saldoDesdePedido($pedidoActual, $produccion, $reg->PorcentajeSegundos));
             $esEnProceso = (bool) $reg->EnProceso;
             $fechaInicioReg = $esEnProceso ? Carbon::now() : Carbon::parse($reg->FechaInicio);
             if (! $esEnProceso && ! empty($reg->CalendarioId)) {
@@ -987,7 +968,7 @@ class BalancearTejido
             );
 
             $saldoFinal = max(0.0, floor($saldoCalculado));
-            $pedidoFinal = $produccion + $saldoFinal;
+            $pedidoFinal = NumeroPrograma::pedidoDesdeSaldo($saldoFinal, $produccion, $reg->PorcentajeSegundos);
             $nuevosPedidos[(int) $reg->Id] = [
                 'id' => (int) $reg->Id,
                 'total_pedido' => $pedidoFinal,
@@ -1053,7 +1034,7 @@ class BalancearTejido
 
         // Calcular eficiencia del registro (horas por unidad de saldo)
         $regTemp = clone $reg;
-        $regTemp->TotalPedido = $produccion + 1000; // Valor de prueba en saldo
+        $regTemp->TotalPedido = NumeroPrograma::pedidoDesdeSaldo(1000, $produccion, $reg->PorcentajeSegundos); // Valor de prueba en saldo
         $regTemp->SaldoPedido = 1000;
         $horasPrueba = TejidoHelpers::calcularHorasProd($regTemp);
 
@@ -1081,7 +1062,7 @@ class BalancearTejido
 
             // Calcular fecha final con este pedido
             $regTemp = clone $reg;
-            $regTemp->TotalPedido = $produccion + $saldoPrueba;
+            $regTemp->TotalPedido = NumeroPrograma::pedidoDesdeSaldo($saldoPrueba, $produccion, $reg->PorcentajeSegundos);
             $regTemp->SaldoPedido = max(0, $saldoPrueba);
             $horas = TejidoHelpers::calcularHorasProd($regTemp);
 

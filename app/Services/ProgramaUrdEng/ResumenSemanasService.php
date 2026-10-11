@@ -13,13 +13,14 @@ use Illuminate\Support\Facades\DB;
 class ResumenSemanasService
 {
     private const STATUS_ACTIVO = 'Activo';
+
     private const FALLBACK_METROS_DEFAULT = true;
 
     /**
      * Genera el resumen de 5 semanas para los telares dados.
      *
-     * @param array $telares Lista de telares [{no_telar, tipo, calibre, hilo, salon, ...}]
-     * @param bool $usarFallbackMetros Si debe usar MtsPie como fallback de MtsRizo y viceversa
+     * @param  array  $telares  Lista de telares [{no_telar, tipo, calibre, hilo, salon, ...}]
+     * @param  bool  $usarFallbackMetros  Si debe usar MtsPie como fallback de MtsRizo y viceversa
      * @return array ['success' => bool, 'data' => [...], 'semanas' => [...], 'message' => string|null]
      */
     public function generar(array $telares, bool $usarFallbackMetros = self::FALLBACK_METROS_DEFAULT): array
@@ -30,7 +31,7 @@ class ResumenSemanasService
             return [
                 'success' => true,
                 'message' => 'No hay telares seleccionados',
-                'data'    => ['rizo' => [], 'pie' => []],
+                'data' => ['rizo' => [], 'pie' => []],
                 'semanas' => $semanas,
             ];
         }
@@ -40,21 +41,21 @@ class ResumenSemanasService
             return [
                 'success' => false,
                 'message' => $v['mensaje'],
-                'data'    => ['rizo' => [], 'pie' => []],
+                'data' => ['rizo' => [], 'pie' => []],
                 'semanas' => $semanas,
             ];
         }
 
-        $tipoEsperado    = $v['tipo'];
+        $tipoEsperado = $v['tipo'];
         $calibreEsperado = $v['calibre'];
-        $calibreEsVacio  = $v['calibre_vacio'];
-        $hiloEsperado    = $v['hilo'];
+        $calibreEsVacio = $v['calibre_vacio'];
+        $hiloEsperado = $v['hilo'];
         $noTelares = collect($telares)->pluck('no_telar')->filter()->unique()->values()->toArray();
         if (empty($noTelares)) {
             return [
                 'success' => true,
                 'message' => 'No se encontraron números de telar válidos',
-                'data'    => ['rizo' => [], 'pie' => []],
+                'data' => ['rizo' => [], 'pie' => []],
                 'semanas' => $semanas,
             ];
         }
@@ -88,14 +89,14 @@ class ResumenSemanasService
 
             return [
                 'success' => true,
-                'data'    => ['rizo' => $resumenRizo, 'pie' => []],
+                'data' => ['rizo' => $resumenRizo, 'pie' => []],
                 'semanas' => $semanas,
             ];
         }
 
         // PIE
         $programasFiltrados = $programas->filter(function ($p) use ($calibreEsperado, $calibreEsVacio) {
-            return !empty($p->CuentaPie)
+            return ! empty($p->CuentaPie)
                 && $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibrePie ?? null);
         })->values();
 
@@ -107,7 +108,7 @@ class ResumenSemanasService
 
         return [
             'success' => true,
-            'data'    => ['rizo' => [], 'pie' => $resumenPie],
+            'data' => ['rizo' => [], 'pie' => $resumenPie],
             'semanas' => $semanas,
         ];
     }
@@ -125,26 +126,34 @@ class ResumenSemanasService
 
         $hiloPorTelar = [];
         foreach ($telaresConHilo as $telar) {
-            $noTelar = (string)($telar->no_telar ?? '');
-            $hiloTelar = trim((string)($telar->hilo ?? ''));
-            if ($noTelar !== '') $hiloPorTelar[$noTelar] = $hiloTelar;
+            $noTelar = (string) ($telar->no_telar ?? '');
+            $hiloTelar = trim((string) ($telar->hilo ?? ''));
+            if ($noTelar !== '') {
+                $hiloPorTelar[$noTelar] = $hiloTelar;
+            }
         }
+
         return $hiloPorTelar;
     }
 
     private function cargarProgramas(array $noTelares, string $fechaIni, string $fechaFin)
     {
+        // Solo las columnas que leen los filtros y el resumen (ReqProgramaTejido tiene >100).
         return ReqProgramaTejido::whereIn('NoTelarId', $noTelares)
+            ->select([
+                'Id', 'NoTelarId', 'ItemId', 'NombreProducto',
+                'CuentaRizo', 'CalibreRizo', 'FibraRizo', 'CuentaPie', 'CalibrePie', 'FibraPie',
+            ])
             ->with(['lineas' => function ($query) use ($fechaIni, $fechaFin) {
                 $query->select([
                     'Id', 'ProgramaId', 'Fecha',
                     DB::raw('[Pie] as Pie'),
                     DB::raw('[Rizo] as Rizo'),
-                    'MtsRizo', 'MtsPie'
+                    'MtsRizo', 'MtsPie',
                 ])
-                ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
-                ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
-                ->orderBy('Fecha');
+                    ->whereRaw('CAST(Fecha AS DATE) >= CAST(? AS DATE)', [$fechaIni])
+                    ->whereRaw('CAST(Fecha AS DATE) <= CAST(? AS DATE)', [$fechaFin])
+                    ->orderBy('Fecha');
             }])
             ->get();
     }
@@ -152,10 +161,12 @@ class ResumenSemanasService
     private function filtrarProgramasRizo($programas, ?string $hiloEsperado, $calibreEsperado, bool $calibreEsVacio, array $hiloPorTelar)
     {
         return $programas->filter(function ($p) use ($hiloEsperado, $calibreEsperado, $calibreEsVacio, $hiloPorTelar) {
-            if (empty($p->CuentaRizo)) return false;
+            if (empty($p->CuentaRizo)) {
+                return false;
+            }
 
-            $hiloPrograma = trim((string)($p->FibraRizo ?? ''));
-            $noTelarPrograma = (string)($p->NoTelarId ?? '');
+            $hiloPrograma = trim((string) ($p->FibraRizo ?? ''));
+            $noTelarPrograma = (string) ($p->NoTelarId ?? '');
             $hiloTelarBD = $hiloPorTelar[$noTelarPrograma] ?? '';
             $matchHiloTelar = true;
 
@@ -170,7 +181,7 @@ class ResumenSemanasService
             }
 
             $matchCalibre = true;
-            if (!$calibreEsVacio && $calibreEsperado !== null) {
+            if (! $calibreEsVacio && $calibreEsperado !== null) {
                 $matchCalibre = $this->matchCalibre($calibreEsperado, $calibreEsVacio, $p->CalibreRizo ?? null);
             }
 
@@ -189,19 +200,27 @@ class ResumenSemanasService
 
         foreach ($programas as $programa) {
             $esRizo = $tipo === 'Rizo';
-            $cuenta = trim((string)($esRizo ? ($programa->CuentaRizo ?? '') : ($programa->CuentaPie ?? '')));
+            $cuenta = trim((string) ($esRizo ? ($programa->CuentaRizo ?? '') : ($programa->CuentaPie ?? '')));
             $calibre = $esRizo ? ($programa->CalibreRizo ?? $programa->Calibre ?? null) : ($programa->CalibrePie ?? null);
             $fibraRaw = $esRizo ? ($programa->FibraRizo ?? null) : ($programa->FibraPie ?? null);
-            $hilo = ($fibraRaw !== null && trim((string)$fibraRaw) !== '') ? trim((string)$fibraRaw) : '';
+            $hilo = ($fibraRaw !== null && trim((string) $fibraRaw) !== '') ? trim((string) $fibraRaw) : '';
             $campoMetros = $esRizo ? 'MtsRizo' : 'MtsPie';
 
-            if ($cuenta === '') continue;
-            if ($tipo !== 'Pie' && !$this->matchHilo($hiloEsperado, $hilo)) continue;
-            if (!$this->matchCalibre($calibreEsperado, $calibreEsVacio, $calibre)) continue;
-            if ($cuentaEsperada !== null && $cuenta !== $cuentaEsperada) continue;
+            if ($cuenta === '') {
+                continue;
+            }
+            if ($tipo !== 'Pie' && ! $this->matchHilo($hiloEsperado, $hilo)) {
+                continue;
+            }
+            if (! $this->matchCalibre($calibreEsperado, $calibreEsVacio, $calibre)) {
+                continue;
+            }
+            if ($cuentaEsperada !== null && $cuenta !== $cuentaEsperada) {
+                continue;
+            }
 
             $modelo = $programa->ItemId ?? $programa->NombreProducto ?? '';
-            $telarId = (string)($programa->NoTelarId ?? '');
+            $telarId = (string) ($programa->NoTelarId ?? '');
             $clave = $esRizo
                 ? "{$telarId}|{$cuenta}|{$hilo}|{$modelo}"
                 : "{$telarId}|{$cuenta}|{$calibre}|{$modelo}";
@@ -218,23 +237,33 @@ class ResumenSemanasService
 
             foreach ($lineas as $ln) {
                 $fecha = $ln->Fecha ?? null;
-                if (!$fecha) continue;
-
-                $mts = (float)($ln->{$campoMetros} ?? 0);
-                if ($usarFallbackMetros && $mts <= 0) {
-                    $altCampo = $campoMetros === 'MtsRizo' ? 'MtsPie' : 'MtsRizo';
-                    $alt = (float)($ln->{$altCampo} ?? 0);
-                    if ($alt > 0) $mts = $alt;
+                if (! $fecha) {
+                    continue;
                 }
 
-                $kilos = (float)($esRizo ? ($ln->Rizo ?? 0) : ($ln->Pie ?? 0));
-                if ($mts <= 0 && $kilos <= 0) continue;
+                $mts = (float) ($ln->{$campoMetros} ?? 0);
+                if ($usarFallbackMetros && $mts <= 0) {
+                    $altCampo = $campoMetros === 'MtsRizo' ? 'MtsPie' : 'MtsRizo';
+                    $alt = (float) ($ln->{$altCampo} ?? 0);
+                    if ($alt > 0) {
+                        $mts = $alt;
+                    }
+                }
+
+                $kilos = (float) ($esRizo ? ($ln->Rizo ?? 0) : ($ln->Pie ?? 0));
+                if ($mts <= 0 && $kilos <= 0) {
+                    continue;
+                }
 
                 $f = $this->parseToCarbon($fecha);
-                if (!$f) continue;
+                if (! $f) {
+                    continue;
+                }
 
                 $idx = $this->semanaIndex($semanas, $f);
-                if ($idx === null) continue;
+                if ($idx === null) {
+                    continue;
+                }
 
                 $semKey = $idx === 0 ? 'SemActual' : "SemActual{$idx}";
                 $semKilosKey = $idx === 0 ? 'SemActualKilos' : "SemActual{$idx}Kilos";
@@ -252,7 +281,9 @@ class ResumenSemanasService
     private function resolverLineas($programa, array $lineasPorPrograma, ?string $fechaIni, ?string $fechaFin)
     {
         $programaId = $programa->Id ?? null;
-        if (!$programaId) return collect();
+        if (! $programaId) {
+            return collect();
+        }
 
         if ($programa->relationLoaded('lineas')) {
             return $programa->lineas;
@@ -267,10 +298,10 @@ class ResumenSemanasService
                 ->select([
                     'Id', 'ProgramaId', 'Fecha',
                     DB::raw('[Pie] as Pie'), DB::raw('[Rizo] as Rizo'),
-                    'MtsRizo', 'MtsPie'
+                    'MtsRizo', 'MtsPie',
                 ])
-                ->whereRaw("CAST(Fecha AS DATE) >= CAST(? AS DATE)", [$fechaIni])
-                ->whereRaw("CAST(Fecha AS DATE) <= CAST(? AS DATE)", [$fechaFin])
+                ->whereRaw('CAST(Fecha AS DATE) >= CAST(? AS DATE)', [$fechaIni])
+                ->whereRaw('CAST(Fecha AS DATE) <= CAST(? AS DATE)', [$fechaFin])
                 ->orderBy('Fecha')
                 ->get();
         }
@@ -285,8 +316,8 @@ class ResumenSemanasService
                 'TelarId' => $it['TelarId'],
                 'Hilo' => $it['Hilo'],
                 'Modelo' => $it['Modelo'],
-                'Total' => round((float)$it['Total'], 2),
-                'TotalKilos' => round((float)$it['TotalKilos'], 2),
+                'Total' => round((float) $it['Total'], 2),
+                'TotalKilos' => round((float) $it['TotalKilos'], 2),
             ];
 
             $prefix = $tipo === 'Rizo' ? 'Rizo' : 'Pie';
@@ -298,23 +329,27 @@ class ResumenSemanasService
                 $semKilosKey = $i === 0 ? 'SemActualKilos' : "SemActual{$i}Kilos";
                 $mtsKey = $i === 0 ? "SemActualMts{$prefix}" : "SemActual{$i}Mts{$prefix}";
                 $kilosKey = $i === 0 ? "SemActualKilos{$prefix}" : "SemActual{$i}Kilos{$prefix}";
-                $base[$mtsKey] = round((float)$it[$semKey], 2);
-                $base[$kilosKey] = round((float)$it[$semKilosKey], 2);
+                $base[$mtsKey] = round((float) $it[$semKey], 2);
+                $base[$kilosKey] = round((float) $it[$semKilosKey], 2);
             }
 
             return $base;
         })
-        ->sortBy([['TelarId', 'asc'], ['Modelo', 'asc']])
-        ->values()
-        ->toArray();
+            ->sortBy([['TelarId', 'asc'], ['Modelo', 'asc']])
+            ->values()
+            ->toArray();
     }
 
     /* ==================== Helpers ==================== */
 
     private function parseToCarbon($fecha): ?Carbon
     {
-        if ($fecha instanceof Carbon) return $fecha->copy()->startOfDay();
-        if ($fecha instanceof \DateTime) return Carbon::instance($fecha)->startOfDay();
+        if ($fecha instanceof Carbon) {
+            return $fecha->copy()->startOfDay();
+        }
+        if ($fecha instanceof \DateTime) {
+            return Carbon::instance($fecha)->startOfDay();
+        }
         if (is_string($fecha)) {
             try {
                 return Carbon::createFromFormat('Y-m-d', $fecha)?->startOfDay() ?? Carbon::parse($fecha)->startOfDay();
@@ -322,7 +357,11 @@ class ResumenSemanasService
                 return null;
             }
         }
-        try { return Carbon::parse($fecha)->startOfDay(); } catch (\Throwable) { return null; }
+        try {
+            return Carbon::parse($fecha)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function construirSemanas(int $n = 5): array
@@ -337,12 +376,13 @@ class ResumenSemanasService
             $out[] = [
                 'numero' => $i + 1,
                 'inicio' => $ini->format('Y-m-d'),
-                'fin'    => $fin->format('Y-m-d'),
-                'label'  => $i === 0 ? 'Sem Actual' : "Sem Actual +{$i}",
+                'fin' => $fin->format('Y-m-d'),
+                'label' => $i === 0 ? 'Sem Actual' : "Sem Actual +{$i}",
                 'total_metros' => 0.0,
-                'total_kilos'  => 0.0,
+                'total_kilos' => 0.0,
             ];
         }
+
         return $out;
     }
 
@@ -351,14 +391,19 @@ class ResumenSemanasService
         foreach ($semanas as $i => $sem) {
             $ini = Carbon::parse($sem['inicio'])->startOfDay();
             $fin = Carbon::parse($sem['fin'])->endOfDay();
-            if ($fecha->between($ini, $fin)) return $i;
+            if ($fecha->between($ini, $fin)) {
+                return $i;
+            }
         }
+
         return null;
     }
 
     private function agregarTotalesSemana(array &$semanas, int $idx, float $mts, float $kilos): void
     {
-        if (!isset($semanas[$idx])) return;
+        if (! isset($semanas[$idx])) {
+            return;
+        }
         $semanas[$idx]['total_metros'] += $mts;
         $semanas[$idx]['total_kilos'] += $kilos;
     }
@@ -366,26 +411,30 @@ class ResumenSemanasService
     public function validarTelaresConsistentes(array $telares): array
     {
         $t0 = $telares[0] ?? [];
-        $tipo = strtoupper(trim((string)($t0['tipo'] ?? '')));
-        if ($tipo === '') return ['error' => true, 'mensaje' => 'El telar seleccionado debe tener un tipo definido'];
+        $tipo = strtoupper(trim((string) ($t0['tipo'] ?? '')));
+        if ($tipo === '') {
+            return ['error' => true, 'mensaje' => 'El telar seleccionado debe tener un tipo definido'];
+        }
 
-        $calibreOriginal = (string)($t0['calibre'] ?? '');
+        $calibreOriginal = (string) ($t0['calibre'] ?? '');
         $calibreVacio = $calibreOriginal === '';
         $calibreRef = $calibreVacio ? null : $calibreOriginal;
-        $hiloRef = (string)($t0['hilo'] ?? '');
+        $hiloRef = (string) ($t0['hilo'] ?? '');
         $esPie = $tipo === 'PIE';
 
         foreach ($telares as $t) {
-            $tipoAct = strtoupper(trim((string)($t['tipo'] ?? '')));
-            if ($tipoAct !== $tipo) return ['error' => true, 'mensaje' => "Todos los telares deben tener el mismo tipo. {$tipoAct} ≠ {$tipo}"];
+            $tipoAct = strtoupper(trim((string) ($t['tipo'] ?? '')));
+            if ($tipoAct !== $tipo) {
+                return ['error' => true, 'mensaje' => "Todos los telares deben tener el mismo tipo. {$tipoAct} ≠ {$tipo}"];
+            }
 
-            $calAct = (string)($t['calibre'] ?? '');
-            if ($calibreRef !== null && $calAct !== '' && abs((float)$calAct - (float)$calibreRef) >= 0.01) {
+            $calAct = (string) ($t['calibre'] ?? '');
+            if ($calibreRef !== null && $calAct !== '' && abs((float) $calAct - (float) $calibreRef) >= 0.01) {
                 return ['error' => true, 'mensaje' => "Todos los telares deben tener el mismo calibre. {$calAct} ≠ {$calibreRef}"];
             }
 
-            if (!$esPie) {
-                $hiloAct = trim((string)($t['hilo'] ?? ''));
+            if (! $esPie) {
+                $hiloAct = trim((string) ($t['hilo'] ?? ''));
                 if ($hiloRef !== '' && $hiloAct !== '' && strcasecmp($hiloAct, $hiloRef) !== 0) {
                     return ['error' => true, 'mensaje' => "Todos los telares deben tener el mismo hilo. {$hiloAct} ≠ {$hiloRef}"];
                 }
@@ -403,17 +452,24 @@ class ResumenSemanasService
     private function matchHilo($esperado, string $actual): bool
     {
         $act = trim($actual);
-        $esp = $esperado !== null ? trim((string)$esperado) : null;
+        $esp = $esperado !== null ? trim((string) $esperado) : null;
         // "Todos" (esperado vacío/null) => no filtrar por hilo
-        if ($esperado === null || $esp === '') return true;
+        if ($esperado === null || $esp === '') {
+            return true;
+        }
+
         return strcasecmp($act, $esp) === 0;
     }
 
     private function matchCalibre($esperado, bool $vacio, $actual): bool
     {
-        if ($vacio) return ($actual === null || $actual === '' || trim((string)$actual) === '');
-        if ($esperado === null || $esperado === '') return true;
-        return abs((is_numeric($actual) ? (float)$actual : 0) - (float)$esperado) <= 0.11;
-    }
+        if ($vacio) {
+            return $actual === null || $actual === '' || trim((string) $actual) === '';
+        }
+        if ($esperado === null || $esperado === '') {
+            return true;
+        }
 
+        return abs((is_numeric($actual) ? (float) $actual : 0) - (float) $esperado) <= 0.11;
+    }
 }

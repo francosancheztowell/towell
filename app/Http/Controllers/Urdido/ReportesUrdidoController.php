@@ -134,29 +134,7 @@ class ReportesUrdidoController extends Controller
             ]);
         }
 
-        $registros = $this->buildReporte03UrdidoQuery($fechaIni, $fechaFin, $soloFinalizados)
-            ->select([
-                'UrdProduccionUrdido.Id',
-                'UrdProduccionUrdido.Folio',
-                'UrdProduccionUrdido.Fecha as FechaReporte',
-                'UrdProduccionUrdido.NoJulio',
-                'UrdProduccionUrdido.KgNeto',
-                'UrdProduccionUrdido.Metros1',
-                'UrdProduccionUrdido.Metros2',
-                'UrdProduccionUrdido.Metros3',
-                'UrdProduccionUrdido.CveEmpl1',
-                'UrdProduccionUrdido.NomEmpl1',
-                'UrdProduccionUrdido.CveEmpl2',
-                'UrdProduccionUrdido.NomEmpl2',
-                'UrdProduccionUrdido.CveEmpl3',
-                'UrdProduccionUrdido.NomEmpl3',
-                'p.MaquinaId',
-            ])
-            ->orderBy('UrdProduccionUrdido.Fecha')
-            ->orderBy('p.MaquinaId')
-            ->orderBy('UrdProduccionUrdido.Folio')
-            ->orderBy('UrdProduccionUrdido.NoJulio')
-            ->get();
+        $registros = $this->registrosReporte03Urdido($fechaIni, $fechaFin, $soloFinalizados);
 
         // Agrupar por máquina (MC1, MC2, MC3, KM)
         $porMaquina = [];
@@ -937,29 +915,7 @@ class ReportesUrdidoController extends Controller
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
 
-        $registros = $this->buildReporte03UrdidoQuery($fechaIni, $fechaFin, $soloFinalizados)
-            ->select([
-                'UrdProduccionUrdido.Id',
-                'UrdProduccionUrdido.Folio',
-                'UrdProduccionUrdido.Fecha as FechaReporte',
-                'UrdProduccionUrdido.NoJulio',
-                'UrdProduccionUrdido.KgNeto',
-                'UrdProduccionUrdido.Metros1',
-                'UrdProduccionUrdido.Metros2',
-                'UrdProduccionUrdido.Metros3',
-                'UrdProduccionUrdido.CveEmpl1',
-                'UrdProduccionUrdido.NomEmpl1',
-                'UrdProduccionUrdido.CveEmpl2',
-                'UrdProduccionUrdido.NomEmpl2',
-                'UrdProduccionUrdido.CveEmpl3',
-                'UrdProduccionUrdido.NomEmpl3',
-                'p.MaquinaId',
-            ])
-            ->orderBy('UrdProduccionUrdido.Fecha')
-            ->orderBy('p.MaquinaId')
-            ->orderBy('UrdProduccionUrdido.Folio')
-            ->orderBy('UrdProduccionUrdido.NoJulio')
-            ->get();
+        $registros = $this->registrosReporte03Urdido($fechaIni, $fechaFin, $soloFinalizados);
 
         $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
         $porFecha = $this->buildReporte03DateBuckets($fechaIni, $fechaFin);
@@ -1079,6 +1035,34 @@ class ReportesUrdidoController extends Controller
         $filenameDownload = 'reporte-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ReportesUrdidoExport($porFecha, $defectosData), $filenameDownload);
+    }
+
+    /** Filas de UrdProduccionUrdido del Reporte 03 (pantalla y Excel), ordenadas por fecha, máquina, folio y julio. */
+    private function registrosReporte03Urdido(string $fechaIni, string $fechaFin, bool $soloFinalizados): Collection
+    {
+        return $this->buildReporte03UrdidoQuery($fechaIni, $fechaFin, $soloFinalizados)
+            ->select([
+                'UrdProduccionUrdido.Id',
+                'UrdProduccionUrdido.Folio',
+                'UrdProduccionUrdido.Fecha as FechaReporte',
+                'UrdProduccionUrdido.NoJulio',
+                'UrdProduccionUrdido.KgNeto',
+                'UrdProduccionUrdido.Metros1',
+                'UrdProduccionUrdido.Metros2',
+                'UrdProduccionUrdido.Metros3',
+                'UrdProduccionUrdido.CveEmpl1',
+                'UrdProduccionUrdido.NomEmpl1',
+                'UrdProduccionUrdido.CveEmpl2',
+                'UrdProduccionUrdido.NomEmpl2',
+                'UrdProduccionUrdido.CveEmpl3',
+                'UrdProduccionUrdido.NomEmpl3',
+                'p.MaquinaId',
+            ])
+            ->orderBy('UrdProduccionUrdido.Fecha')
+            ->orderBy('p.MaquinaId')
+            ->orderBy('UrdProduccionUrdido.Folio')
+            ->orderBy('UrdProduccionUrdido.NoJulio')
+            ->get();
     }
 
     private function buildReporte03UrdidoQuery(string $fechaIni, string $fechaFin, bool $soloFinalizados): Builder

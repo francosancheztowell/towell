@@ -95,7 +95,7 @@ final readonly class CrudoReporteDiaBuilder
     private function auditorias(DateTimeImmutable $day): Collection
     {
         $inicio = $day->setTime(0, 0)
-            ->modify('+'.(int) config('crudo.production_day_start_minutes', 390).' minutes');
+            ->modify('+'.CrudoProductionDay::startMinutes().' minutes');
 
         return CrudoAuditoria::query()
             ->with([
@@ -120,7 +120,7 @@ final readonly class CrudoReporteDiaBuilder
     private function programasUrdidoAuditados(DateTimeImmutable $day): Collection
     {
         $inicio = $day->setTime(0, 0)
-            ->modify('+'.(int) config('crudo.production_day_start_minutes', 390).' minutes');
+            ->modify('+'.CrudoProductionDay::startMinutes().' minutes');
 
         return UrdProgramaUrdido::query()
             ->whereNotNull('AutorizaCalidad')

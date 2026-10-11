@@ -22,7 +22,7 @@
             <div class="flex items-center gap-3">
                 <h2 class="text-xl font-bold text-gray-800">Mover Órdenes</h2>
             </div>
-            <button type="button" data-accion-modal="cerrar" aria-label="Cerrar" class="text-gray-400 hover:text-gray-600 transition-colors p-1">
+            <button type="button" data-accion-modal="cerrar" aria-label="Cerrar" class="inline-flex size-touch items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
                 <svg aria-hidden="true" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
@@ -114,10 +114,10 @@
         <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
             <div id="moverResumen" class="text-sm font-medium"></div>
             <div class="flex gap-3">
-                <button type="button" id="btnMoverRevertir" class="hidden px-5 py-2.5 text-md font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shadow-sm">
+                <button type="button" id="btnMoverRevertir" class="hidden px-5 min-h-touch py-2.5 text-base font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shadow-sm">
                     <i class="fas fa-undo mr-1" aria-hidden="true"></i> Revertir
                 </button>
-                <button type="button" id="btnMoverConfirm" disabled class="px-5 py-2.5 text-md font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center gap-2">
+                <button type="button" id="btnMoverConfirm" disabled class="px-5 min-h-touch py-2.5 text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center gap-2">
                     Guardar
                 </button>
             </div>

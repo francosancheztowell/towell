@@ -284,7 +284,8 @@ Route::post('/planeacion/programa-tejido/descargar-programa', [DescargarPrograma
     ->middleware('module.permission:registrar,2')->name('programa-tejido.descargar-programa'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/{id}/prioridad/mover', [ProgramaTejidoOperacionesController::class, 'moveToPosition'])
     ->middleware('module.permission:modificar,2')->name('programa-tejido.prioridad.mover'); // Programa Tejido
-Route::post('/planeacion/programa-tejido/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])->name('programa-tejido.verificar-cambio-telar');
+Route::post('/planeacion/programa-tejido/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])
+    ->middleware('module.permission:modificar,2')->name('programa-tejido.verificar-cambio-telar'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/{id}/cambiar-telar', [ProgramaTejidoOperacionesController::class, 'cambiarTelar'])
     ->middleware('module.permission:modificar,2')->name('programa-tejido.cambiar-telar'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/vincular-registros-existentes', [ProgramaTejidoOperacionesController::class, 'vincularRegistrosExistentes'])
@@ -294,7 +295,8 @@ Route::post('/planeacion/programa-tejido/{id}/desvincular', [ProgramaTejidoOpera
 Route::get('/planeacion/programa-tejido/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoOperacionesController::class, 'getRegistrosPorOrdCompartida'])->name('programa-tejido.registros-ord-compartida');
 Route::get('/planeacion/programa-tejido/balancear', [ProgramaTejidoBalanceoController::class, 'balancear'])->name('programa-tejido.balancear');
 Route::get('/planeacion/programa-tejido/{id}/detalles-balanceo', [ProgramaTejidoBalanceoController::class, 'detallesBalanceo'])->name('programa-tejido.detalles-balanceo');
-Route::post('/planeacion/programa-tejido/preview-fechas-balanceo', [ProgramaTejidoBalanceoController::class, 'previewFechasBalanceo'])->name('programa-tejido.preview-fechas-balanceo');
+Route::post('/planeacion/programa-tejido/preview-fechas-balanceo', [ProgramaTejidoBalanceoController::class, 'previewFechasBalanceo'])
+    ->middleware('module.permission:modificar,2')->name('programa-tejido.preview-fechas-balanceo'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/actualizar-pedidos-balanceo', [ProgramaTejidoBalanceoController::class, 'actualizarPedidosBalanceo'])
     ->middleware('module.permission:modificar,2')->name('programa-tejido.actualizar-pedidos-balanceo'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/balancear-automatico', [ProgramaTejidoBalanceoController::class, 'balancearAutomatico'])
@@ -354,7 +356,8 @@ Route::post('/planeacion/muestras/descargar-programa', [DescargarProgramaControl
     ->middleware('module.permission:registrar,5')->name('muestras.descargar-programa'); // Muestras
 Route::post('/planeacion/muestras/{id}/prioridad/mover', [ProgramaTejidoOperacionesController::class, 'moveToPosition'])
     ->middleware('module.permission:modificar,5')->name('muestras.prioridad.mover'); // Muestras
-Route::post('/planeacion/muestras/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])->name('muestras.verificar-cambio-telar');
+Route::post('/planeacion/muestras/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])
+    ->middleware('module.permission:modificar,5')->name('muestras.verificar-cambio-telar'); // Muestras
 Route::post('/planeacion/muestras/{id}/cambiar-telar', [ProgramaTejidoOperacionesController::class, 'cambiarTelar'])
     ->middleware('module.permission:modificar,5')->name('muestras.cambiar-telar'); // Muestras
 Route::post('/planeacion/muestras/vincular-registros-existentes', [ProgramaTejidoOperacionesController::class, 'vincularRegistrosExistentes'])
@@ -364,7 +367,8 @@ Route::post('/planeacion/muestras/{id}/desvincular', [ProgramaTejidoOperacionesC
 Route::get('/planeacion/muestras/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoOperacionesController::class, 'getRegistrosPorOrdCompartida'])->name('muestras.registros-ord-compartida');
 Route::get('/planeacion/muestras/balancear', [ProgramaTejidoBalanceoController::class, 'balancear'])->name('muestras.balancear');
 Route::get('/planeacion/muestras/{id}/detalles-balanceo', [ProgramaTejidoBalanceoController::class, 'detallesBalanceo'])->name('muestras.detalles-balanceo');
-Route::post('/planeacion/muestras/preview-fechas-balanceo', [ProgramaTejidoBalanceoController::class, 'previewFechasBalanceo'])->name('muestras.preview-fechas-balanceo');
+Route::post('/planeacion/muestras/preview-fechas-balanceo', [ProgramaTejidoBalanceoController::class, 'previewFechasBalanceo'])
+    ->middleware('module.permission:modificar,5')->name('muestras.preview-fechas-balanceo'); // Muestras
 Route::post('/planeacion/muestras/actualizar-pedidos-balanceo', [ProgramaTejidoBalanceoController::class, 'actualizarPedidosBalanceo'])
     ->middleware('module.permission:modificar,5')->name('muestras.actualizar-pedidos-balanceo'); // Muestras
 Route::post('/planeacion/muestras/balancear-automatico', [ProgramaTejidoBalanceoController::class, 'balancearAutomatico'])

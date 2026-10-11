@@ -83,9 +83,7 @@ test('el bundle se evalua sin errores y publica su superficie', async () => {
 	instalarDomDeMentira()
 
 	// Si el bundle lanza al evaluarse, esto rechaza y el test falla con el error real.
-	// Ruta en variable: index.js es JS (PT-TS 2) y el typecheck de los tests no lo resuelve.
-	const bundle = '../../resources/js/programa-tejido/index.js'
-	await import(bundle)
+	await import('../../resources/js/programa-tejido/index.ts')
 
 	// Lo que la pagina necesita encontrar en window despues de la carga.
 	for (const nombre of [
