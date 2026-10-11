@@ -471,8 +471,8 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         try {
-            DBFacade::table((new CatCodificados)->getTable())
-                ->where('OrdenTejido', $noProduccion)
+            CatCodificados::query()
+                ->ordenesTejido([$noProduccion])
                 ->update([
                     'TelarId' => $nuevoTelar,
                     'Departamento' => $nuevoSalon,

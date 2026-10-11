@@ -134,7 +134,12 @@ class ResumenSemanasService
 
     private function cargarProgramas(array $noTelares, string $fechaIni, string $fechaFin)
     {
+        // Solo las columnas que leen los filtros y el resumen (ReqProgramaTejido tiene >100).
         return ReqProgramaTejido::whereIn('NoTelarId', $noTelares)
+            ->select([
+                'Id', 'NoTelarId', 'ItemId', 'NombreProducto',
+                'CuentaRizo', 'CalibreRizo', 'FibraRizo', 'CuentaPie', 'CalibrePie', 'FibraPie',
+            ])
             ->with(['lineas' => function ($query) use ($fechaIni, $fechaFin) {
                 $query->select([
                     'Id', 'ProgramaId', 'Fecha',

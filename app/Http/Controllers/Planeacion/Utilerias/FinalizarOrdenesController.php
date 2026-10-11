@@ -118,10 +118,9 @@ class FinalizarOrdenesController extends Controller
             $catMap = [];
 
             if (! empty($ordenes)) {
-                $placeholders = implode(',', array_fill(0, count($ordenes), '?'));
                 $cats = CatCodificados::query()
                     ->select('OrdenTejido', 'FechaTejido')
-                    ->whereRaw("CAST([OrdenTejido] AS NVARCHAR(100)) IN ({$placeholders})", $ordenes)
+                    ->ordenesTejido($ordenes)
                     ->get();
 
                 foreach ($cats as $cat) {
