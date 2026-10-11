@@ -809,11 +809,7 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             // Vueltas y Diámetro son obligatorios solo en Karl Mayer.
-            $destino = $orden->SalonTejidoId;
-            if (! $destino) {
-                $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
-                $destino = $engomado ? $engomado->SalonTejidoId : null;
-            }
+            $destino = $orden->SalonTejidoId ?: EngProgramaEngomado::where('Folio', $orden->Folio)->value('SalonTejidoId');
             $isKarlMayer = stripos($destino ?? '', 'karl') !== false;
 
             if ($isKarlMayer) {
