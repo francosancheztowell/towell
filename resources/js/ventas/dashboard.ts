@@ -1,13 +1,35 @@
+import { escapeHtml, formatNumber as formatEsMx } from '../utils/format';
 import { http } from '../utils/http';
 import { mountVentasHistoricas } from './ventas-historicas';
 import { createMultiSelect } from './multi-select';
 import { bindRowSelection, clearRowSelection } from './row-selection';
 
+type Series = 'plan' | 'pedido' | 'real';
+type Metric = 'piezas' | 'kilos' | 'vb' | 'desc' | 'vn';
+type Metrics = Record<Metric, number>;
+type Totals = Record<Series, Metrics>;
+type FilterKey = 'anio' | 'mes' | 'empresa' | 'tipo' | 'cliente' | 'agente' | 'tamano' | 'articulo';
+/** Set = selección múltiple (vacío = todos); string = select de una opción ('' = todos). */
+type Filters = Record<FilterKey, Set<string> | string>;
+type Panel = 'summary' | 'analisis';
+type Tab = 'summary' | 'history';
+type SfField = 'anio' | 'mes' | 'empresa' | 'tipo' | 'nombreCte' | 'artCode' | 'artName' | 'config' | 'tamano' | 'colorName' | 'agente';
+type PvPayload = { sf: string[]; nf: string[]; series: string[]; dict: string[]; rows: (string | number)[][] };
+type PvRecord = Record<'anio' | 'mes' | 'empresa' | 'tipo' | 'cliente' | 'articuloCodigo' | 'articulo' | 'linea' | 'tamano' | 'color' | 'agente', string>
+    & Totals & { filtros: Record<FilterKey, string> };
+/** [campo o selector, formato de la etiqueta, clave de orden (por defecto, el campo)]. */
+type Level = [
+    selector: 'anio' | 'mes' | 'empresa' | 'tipo' | 'cliente' | ((item: PvRecord) => string),
+    formatter?: ((value: string) => string) | undefined,
+    sortKey?: string,
+];
+type TreeNode = { id: string; label: string; items: PvRecord[]; children: TreeNode[] };
+
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const monthName = (value) => MONTH_NAMES[Number(value) - 1] ?? value;
+const monthName = (value: string) => MONTH_NAMES[Number(value) - 1] ?? value;
 
 /** multi = selección múltiple (Set, vacío = todos); el resto es un select de una sola opción. */
-const FILTERS = [
+const FILTERS: { key: FilterKey; label: string; multi?: boolean; format?: (value: string) => string }[] = [
     { key: 'anio', label: 'Año', multi: true },
     { key: 'mes', label: 'Mes', multi: true, format: monthName },
     { key: 'empresa', label: 'Empresa' },
@@ -18,59 +40,61 @@ const FILTERS = [
     { key: 'articulo', label: 'Artículo', multi: true },
 ];
 /** El menú "Columnas" oculta medidas (Piezas, Kg, V.B., Desc., V.N.) en todas las series a la vez. */
-const allColumns = () => new Set(METRICS.map(([key]) => key));
+const allColumns = () => new Set<string>(METRICS.map(([key]) => key));
 
 const DESGLOSES = [['empresa', 'Empresa'], ['tipo', 'Tipo de pedido'], ['cliente', 'Cliente'], ['articulo', 'Artículo']];
 
-const DETAIL_LEVELS = [
+const DETAIL_LEVELS: Level[] = [
     ['empresa'], ['tipo'], ['cliente'],
     [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
 ];
 
 /** Orden de negocio de los tipos de pedido; los no listados van al final en orden alfabético. */
 const TIPO_ORDEN = ['CE', 'CE HT', 'RS', '2das / 3ra'];
-const tipoRank = (value) => {
+const tipoRank = (value: string) => {
     const index = TIPO_ORDEN.indexOf(String(value).trim());
     return index === -1 ? TIPO_ORDEN.length : index;
 };
 /** Towel siempre antes que Textil (los valores ya vienen normalizados por normalizeEmpresa). */
 const EMPRESA_ORDEN = ['Towel', 'Textil'];
-const empresaRank = (value) => {
+const empresaRank = (value: string) => {
     const index = EMPRESA_ORDEN.indexOf(String(value));
     return index === -1 ? EMPRESA_ORDEN.length : index;
 };
-const RANKS = { tipo: tipoRank, empresa: empresaRank };
+const RANKS: Partial<Record<string, (value: string) => number>> = { tipo: tipoRank, empresa: empresaRank };
+type Group = [string, PvRecord[]];
 /** key = campo del nivel ('tipo', 'empresa'…); los niveles con selector de función lo declaran aparte. */
-const compareGroup = (key) => {
-    const rank = RANKS[key];
+const compareGroup = (key: Level[0] | string) => {
+    const rank = typeof key === 'string' ? RANKS[key] : undefined;
     return rank
-        ? ([a], [b]) => rank(a) - rank(b) || String(a).localeCompare(String(b))
-        : ([a], [b]) => String(a).localeCompare(String(b));
+        ? ([a]: Group, [b]: Group) => rank(a) - rank(b) || String(a).localeCompare(String(b))
+        : ([a]: Group, [b]: Group) => String(a).localeCompare(String(b));
 };
 
-const emptyFilters = () => Object.fromEntries(FILTERS.map(({ key, multi }) => [key, multi ? new Set() : '']));
+const emptyFilters = () => Object.fromEntries(FILTERS.map(({ key, multi }) => [key, multi ? new Set<string>() : ''])) as Filters;
+/** Un filtro sin selección no filtra. */
+const isActive = (value: Set<string> | string) => (typeof value === 'string' ? Boolean(value) : value.size > 0);
 
 /** Medidas de cada serie (vb/desc/vn vienen del payload: AMOUNT, AMOUNTDES, AMOUNTNETO). */
-const METRICS = [['piezas', 'Piezas'], ['kilos', 'Kg'], ['vb', 'V.B.'], ['desc', 'Desc.'], ['vn', 'V.N.']];
-const SERIES = {
+const METRICS: [Metric, string][] = [['piezas', 'Piezas'], ['kilos', 'Kg'], ['vb', 'V.B.'], ['desc', 'Desc.'], ['vn', 'V.N.']];
+const SERIES: Record<Series, { label: string; className: string }> = {
     plan: { label: 'Plan', className: 'plan' },
     pedido: { label: 'Pedido', className: 'pedido' },
     real: { label: 'Real', className: 'real' },
 };
 
-const formatNumber = (value) => new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(value || 0);
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;',
-}[character]));
+const SERIES_KEYS = Object.keys(SERIES) as Series[];
+
+const formatNumber = (value: number) => formatEsMx(value || 0, 0);
 
 /** TOWEL/TEXTIL → Towel/Textil. Solo para mostrar, no cambia el valor de filtrado. */
-const normalizeEmpresa = (value) => {
+const normalizeEmpresa = (value: unknown) => {
     const text = String(value ?? '');
     return text.length ? text.charAt(0) + text.slice(1).toLowerCase() : text;
 };
 
-const emptyMetrics = () => Object.fromEntries(METRICS.map(([metric]) => [metric, 0]));
-const addMetrics = (target, row) => {
+const emptyMetrics = () => Object.fromEntries(METRICS.map(([metric]) => [metric, 0])) as Metrics;
+const addMetrics = (target: Metrics, row: Metrics) => {
     METRICS.forEach(([metric]) => { target[metric] += row[metric] || 0; });
 };
 
@@ -79,18 +103,18 @@ const addMetrics = (target, row) => {
  * en SQL, una fila por combo (índices al diccionario de sf seguidos de nf × series). Aquí solo se
  * arma el objeto de cada combo; los valores de filtro se calculan una vez y no en cada filtrado.
  */
-const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
-    const field = Object.fromEntries(sf.map((name, index) => [name, dict[row[index]] ?? '']));
+const decodePayload = ({ sf, nf, series, dict, rows }: PvPayload): PvRecord[] => rows.map((row) => {
+    const field = Object.fromEntries(sf.map((name, index) => [name, dict[Number(row[index])] ?? ''])) as Record<SfField, string>;
     const record = {
         anio: field.anio, mes: field.mes,
         empresa: normalizeEmpresa(field.empresa), tipo: field.tipo,
         cliente: field.nombreCte,
         articuloCodigo: field.artCode, articulo: field.artName,
         linea: field.config, tamano: field.tamano, color: field.colorName, agente: field.agente,
-    };
+    } as PvRecord;
     series.forEach((serie, serieIndex) => {
         const offset = sf.length + serieIndex * nf.length;
-        record[serie] = Object.fromEntries(nf.map((metric, index) => [metric, Number(row[offset + index]) || 0]));
+        record[serie as Series] = Object.fromEntries(nf.map((metric, index) => [metric, Number(row[offset + index]) || 0])) as Metrics;
     });
     record.filtros = {
         anio: record.anio,
@@ -106,34 +130,35 @@ const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
 });
 
 /** Un año de Compara: cada payload trae su propio diccionario, así que se decodifica por separado. */
-const fetchYear = async (root, anio) => decodePayload(await http.get(root.dataset.comparaUrl, { params: { anio } }));
+const fetchYear = async (root: HTMLElement, anio: string) => decodePayload(await http.get<PvPayload>(root.dataset.comparaUrl ?? '', { params: { anio } }));
 
 /** Aviso de error en lugar del "Cargando…" de cada contenedor. */
-const showLoadError = (containers, message) => containers.forEach((container) => {
+const showLoadError = (containers: Element[] | NodeListOf<Element>, message: string) => containers.forEach((container) => {
     container.innerHTML = `<div class="ventas-pvoc-alert" role="alert"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> <span>${escapeHtml(message)}</span></div>`;
 });
 
-const bindTabs = (root) => {
-    root.querySelectorAll('[data-pvoc-tab]').forEach((button) => button.addEventListener('click', () => {
+const bindTabs = (root: HTMLElement) => {
+    root.querySelectorAll<HTMLElement>('[data-pvoc-tab]').forEach((button) => button.addEventListener('click', () => {
         const activeTab = button.dataset.pvocTab;
         root.querySelectorAll('[data-pvoc-tab]').forEach((tab) => {
             const active = tab === button;
             tab.classList.toggle('is-active', active);
             tab.setAttribute('aria-selected', String(active));
         });
-        root.querySelectorAll('[data-pvoc-panel]').forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.pvocPanel !== activeTab));
+        root.querySelectorAll<HTMLElement>('[data-pvoc-panel]').forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.pvocPanel !== activeTab));
         root.dispatchEvent(new CustomEvent('pvoc:tab', { detail: activeTab }));
     }));
 
     // Subsecciones dentro de una pestaña (p.ej. Compara › Resumen General / Análisis Histórico).
-    root.querySelectorAll('[data-pvoc-subtab]').forEach((button) => button.addEventListener('click', () => {
+    root.querySelectorAll<HTMLElement>('[data-pvoc-subtab]').forEach((button) => button.addEventListener('click', () => {
         const panel = button.closest('[data-pvoc-panel]');
+        if (!panel) return;
         const active = button.dataset.pvocSubtab;
         panel.querySelectorAll('[data-pvoc-subtab]').forEach((tab) => {
             tab.classList.toggle('is-active', tab === button);
             tab.setAttribute('aria-selected', String(tab === button));
         });
-        panel.querySelectorAll('[data-pvoc-subpanel]').forEach((subpanel) =>
+        panel.querySelectorAll<HTMLElement>('[data-pvoc-subpanel]').forEach((subpanel) =>
             subpanel.classList.toggle('is-hidden', subpanel.dataset.pvocSubpanel !== active));
     }));
 };
@@ -143,20 +168,22 @@ const bindTabs = (root) => {
  * de la pestaña activa (Compara o Ventas históricas). Cada pestaña avisa cuántos filtros tiene activos
  * con el evento 'pvoc:filtros' ({ tab, count }) y el botón muestra el de la pestaña visible.
  */
-const bindFilterPanel = (root) => {
+const bindFilterPanel = (root: HTMLElement) => {
     const button = document.getElementById('btn-filtrar-ventas-compara');
-    const panels = {
-        summary: { element: root.querySelector('[data-pvoc-filter-panel]'), title: 'Filtrar Compara' },
-        history: { element: root.querySelector('[data-vh-filter-panel]'), title: 'Filtrar Ventas históricas' },
+    const summary = root.querySelector<HTMLElement>('[data-pvoc-filter-panel]');
+    const history = root.querySelector<HTMLElement>('[data-vh-filter-panel]');
+    if (!button || !summary || !history) return;
+    const panels: Record<Tab, { element: HTMLElement; title: string }> = {
+        summary: { element: summary, title: 'Filtrar Compara' },
+        history: { element: history, title: 'Filtrar Ventas históricas' },
     };
-    if (!button || Object.values(panels).some(({ element }) => !element)) return;
 
     const label = button.querySelector('span');
-    const counts = { summary: 0, history: 0 };
-    let activeTab = 'summary';
+    const counts: Record<Tab, number> = { summary: 0, history: 0 };
+    let activeTab: Tab = 'summary';
     const panel = () => panels[activeTab].element;
 
-    const setOpen = (open) => {
+    const setOpen = (open: boolean) => {
         Object.values(panels).forEach(({ element }) => { element.hidden = true; });
         panel().hidden = !open;
         button.setAttribute('aria-expanded', String(open));
@@ -169,41 +196,42 @@ const bindFilterPanel = (root) => {
 
     button.addEventListener('click', (event) => {
         event.stopPropagation();
-        setOpen(panel().hidden);
+        setOpen(Boolean(panel().hidden));
     });
     Object.values(panels).forEach(({ element }) =>
-        element.querySelector('[data-pvoc-filter-close]').addEventListener('click', () => setOpen(false)));
+        element.querySelector('[data-pvoc-filter-close]')?.addEventListener('click', () => setOpen(false)));
     // Los desplegables de cada filtro viven dentro del panel, así que un clic en ellos no lo cierra.
     document.addEventListener('mousedown', (event) => {
-        if (!panel().hidden && !panel().contains(event.target) && !button.contains(event.target)) setOpen(false);
+        if (!panel().hidden && !panel().contains(event.target as Node) && !button.contains(event.target as Node)) setOpen(false);
     });
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !panel().hidden && !panel().querySelector('.pvoc-multi-panel:not([hidden])')) setOpen(false);
     });
     root.addEventListener('pvoc:tab', (event) => {
         setOpen(false);
-        activeTab = event.detail;
+        activeTab = (event as CustomEvent<Tab>).detail;
         syncButton();
     });
     root.addEventListener('pvoc:filtros', (event) => {
-        counts[event.detail.tab] = event.detail.count;
+        const { tab, count } = (event as CustomEvent<{ tab: Tab; count: number }>).detail;
+        counts[tab] = count;
         syncButton();
     });
 };
 
-document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) => {
+document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(async (root) => {
     // Pestañas y ventas históricas no dependen del payload PV vs OC: funcionan aunque éste falle.
     bindTabs(root);
     bindFilterPanel(root);
     mountVentasHistoricas(root, (container) => showLoadError([container], 'No se pudieron cargar las ventas históricas. Intenta nuevamente en unos minutos.'));
 
     // Primero la lista de años y solo el más reciente: con eso se pinta; los demás llegan en segundo plano.
-    let records;
-    let allYears;
+    let records: PvRecord[];
+    let allYears: string[];
     try {
-        ({ anios: allYears } = await http.get(root.dataset.comparaAniosUrl));
-        allYears = allYears.map(String);
-        records = allYears.length ? await fetchYear(root, allYears[0]) : [];
+        const { anios } = await http.get<{ anios: (string | number)[] }>(root.dataset.comparaAniosUrl ?? '');
+        allYears = anios.map(String);
+        records = allYears[0] ? await fetchYear(root, allYears[0]) : [];
     } catch (error) {
         console.error('No se pudo cargar el dashboard de Ventas.', error);
         showLoadError(root.querySelectorAll('[data-pvoc-table]'), 'No se pudo cargar la información de Ventas. Intenta nuevamente en unos minutos.');
@@ -213,12 +241,12 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     // De entrada (y al limpiar) se filtra el año más reciente.
     const latestYear = allYears[0] ?? '';
     const loadedYears = new Set(allYears.slice(0, 1));
-    const failedYears = new Set();
-    const loading = new Map();
+    const failedYears = new Set<string>();
+    const loading = new Map<string, Promise<void>>();
     let warnedYearFailure = false;
 
     /** Pide un año una sola vez (el fondo y una vista que lo necesita comparten la misma promesa). */
-    const loadYear = (year) => {
+    const loadYear = (year: string) => {
         if (!loading.has(year)) {
             loading.set(year, fetchYear(root, year).then((chunk) => {
                 chunk.forEach((record) => records.push(record));
@@ -232,55 +260,54 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
                 }
             }));
         }
-        return loading.get(year);
+        return loading.get(year)!;
     };
 
     /** Años que el filtro actual necesita y aún no llegan (sin selección de año = todos). */
     const missingYears = () => {
-        const selected = state.filters.anio;
+        const selected = state.filters.anio as Set<string>;
         const needed = selected.size ? allYears.filter((year) => selected.has(year)) : allYears;
         return needed.filter((year) => !loadedYears.has(year) && !failedYears.has(year));
     };
     const defaultFilters = () => {
         const filters = emptyFilters();
-        if (latestYear) filters.anio.add(latestYear);
+        if (latestYear) (filters.anio as Set<string>).add(latestYear);
         return filters;
     };
 
     const state = {
         comparison: 'plan-pedido',
         filters: defaultFilters(),
-        desglose: 'empresa',
-        expanded: { summary: new Set(), analisis: new Set() },
+        desglose: 'empresa' as FilterKey,
+        expanded: { summary: new Set<string>(), analisis: new Set<string>() },
         columns: { summary: allColumns(), analisis: allColumns() },
     };
     const elements = {
-        filters: root.querySelector('[data-pvoc-filters]'),
+        filters: root.querySelector<HTMLElement>('[data-pvoc-filters]')!,
     };
 
-    const filterValue = (record, key) => record.filtros[key];
+    const filterValue = (record: PvRecord, key: FilterKey) => record.filtros[key];
 
-    const matchesFilter = (record, { key, multi }) => {
+    const matchesFilter = (record: PvRecord, { key }: { key: FilterKey }) => {
         const selected = state.filters[key];
         const value = filterValue(record, key);
-        return multi ? (!selected.size || selected.has(value)) : (!selected || value === selected);
+        return typeof selected === 'string' ? (!selected || value === selected) : (!selected.size || selected.has(value));
     };
 
     /** Los filtros sin selección no filtran: se descartan antes de recorrer los ~48k combos. */
     const filteredRecords = () => {
-        const active = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key]));
+        const active = FILTERS.filter(({ key }) => isActive(state.filters[key]));
         return active.length ? records.filter((record) => active.every((filter) => matchesFilter(record, filter))) : records;
     };
 
     /** Nivel de detalle bajo cada mes: el elegido en Desglose (siempre hay uno; Empresa por defecto). */
-    const detailLevels = () => [[(item) => String(filterValue(item, state.desglose)), undefined, state.desglose]];
+    const detailLevels = (): Level[] => [[(item) => String(filterValue(item, state.desglose)), undefined, state.desglose]];
 
-    /** label = encabezado de la primera columna · expandDepth = niveles que abre "Expandir todo". */
-    const TABLES = {
-        summary: { label: 'Empresa / Tipo / Cliente', expandDepth: 3, levels: () => DETAIL_LEVELS },
+    /** label = encabezado de la primera columna. */
+    const TABLES: Record<Panel, { label: string; dashZero?: boolean; levels: () => Level[] }> = {
+        summary: { label: 'Empresa / Tipo / Cliente', levels: () => DETAIL_LEVELS },
         analisis: {
             label: 'Año / Mes',
-            expandDepth: 2,
             dashZero: true,
             levels: () => [
                 ['anio', (value) => `Año ${value}`],
@@ -290,14 +317,16 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         },
     };
 
-    const fragment = (html) => document.createRange().createContextualFragment(html);
+    const PANELS = Object.keys(TABLES) as Panel[];
+
+    const fragment = (html: string) => document.createRange().createContextualFragment(html);
 
     const renderFilters = () => {
         const fields = FILTERS.map(({ key, label, multi, format }) => {
             // Los años se conocen desde el inicio; el resto de opciones crece conforme llegan los años.
             const values = key === 'anio' ? [...allYears].sort() : [...new Set(records.map((record) => filterValue(record, key)))].sort();
             if (multi) {
-                return createMultiSelect({ label, values, format, selected: state.filters[key], onChange: renderTables }).element;
+                return createMultiSelect({ label, values, format, selected: state.filters[key] as Set<string>, onChange: renderTables }).element;
             }
             return fragment(`<label class="pvoc-select-label">${label}
                 <select data-pvoc-filter="${key}">
@@ -314,19 +343,19 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
                 </select>
             </label>`);
         elements.filters.replaceChildren(...fields, dashboardControls);
-        elements.filters.querySelectorAll('[data-pvoc-filter]').forEach((select) => select.addEventListener('change', () => {
-            state.filters[select.dataset.pvocFilter] = select.value;
+        elements.filters.querySelectorAll<HTMLSelectElement>('[data-pvoc-filter]').forEach((select) => select.addEventListener('change', () => {
+            state.filters[select.dataset.pvocFilter as FilterKey] = select.value;
             renderTables();
         }));
-        elements.filters.querySelector('[data-pvoc-comparison]').addEventListener('change', (event) => {
-            state.comparison = event.target.value;
+        elements.filters.querySelector('[data-pvoc-comparison]')!.addEventListener('change', (event) => {
+            state.comparison = (event.target as HTMLSelectElement).value;
             renderTables();
         });
     };
 
     /** Una sola pasada por los combos (antes eran 15: una por serie y medida). */
-    const sum = (items) => {
-        const totals = { plan: emptyMetrics(), pedido: emptyMetrics(), real: emptyMetrics() };
+    const sum = (items: PvRecord[]) => {
+        const totals: Totals = { plan: emptyMetrics(), pedido: emptyMetrics(), real: emptyMetrics() };
         items.forEach((item) => {
             addMetrics(totals.plan, item.plan);
             addMetrics(totals.pedido, item.pedido);
@@ -335,18 +364,18 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         return totals;
     };
 
-    const comparisonSeries = () => state.comparison.split('-');
+    const comparisonSeries = () => state.comparison.split('-') as [Series, Series];
     /** Medidas visibles del panel, en el orden de METRICS. */
-    const visibleMetrics = (panel) => METRICS.filter(([metric]) => state.columns[panel].has(metric));
+    const visibleMetrics = (panel: Panel) => METRICS.filter(([metric]) => state.columns[panel].has(metric));
     /** Etiqueta + (Plan, Pedido, Real, Δ) × medidas visibles + Cumpl. y Estatus. */
-    const visibleColumnCount = (panel) => 1 + 4 * visibleMetrics(panel).length + 2;
+    const visibleColumnCount = (panel: Panel) => 1 + 4 * visibleMetrics(panel).length + 2;
 
-    const numberCells = (totals, panel) => {
+    const numberCells = (totals: Totals, panel: Panel) => {
         const { dashZero } = TABLES[panel];
         const metrics = visibleMetrics(panel);
         const [left, right] = comparisonSeries();
         const percentage = totals[left].piezas ? (totals[right].piezas / totals[left].piezas) * 100 : 0;
-        const seriesCells = Object.keys(SERIES).map((series) => metrics.map(([metric]) => {
+        const seriesCells = SERIES_KEYS.map((series) => metrics.map(([metric]) => {
             const value = totals[series][metric];
             return `<td class="pvoc-number pvoc-${series}">${dashZero && !value ? '–' : formatNumber(value)}</td>`;
         }).join('')).join('');
@@ -357,9 +386,9 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         return `${seriesCells}${deltaCells}${complianceCells}`;
     };
 
-    const tableHeader = (panel) => {
+    const tableHeader = (panel: Panel) => {
         const metrics = visibleMetrics(panel);
-        const metricHeaders = (className) => metrics.map(([, label]) => `<th class="pvoc-${className}">${label}</th>`).join('');
+        const metricHeaders = (className: string) => metrics.map(([, label]) => `<th class="pvoc-${className}">${label}</th>`).join('');
         return `<table class="pvoc-table"><thead>
             <tr class="pvoc-table-groups">
                 <th rowspan="2" class="pvoc-label">${TABLES[panel].label}</th>
@@ -367,31 +396,31 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
                 <th colspan="${metrics.length}" class="pvoc-delta">Δ ${comparisonSeries().map((key) => SERIES[key].label).join(' − ')}</th>
                 <th rowspan="2">Cumpl.</th><th rowspan="2">Estatus</th>
             </tr>
-            <tr>${Object.keys(SERIES).map(metricHeaders).join('')}${metricHeaders('delta')}</tr>
+            <tr>${SERIES_KEYS.map(metricHeaders).join('')}${metricHeaders('delta')}</tr>
         </thead><tbody>`;
     };
 
-    const buildTree = (items, levels, parentKey = '') => {
-        if (!levels.length) return [];
+    const buildTree = (items: PvRecord[], levels: Level[], parentKey = ''): TreeNode[] => {
+        if (!levels[0]) return [];
         const [selector, formatter, sortKey = selector] = levels[0];
-        const groups = new Map();
+        const groups = new Map<string, PvRecord[]>();
         items.forEach((item) => {
             const value = typeof selector === 'function' ? selector(item) : item[selector];
-            if (!groups.has(value)) groups.set(value, []);
-            groups.get(value).push(item);
+            const group = groups.get(value);
+            if (group) group.push(item); else groups.set(value, [item]);
         });
         return [...groups.entries()].sort(compareGroup(sortKey)).map(([value, children], index) => {
             const id = `${parentKey}/${value}-${index}`;
             return {
                 id,
-                label: formatter ? formatter(value, children[0]) : value,
+                label: formatter ? formatter(value) : value,
                 items: children,
                 children: buildTree(children, levels.slice(1), id),
             };
         });
     };
 
-    const renderNode = (node, level, panel) => {
+    const renderNode = (node: TreeNode, level: number, panel: Panel): string => {
         const expandable = node.children.length > 0;
         const isExpanded = state.expanded[panel].has(node.id);
         const indentation = '&nbsp;'.repeat(level * 4);
@@ -402,23 +431,23 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         return row + (isExpanded ? node.children.map((child) => renderNode(child, level + 1, panel)).join('') : '');
     };
 
-    const tableContainer = (panel) => root.querySelector(`[data-pvoc-table="${panel}"]`);
+    const tableContainer = (panel: Panel) => root.querySelector<HTMLElement>(`[data-pvoc-table="${panel}"]`)!;
 
-    const renderTable = (panel) => {
+    const renderTable = (panel: Panel) => {
         const filtered = filteredRecords();
         const rows = buildTree(filtered, TABLES[panel].levels()).map((node) => renderNode(node, 0, panel)).join('');
         tableContainer(panel).innerHTML = `${tableHeader(panel)}${rows || `<tr><td colspan="${visibleColumnCount(panel)}" class="pvoc-empty">No hay datos para los filtros seleccionados.</td></tr>`}
             <tr class="pvoc-row-total"><td class="pvoc-label">Total general</td>${numberCells(sum(filtered), panel)}</tr></tbody></table>`;
     };
 
-    const toggleNode = (panel, node) => {
-        state.expanded[panel].has(node) ? state.expanded[panel].delete(node) : state.expanded[panel].add(node);
+    const toggleNode = (panel: Panel, node: string) => {
+        if (state.expanded[panel].has(node)) state.expanded[panel].delete(node); else state.expanded[panel].add(node);
         renderTable(panel);
     };
 
     /** Abre los nodos hasta la profundidad indicada recorriendo el árbol, sin re-renderizar por nivel. */
-    const expandTo = (panel, depth) => {
-        const walk = (nodes, level) => nodes.forEach((node) => {
+    const expandTo = (panel: Panel, depth: number) => {
+        const walk = (nodes: TreeNode[], level: number) => nodes.forEach((node) => {
             if (level >= depth || !node.children.length) return;
             state.expanded[panel].add(node.id);
             walk(node.children, level + 1);
@@ -429,7 +458,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
 
     /** Con los filtros escondidos en el panel, el botón del navbar indica cuántos hay activos. */
     const syncFilterCount = () => {
-        const count = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key])).length;
+        const count = FILTERS.filter(({ key }) => isActive(state.filters[key])).length;
         root.dispatchEvent(new CustomEvent('pvoc:filtros', { detail: { tab: 'summary', count } }));
     };
 
@@ -437,79 +466,73 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     let renderToken = 0;
     const renderTables = () => {
         const token = ++renderToken;
-        Object.keys(TABLES).forEach((panel) => clearRowSelection(tableContainer(panel)));
+        PANELS.forEach((panel) => clearRowSelection(tableContainer(panel)));
         syncFilterCount();
 
         // Si el filtro pide un año que aún no llega, se muestra "Cargando…" y se pinta al recibirlo.
         const missing = missingYears();
         if (missing.length) {
-            Object.keys(TABLES).forEach((panel) => {
+            PANELS.forEach((panel) => {
                 tableContainer(panel).innerHTML = '<div class="pvoc-loading" role="status"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>Cargando años restantes…</span></div>';
             });
             Promise.all(missing.map(loadYear)).then(() => { if (token === renderToken) renderTables(); });
             return;
         }
-        Object.keys(TABLES).forEach(renderTable);
+        PANELS.forEach(renderTable);
     };
 
-    Object.keys(TABLES).forEach((panel) => {
+    PANELS.forEach((panel) => {
         const container = tableContainer(panel);
         // Antes que el expander: la fila se marca antes de que toggleNode re-pinte la tabla.
         bindRowSelection(container);
         container.addEventListener('click', (event) => {
-            const button = event.target.closest('[data-pvoc-node]');
-            if (button) toggleNode(panel, button.dataset.pvocNode);
+            const button = (event.target as Element).closest<HTMLElement>('[data-pvoc-node]');
+            if (button) toggleNode(panel, button.dataset.pvocNode ?? '');
         });
         // Doble clic en cualquier parte de la fila la abre o cierra (p.ej. un mes para desglosarlo).
         container.addEventListener('dblclick', (event) => {
-            if (event.target.closest('[data-pvoc-node]')) return;
-            const button = event.target.closest('tr')?.querySelector('[data-pvoc-node]');
-            if (button) toggleNode(panel, button.dataset.pvocNode);
+            const target = event.target as Element;
+            if (target.closest('[data-pvoc-node]')) return;
+            const button = target.closest('tr')?.querySelector<HTMLElement>('[data-pvoc-node]');
+            if (button) toggleNode(panel, button.dataset.pvocNode ?? '');
         });
     });
 
-    root.querySelector('[data-pvoc-clear]').addEventListener('click', () => {
+    root.querySelector('[data-pvoc-clear]')?.addEventListener('click', () => {
         state.filters = defaultFilters(); renderFilters(); renderTables();
     });
-    root.querySelectorAll('[data-pvoc-expand]').forEach((button) => button.addEventListener('click', () => {
-        const panel = button.dataset.pvocExpand;
-        expandTo(panel, TABLES[panel].expandDepth);
-    }));
-    root.querySelectorAll('[data-pvoc-collapse]').forEach((button) => button.addEventListener('click', () => {
-        const panel = button.dataset.pvocCollapse;
-        state.expanded[panel].clear(); renderTable(panel);
-    }));
 
-    const desgloseSelect = root.querySelector('[data-pvoc-desglose]');
+    const desgloseSelect = root.querySelector<HTMLSelectElement>('[data-pvoc-desglose]')!;
     desgloseSelect.innerHTML = DESGLOSES.map(([key, label]) => `<option value="${key}">${escapeHtml(label)}</option>`).join('');
     desgloseSelect.addEventListener('change', () => {
-        state.desglose = desgloseSelect.value;
+        state.desglose = desgloseSelect.value as FilterKey;
         renderTable('analisis');
     });
 
-    root.querySelectorAll('[data-pvoc-columns]').forEach((wrapper) => {
-        const panel = wrapper.dataset.pvocColumns;
-        const toggle = wrapper.querySelector('[data-pvoc-columns-toggle]');
-        const menu = wrapper.querySelector('[data-pvoc-columns-menu]');
-        const setOpen = (open) => {
+    root.querySelectorAll<HTMLElement>('[data-pvoc-columns]').forEach((wrapper) => {
+        const panel = wrapper.dataset.pvocColumns as Panel;
+        const toggle = wrapper.querySelector<HTMLElement>('[data-pvoc-columns-toggle]')!;
+        const menu = wrapper.querySelector<HTMLElement>('[data-pvoc-columns-menu]')!;
+        const setOpen = (open: boolean) => {
             menu.hidden = !open;
             toggle.setAttribute('aria-expanded', String(open));
         };
         menu.innerHTML = METRICS.map(([key, label]) => `<label class="pvoc-multi-option">
             <input type="checkbox" value="${key}" ${state.columns[panel].has(key) ? 'checked' : ''}><span>${escapeHtml(label)}</span>
         </label>`).join('');
-        toggle.addEventListener('click', () => setOpen(menu.hidden));
+        toggle.addEventListener('click', () => setOpen(Boolean(menu.hidden)));
         menu.addEventListener('change', (event) => {
+            const input = event.target as HTMLInputElement;
             const visible = state.columns[panel];
             // Siempre queda al menos una medida: sin ninguna, la tabla no tendría columnas numéricas.
-            if (!event.target.checked && visible.size === 1) {
-                event.target.checked = true;
+            if (!input.checked && visible.size === 1) {
+                input.checked = true;
                 return;
             }
-            event.target.checked ? visible.add(event.target.value) : visible.delete(event.target.value);
+            if (input.checked) visible.add(input.value); else visible.delete(input.value);
             renderTable(panel);
         });
-        document.addEventListener('mousedown', (event) => { if (!wrapper.contains(event.target)) setOpen(false); });
+        document.addEventListener('mousedown', (event) => { if (!wrapper.contains(event.target as Node)) setOpen(false); });
     });
 
     renderFilters();
