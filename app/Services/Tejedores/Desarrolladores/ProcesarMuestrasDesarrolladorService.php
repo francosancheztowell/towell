@@ -6,12 +6,12 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\ColumnasDeTabla;
 use DomainException;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ProcesarMuestrasDesarrolladorService
@@ -354,7 +354,7 @@ class ProcesarMuestrasDesarrolladorService
             'AlturaRizo' => $this->normalizarAlturaRizo($validated['AlturaRizo'] ?? null),
         ], $detallePayload, $pasadasPayload);
 
-        $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
+        $columnasModelo = ColumnasDeTabla::de($registroModelo->getTable());
         foreach ($this->sinCamposNoCapturados($payloadModelo, $validated) as $column => $value) {
             if (! in_array($column, $columnasModelo, true)) {
                 continue;

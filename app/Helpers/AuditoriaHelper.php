@@ -2,12 +2,12 @@
 
 namespace App\Helpers;
 
+use App\Support\ColumnasDeTabla;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class AuditoriaHelper
 {
@@ -22,7 +22,7 @@ class AuditoriaHelper
         $usuario = self::obtenerUsuarioActual();
         $fechaActual = now();
         $table = $modelo->getTable();
-        $columns = Schema::getColumnListing($table);
+        $columns = ColumnasDeTabla::de($table);
 
         // Campos de creación (solo si no es solo modificación y no existen)
         if (! $soloModificacion) {

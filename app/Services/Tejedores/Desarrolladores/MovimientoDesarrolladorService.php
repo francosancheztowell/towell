@@ -7,12 +7,12 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Services\Planeacion\ProgramaTejido\SecuenciaFechasTelar;
+use App\Support\ColumnasDeTabla;
 use Carbon\Carbon;
 use DomainException;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class MovimientoDesarrolladorService
 {
@@ -587,7 +587,7 @@ class MovimientoDesarrolladorService
 
         $modelo = new CatCodificados;
         $table = $modelo->getTable();
-        $columns = Schema::getColumnListing($table);
+        $columns = ColumnasDeTabla::de($table);
 
         if (! in_array('FechaArranque', $columns, true) || ! in_array('FechaFinaliza', $columns, true)) {
             return $programaActualizado;
@@ -639,7 +639,7 @@ class MovimientoDesarrolladorService
         }
 
         $modelo = new CatCodificados;
-        $columns = Schema::getColumnListing($modelo->getTable());
+        $columns = ColumnasDeTabla::de($modelo->getTable());
         $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion, $noTelarId);
 
         if (! $registroCodificado) {
