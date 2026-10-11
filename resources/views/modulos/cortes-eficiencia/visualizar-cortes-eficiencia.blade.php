@@ -266,12 +266,7 @@
 
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="13"
-                                class="px-6 py-8 text-center text-gray-500 text-base border border-gray-300">
-                                Sin datos para la fecha seleccionada.
-                            </td>
-                        </tr>
+                        <x-ui.table-empty :colspan="13" message="Sin datos para la fecha seleccionada." icon="fa-calendar-xmark" />
                     @endforelse
                 </tbody>
             </table>

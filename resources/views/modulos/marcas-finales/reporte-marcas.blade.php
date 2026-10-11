@@ -121,9 +121,7 @@
                             <td class="px-2 py-2 text-center align-middle">{{ $val($t3,'Otros') }}</td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="22" class="px-4 py-6 text-center text-gray-500 text-sm">Sin datos para la fecha seleccionada.</td>
-                        </tr>
+                        <x-ui.table-empty :colspan="22" message="Sin datos para la fecha seleccionada." icon="fa-calendar-xmark" />
                     @endforelse
                 </tbody>
             </table>
