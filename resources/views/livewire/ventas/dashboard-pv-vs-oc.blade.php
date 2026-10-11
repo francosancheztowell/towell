@@ -1,4 +1,4 @@
-@vite(['resources/css/ventas/dashboard.css', 'resources/js/ventas/dashboard.js'])
+@vite(['resources/css/ventas/dashboard.css', 'resources/js/ventas/dashboard.ts'])
 
 <div
     class="ventas-pvoc-dashboard"

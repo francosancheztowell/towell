@@ -50,7 +50,7 @@ export default defineConfig({
         'resources/css/crudo/dashboard.css',
         'resources/js/crudo/dashboard.ts',
         'resources/css/ventas/dashboard.css',
-        entrada('resources/js/ventas/dashboard'),
+        'resources/js/ventas/dashboard.ts',
         'resources/css/urd-eng/edicion-ordenes.css',
         'resources/js/urd-eng/edicion-ordenes.ts',
         'resources/js/urd-eng/edicion-orden.ts',
