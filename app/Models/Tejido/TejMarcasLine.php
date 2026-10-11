@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class TejMarcasLine extends Model
 {
     protected $table = 'TejMarcasLine';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -26,7 +27,7 @@ class TejMarcasLine extends Model
         'Rizo',
         'Otros',
         'created_at',
-        'updated_at'
+        'updated_at',
     ];
 
     protected $casts = [
@@ -40,7 +41,7 @@ class TejMarcasLine extends Model
         'Rizo' => 'integer',
         'Otros' => 'integer',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
     ];
 
     // Relación con la marca principal
@@ -49,60 +50,3 @@ class TejMarcasLine extends Model
         return $this->belongsTo(TejMarcas::class, 'Folio', 'Folio');
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

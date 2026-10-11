@@ -183,7 +183,7 @@ class ControlMermaReportService
 
             $seenItemsByLabel[$label][$itemKey] = true;
 
-            if (!isset($buckets[$label])) {
+            if (! isset($buckets[$label])) {
                 $buckets[$label] = [
                     'label' => $label,
                     'count' => 0,
@@ -278,16 +278,16 @@ class ControlMermaReportService
         if ($source === 'urd') {
             $noJulio = $this->normalizeText($record->NoJulio ?? null);
             if ($noJulio !== '') {
-                return 'julio:' . $noJulio;
+                return 'julio:'.$noJulio;
             }
         }
 
         $id = $this->normalizeText($record->Id ?? null);
         if ($id !== '') {
-            return 'row:' . $id;
+            return 'row:'.$id;
         }
 
-        return 'row:' . spl_object_id($record);
+        return 'row:'.spl_object_id($record);
     }
 
     private function normalizeOperatorLabel(mixed $name, mixed $code): ?string
@@ -346,11 +346,11 @@ class ControlMermaReportService
         }
 
         if (preg_match('/mc\s*coy\s*(\d+)/i', $maquina, $matches)) {
-            return 'MC' . $matches[1];
+            return 'MC'.$matches[1];
         }
 
         if (preg_match('/\bmc\s*(\d+)/i', $maquina, $matches)) {
-            return 'MC' . $matches[1];
+            return 'MC'.$matches[1];
         }
 
         return 'OTRO';

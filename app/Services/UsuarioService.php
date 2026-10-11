@@ -20,7 +20,7 @@ class UsuarioService
     /**
      * Crear usuario
      */
-    public function create(array $data, ?UploadedFile $foto = null, array $permisos = []): \App\Models\Sistema\Usuario
+    public function create(array $data, ?UploadedFile $foto = null, array $permisos = []): Usuario
     {
         // Procesar foto
         if ($foto) {
