@@ -40,7 +40,7 @@
         <x-slot:acciones>
             <flux:button size="sm" icon="tag" wire:click="abrirRenombrar" :disabled="$seleccionado === null"
                          title="{{ $seleccionado === null ? 'Selecciona un dispositivo' : 'Renombrar dispositivo' }}">Renombrar</flux:button>
-            <flux:button size="sm" variant="danger" icon="arrow-right-start-on-rectangle" :disabled="$seleccionado === null"
+            <flux:button size="sm" variant="danger" icon="arrow-right-start-on-rectangle" :disabled="$seleccionado === null" :loading="true" wire:target="cerrarSesion"
                          title="{{ $seleccionado === null ? 'Selecciona un dispositivo' : 'Cerrar la sesión de este dispositivo' }}"
                          x-on:click="notify.confirm({ title: '¿Cerrar la sesión de este dispositivo?', text: 'Se cierra solo en este equipo, en su siguiente actividad. Las demás sesiones del usuario siguen.', confirmText: 'Cerrar sesión', confirmColor: '#dc2626' }).then(ok => ok && $wire.cerrarSesion())">Cerrar sesión</flux:button>
         </x-slot:acciones>
