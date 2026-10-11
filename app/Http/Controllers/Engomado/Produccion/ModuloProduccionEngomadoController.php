@@ -149,8 +149,7 @@ class ModuloProduccionEngomadoController extends Controller
         }
 
         // Verificar que la orden de urdido esté finalizada
-        $urdido = UrdProgramaUrdido::where('Folio', $orden->Folio)->first();
-        if (! $urdido || $urdido->Status !== 'Finalizado') {
+        if (UrdProgramaUrdido::where('Folio', $orden->Folio)->value('Status') !== 'Finalizado') {
             return redirect()->route('engomado.programar.engomado')
                 ->with('error', "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.");
         }
@@ -175,11 +174,7 @@ class ModuloProduccionEngomadoController extends Controller
         $totalRegistros = (int) ($orden->NoTelas ?? 0);
 
         // Obtener sólidos desde la última formulación del folio
-        $solidosFormulacion = null;
-        $formulacion = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->first();
-        if ($formulacion && $formulacion->Solidos !== null) {
-            $solidosFormulacion = $formulacion->Solidos;
-        }
+        $solidosFormulacion = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->value('Solidos');
 
         // Se extrae a su propio metodo para poder ejercitarlo sin pasar por
         // la pantalla (ver scripts/ensayo-engomado-20-ordenes.php).
@@ -190,15 +185,11 @@ class ModuloProduccionEngomadoController extends Controller
         }
         $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->orderBy('Id')->get();
 
-        // Habilitar botón solo cuando hay registros con Finalizar=1 e Impresion=NULL/0 (listos pero no impresos)
-        try {
-            $tieneRegistrosParciales = EngProduccionEngomado::where('Folio', $orden->Folio)
-                ->where('Finalizar', 1)
-                ->whereRaw('(Impresion IS NULL OR Impresion = 0)')
-                ->exists();
-        } catch (\Throwable $e) {
-            $tieneRegistrosParciales = false;
-        }
+        // Habilitar botón solo cuando hay registros con Finalizar=1 e Impresion=NULL/0 (listos pero no impresos).
+        // Sale de las filas ya cargadas: no hace falta otra consulta.
+        $tieneRegistrosParciales = $registrosProduccion->contains(
+            fn (EngProduccionEngomado $r): bool => $r->Finalizar === 1 && ! $r->Impresion
+        );
 
         $user = Auth::user();
         $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
