@@ -5,26 +5,46 @@
  * Los datos vienen de dbo.TwHistoricosVentas, ya agrupados en SQL (ver VentasHistoricasPayloadBuilder).
  */
 import Chart from 'chart.js/auto';
+import type { ChartConfiguration, ChartDataset } from 'chart.js';
+import { escapeHtml, formatNumber as formatEsMx } from '../utils/format';
 import { http } from '../utils/http';
 import { createMultiSelect } from './multi-select';
 import { bindRowSelection, clearRowSelection } from './row-selection';
 
+/** Campos de texto del payload (sf) que usan los filtros y los reportes. */
+type Field = 'empresa' | 'anio' | 'semestre' | 'mes' | 'tipoPedido' | 'tipoMaterial' | 'calidad' | 'cliente' | 'agente';
+type Totals = ReturnType<typeof aggregate>;
+type MetricKey = keyof Totals;
+type VhRecord = Record<Field, string> & Record<'piezas' | 'kilos' | 'ventasBrutas' | 'descuentos', number>;
+type Comparator = (a: string, b: string) => number;
+type CompareSlot = 'anioA' | 'anioB';
+type HistoricoPayload = { sf: string[]; nf: string[]; dict: string[]; rows: (string | number)[][] };
+type Report = {
+    id: string;
+    title: string;
+    labelHeader: string;
+    levels: Field[];
+    sortLeavesBy?: MetricKey;
+    chart: { type: 'bar' | 'line'; x: Field; series?: Field; horizontal?: boolean; stacked?: boolean; sortBy?: 'metric' };
+};
+type ChartSeries = { label: string; data: number[]; color: string };
+
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const MESES_NOMBRE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const monthName = (value) => MESES_NOMBRE[MESES.indexOf(value)] ?? value;
+const monthName = (value: string) => MESES_NOMBRE[MESES.indexOf(value)] ?? value;
 const EMPRESA_ORDER = ['TOWEL', 'TEXTIL'];
 
 /** Orden natural de cada dimensión en tablas y ejes (los slicers de año van descendentes, como en Excel). */
-const SORTERS = {
+const SORTERS: Partial<Record<string, Comparator>> = {
     empresa: (a, b) => EMPRESA_ORDER.indexOf(a) - EMPRESA_ORDER.indexOf(b),
     anio: (a, b) => Number(a) - Number(b),
     mes: (a, b) => MESES.indexOf(a) - MESES.indexOf(b),
 };
-const comparatorFor = (key) => SORTERS[key] || ((a, b) => String(a).localeCompare(String(b), 'es'));
-const sortValues = (key, values) => values.sort(comparatorFor(key));
+const comparatorFor = (key: string): Comparator => SORTERS[key] || ((a, b) => String(a).localeCompare(String(b), 'es'));
+const sortValues = (key: string, values: string[]) => values.sort(comparatorFor(key));
 
 /** Filtros de selección múltiple (mismo componente que Resumen general); order = orden en la lista. */
-const SLICERS = [
+const SLICERS: { key: Field; label: string; order?: Comparator; format?: (value: string) => string }[] = [
     { key: 'empresa', label: 'Empresa' },
     { key: 'anio', label: 'Año', order: (a, b) => Number(b) - Number(a) },
     { key: 'semestre', label: 'Semestre' },
@@ -37,20 +57,20 @@ const SLICERS = [
 ];
 
 /** [métrica, etiqueta, decimales]: los montos sin decimales para que las 13 columnas quepan en pantalla. */
-const COLUMNS = [
+const COLUMNS: [MetricKey, string, number][] = [
     ['piezas', 'Piezas', 0], ['kilos', 'Kilos', 0], ['ventasBrutas', 'Ventas Brutas', 0], ['descuentos', 'Descuentos', 0],
     ['importeNeto', 'Importe Neto', 0], ['pvbPza', 'PVB x Pza', 2], ['pvbKg', 'PVB x Kg', 2], ['descPza', 'Desc x Pza', 2],
     ['descKg', 'Desc x Kg', 2], ['pctDesc', '% Desc', 2], ['pvnPza', 'PVN x Pza', 2], ['pvnKg', 'PVN x Kg', 2],
 ];
 
 /** Solo medidas aditivas: apilar o comparar precios promedio en una gráfica engaña. */
-const CHART_METRICS = [
+const CHART_METRICS: [MetricKey, string][] = [
     ['importeNeto', 'Importe Neto'], ['ventasBrutas', 'Ventas Brutas'], ['descuentos', 'Descuentos'],
     ['piezas', 'Piezas'], ['kilos', 'Kilos'],
 ];
 
 /** [métrica, etiqueta, decimales] del comparativo por año. */
-const COMPARE_COLUMNS = [
+const COMPARE_COLUMNS: [MetricKey, string, number][] = [
     ['piezas', 'Pzas', 0], ['kilos', 'Kilos', 0], ['ventasBrutas', 'V.B.', 0], ['descuentos', 'Desc.', 0],
     ['importeNeto', 'V.N.', 0], ['pvbKg', 'PVB KG', 2], ['pvnKg', 'PVN KG', 2],
 ];
@@ -59,43 +79,39 @@ const COMPARE_COLUMNS = [
  * Reportes tipo tabla dinámica. levels = agrupación de filas (el último nivel son las filas hoja);
  * chart = cómo se dibuja en vista de gráfica.
  */
-const REPORTS = [
+const REPORTS: Report[] = [
     {
         id: 'anual', title: 'Ventas Anuales', labelHeader: 'Empresa / Año', levels: ['empresa', 'anio'],
-        defaultView: 'table', chart: { type: 'bar', x: 'anio', series: 'empresa' },
+        chart: { type: 'bar', x: 'anio', series: 'empresa' },
     },
     {
         id: 'tipoPedido', title: 'Ventas Empresa y Tipo de Pedido', labelHeader: 'Empresa / Tipo de pedido', levels: ['empresa', 'tipoPedido'],
-        defaultView: 'table', chart: { type: 'bar', x: 'tipoPedido', series: 'empresa' },
+        chart: { type: 'bar', x: 'tipoPedido', series: 'empresa' },
     },
     {
         id: 'mensual', title: 'Ventas Mensuales', labelHeader: 'Empresa / Mes', levels: ['empresa', 'mes'],
-        defaultView: 'chart', chart: { type: 'line', x: 'mes', series: 'empresa' },
+        chart: { type: 'line', x: 'mes', series: 'empresa' },
     },
     {
         id: 'agente', title: 'Ventas x Agente de Ventas', labelHeader: 'Agente de ventas', levels: ['agente'], sortLeavesBy: 'importeNeto',
-        defaultView: 'chart', chart: { type: 'bar', x: 'agente', horizontal: true, sortBy: 'metric' },
+        chart: { type: 'bar', x: 'agente', horizontal: true, sortBy: 'metric' },
     },
     {
         id: 'material', title: 'Ventas x Tipo de Material', labelHeader: 'Empresa / Calidad / Tipo de material', levels: ['empresa', 'calidad', 'tipoMaterial'],
-        defaultView: 'table', chart: { type: 'bar', x: 'tipoMaterial', series: 'calidad', stacked: true },
+        chart: { type: 'bar', x: 'tipoMaterial', series: 'calidad', stacked: true },
     },
 ];
 
 /** Paleta categórica validada (orden fijo, nunca ciclado): el color sigue a la entidad, no al rango. */
 const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
 /** Comparativo por año: Año A en verde y Año B en azul, igual en tablas, selectores y gráfica. */
-const COMPARE_COLORS = { anioA: '#15885e', anioB: '#2a78d6' };
+const COMPARE_COLORS: Record<CompareSlot, string> = { anioA: '#15885e', anioB: '#2a78d6' };
 const CHART_INK = '#52514e';
 const CHART_GRID = '#e7e5e4';
 
-const formatNumber = (value, decimals = 2) => new Intl.NumberFormat('es-MX', {
-    minimumFractionDigits: decimals, maximumFractionDigits: decimals,
-}).format(Number.isFinite(value) ? value : 0);
-const formatCompact = (value) => new Intl.NumberFormat('es-MX', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;',
-}[character]));
+const formatNumber = (value: number, decimals = 2) => formatEsMx(Number.isFinite(value) ? value : 0, decimals);
+const compactFormat = new Intl.NumberFormat('es-MX', { notation: 'compact', maximumFractionDigits: 1 });
+const formatCompact = (value: number | string) => compactFormat.format(Number(value));
 
 // ---------------------------------------------------------------------------
 // Datos
@@ -108,23 +124,23 @@ const BLANK = '(en blanco)';
  * VentasHistoricasPayloadBuilder manda { sf, nf, dict, rows }: cada fila son índices al
  * diccionario (campos de texto, en el orden de sf) seguidos de los totales numéricos (nf).
  */
-const loadRecords = (payload) => {
+const loadRecords = (payload: HistoricoPayload | null | undefined): VhRecord[] => {
     if (!payload || !Array.isArray(payload.rows)) return [];
 
     const { sf, nf, dict, rows } = payload;
     return rows.map((row) => {
-        const record = {};
-        sf.forEach((field, index) => { record[field] = dict[row[index]] || BLANK; });
+        const record: Record<string, string | number> = {};
+        sf.forEach((field, index) => { record[field] = dict[Number(row[index])] || BLANK; });
         nf.forEach((field, index) => { record[field] = Number(row[sf.length + index]) || 0; });
-        record.mes = MESES[Number(record.mes) - 1] ?? record.mes;
-        return record;
+        record.mes = MESES[Number(record.mes) - 1] ?? record.mes ?? BLANK;
+        return record as VhRecord;
     });
 };
 // ---------------------------------------------------------------------------
 // Agregación
 // ---------------------------------------------------------------------------
 
-const aggregate = (items) => {
+const aggregate = (items: VhRecord[]) => {
     const totals = items.reduce((acc, item) => {
         acc.piezas += item.piezas;
         acc.kilos += item.kilos;
@@ -133,7 +149,7 @@ const aggregate = (items) => {
         return acc;
     }, { piezas: 0, kilos: 0, ventasBrutas: 0, descuentos: 0 });
 
-    const ratio = (numerator, denominator) => (denominator ? numerator / denominator : 0);
+    const ratio = (numerator: number, denominator: number) => (denominator ? numerator / denominator : 0);
     const importeNeto = totals.ventasBrutas - totals.descuentos;
 
     return {
@@ -149,22 +165,24 @@ const aggregate = (items) => {
     };
 };
 
-const groupBy = (items, key) => items.reduce((groups, item) => {
-    if (!groups.has(item[key])) groups.set(item[key], []);
-    groups.get(item[key]).push(item);
+const groupBy = (items: VhRecord[], key: Field) => items.reduce((groups, item) => {
+    const group = groups.get(item[key]);
+    if (group) group.push(item); else groups.set(item[key], [item]);
     return groups;
-}, new Map());
+}, new Map<string, VhRecord[]>());
 
-const sumMetric = (items, metric) => aggregate(items)[metric];
+const sumMetric = (items: VhRecord[], metric: MetricKey) => aggregate(items)[metric];
 
 // ---------------------------------------------------------------------------
 // Gráficas
 // ---------------------------------------------------------------------------
 
-const buildChart = (canvas, { type, labels, datasets, horizontal = false, stacked = false }) => {
+type ChartSpec = { type: 'bar' | 'line'; labels: string[]; datasets: ChartSeries[]; horizontal?: boolean | undefined; stacked?: boolean | undefined };
+
+const buildChart = (canvas: HTMLCanvasElement, { type, labels, datasets, horizontal = false, stacked = false }: ChartSpec) => {
     const valueAxis = horizontal ? 'x' : 'y';
     const categoryAxis = horizontal ? 'y' : 'x';
-    const styled = datasets.map(({ label, data, color }) => (type === 'line'
+    const styled = datasets.map(({ label, data, color }): ChartDataset<'bar' | 'line', number[]> => (type === 'line'
         ? { label, data, borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0 }
         : {
             label, data, backgroundColor: color,
@@ -174,7 +192,7 @@ const buildChart = (canvas, { type, labels, datasets, horizontal = false, stacke
             maxBarThickness: 36,
         }));
 
-    return new Chart(canvas, {
+    const config: ChartConfiguration<'bar' | 'line', number[], string> = {
         type,
         data: { labels, datasets: styled },
         options: {
@@ -191,7 +209,7 @@ const buildChart = (canvas, { type, labels, datasets, horizontal = false, stacke
                     labels: { usePointStyle: true, boxWidth: 8, color: CHART_INK },
                 },
                 tooltip: {
-                    callbacks: { label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed[valueAxis])}` },
+                    callbacks: { label: (context) => `${context.dataset.label}: ${formatNumber(context.parsed[valueAxis] ?? 0)}` },
                 },
             },
             scales: {
@@ -203,45 +221,51 @@ const buildChart = (canvas, { type, labels, datasets, horizontal = false, stacke
                 },
             },
         },
-    });
+    };
+    return new Chart(canvas, config);
 };
 
 // ---------------------------------------------------------------------------
 // Componente
 // ---------------------------------------------------------------------------
 
-const initVentasHistoricas = (root, payload) => {
+const initVentasHistoricas = (root: HTMLElement, payload: HistoricoPayload) => {
     const records = loadRecords(payload);
     const allYears = sortValues('anio', [...new Set(records.map((record) => record.anio))]);
     const state = {
-        selected: Object.fromEntries(SLICERS.map(({ key }) => [key, new Set()])),
-        metric: Object.fromEntries([...REPORTS.map(({ id }) => id), 'comparativo'].map((id) => [id, 'importeNeto'])),
-        collapsed: Object.fromEntries(REPORTS.map(({ id }) => [id, new Set()])),
-        compare: { anioA: allYears[allYears.length - 2] ?? allYears[0], anioB: allYears[allYears.length - 1], meses: new Set() },
-        activeReport: REPORTS[0].id,
+        selected: Object.fromEntries(SLICERS.map(({ key }) => [key, new Set<string>()])) as Record<Field, Set<string>>,
+        metric: Object.fromEntries([...REPORTS.map(({ id }) => id), 'comparativo'].map((id) => [id, 'importeNeto'])) as Record<string, MetricKey>,
+        collapsed: Object.fromEntries(REPORTS.map(({ id }) => [id, new Set<string>()])) as Record<string, Set<string>>,
+        compare: {
+            anioA: allYears[allYears.length - 2] ?? allYears[0],
+            anioB: allYears[allYears.length - 1],
+            meses: new Set<string>(),
+        } as Record<CompareSlot, string | undefined> & { meses: Set<string> },
+        activeReport: REPORTS[0]!.id,
     };
-    const charts = {};
+    const charts: Partial<Record<string, Chart>> = {};
+    // La vista Blade trae los tres contenedores; si faltaran, mountVentasHistoricas muestra el error.
     const elements = {
-        slicers: root.querySelector('[data-vh-slicers]'),
-        subtabs: root.querySelector('[data-vh-subtabs]'),
-        reports: root.querySelector('[data-vh-reports]'),
+        slicers: root.querySelector<HTMLElement>('[data-vh-slicers]')!,
+        subtabs: root.querySelector<HTMLElement>('[data-vh-subtabs]')!,
+        reports: root.querySelector<HTMLElement>('[data-vh-reports]')!,
     };
 
     const allValues = Object.fromEntries(SLICERS.map(({ key, order }) => {
         const values = sortValues(key, [...new Set(records.map((record) => record[key]))]);
         return [key, order ? values.sort(order) : values];
-    }));
+    })) as Record<Field, string[]>;
 
     /** El color de una serie depende de su posición en el catálogo completo, no en el resultado filtrado. */
-    const colorFor = (key, value) => SERIES_COLORS[Math.max(0, allValues[key].indexOf(value)) % SERIES_COLORS.length];
+    const colorFor = (key: Field, value: string) => SERIES_COLORS[Math.max(0, allValues[key].indexOf(value)) % SERIES_COLORS.length]!;
 
-    const matches = (record, except = []) => SLICERS.every(({ key }) =>
+    const matches = (record: VhRecord, except: Field[] = []) => SLICERS.every(({ key }) =>
         except.includes(key) || !state.selected[key].size || state.selected[key].has(record[key]));
 
     const filteredRecords = () => records.filter((record) => matches(record));
 
     /** Valores que siguen teniendo datos con el resto de filtros aplicados (sin contar el propio). */
-    const availableValues = (key) => new Set(records.filter((record) => matches(record, [key])).map((record) => record[key]));
+    const availableValues = (key: Field) => new Set(records.filter((record) => matches(record, [key])).map((record) => record[key]));
 
     // --- Filtros -------------------------------------------------------------
 
@@ -251,21 +275,21 @@ const initVentasHistoricas = (root, payload) => {
         selected: state.selected[slicer.key],
         format: slicer.format,
         onChange: () => refresh(),
-    })]));
+    })])) as Record<Field, ReturnType<typeof createMultiSelect>>;
 
-    const renderSlicer = ({ key }) => pickers[key].setAvailable(availableValues(key));
+    const renderSlicer = ({ key }: { key: Field }) => pickers[key].setAvailable(availableValues(key));
 
     // --- Reportes tipo tabla dinámica ----------------------------------------
 
-    const metricCells = (totals) => COLUMNS.map(([key, , decimals]) =>
+    const metricCells = (totals: Totals) => COLUMNS.map(([key, , decimals]) =>
         `<td class="pvoc-number">${formatNumber(totals[key], decimals)}${key === 'pctDesc' ? '%' : ''}</td>`).join('');
 
-    const sortGroups = (report, key, groups, isLeaf) => (isLeaf && report.sortLeavesBy
-        ? groups.sort(([, a], [, b]) => sumMetric(b, report.sortLeavesBy) - sumMetric(a, report.sortLeavesBy))
+    const sortGroups = (report: Report, key: Field, groups: [string, VhRecord[]][], isLeaf: boolean) => (isLeaf && report.sortLeavesBy
+        ? groups.sort(([, a], [, b]) => sumMetric(b, report.sortLeavesBy!) - sumMetric(a, report.sortLeavesBy!))
         : groups.sort(([a], [b]) => comparatorFor(key)(a, b)));
 
-    const renderTree = (report, items, levels, depth = 0, path = '') => {
-        const [key] = levels;
+    const renderTree = (report: Report, items: VhRecord[], levels: Field[], depth = 0, path = ''): string => {
+        const key = levels[0]!;
         const isLeaf = levels.length === 1;
         const indent = `style="padding-left: ${0.7 + depth * 1.4}rem"`;
 
@@ -274,7 +298,7 @@ const initVentasHistoricas = (root, payload) => {
                 return `<tr class="vh-row-leaf" data-row-key="${escapeHtml(`${path}/${value}`)}"><td class="pvoc-label" ${indent}>${escapeHtml(value)}</td>${metricCells(aggregate(children))}</tr>`;
             }
             const id = `${path}/${value}`;
-            const collapsed = state.collapsed[report.id].has(id);
+            const collapsed = state.collapsed[report.id]!.has(id);
             const header = `<tr class="vh-row-group vh-depth-${Math.min(depth, 2)}" data-row-key="${escapeHtml(id)}"><td class="pvoc-label" colspan="${COLUMNS.length + 1}" ${indent}>
                 <button type="button" class="pvoc-expander" data-vh-toggle="${escapeHtml(id)}" aria-expanded="${!collapsed}">${collapsed ? '⊞' : '⊟'}</button>${escapeHtml(value)}
             </td></tr>`;
@@ -284,7 +308,7 @@ const initVentasHistoricas = (root, payload) => {
         }).join('');
     };
 
-    const renderReportTable = (report, container, data) => {
+    const renderReportTable = (report: Report, container: HTMLElement, data: VhRecord[]) => {
         const body = renderTree(report, data, report.levels);
         container.innerHTML = `<table class="pvoc-table vh-table">
             <thead><tr><th class="pvoc-label">${escapeHtml(report.labelHeader)}</th>${COLUMNS.map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead>
@@ -295,25 +319,25 @@ const initVentasHistoricas = (root, payload) => {
         </table>`;
     };
 
-    const renderReportChart = (report, canvas, data) => {
+    const renderReportChart = (report: Report, canvas: HTMLCanvasElement, data: VhRecord[]) => {
         const { type, x, series, horizontal, stacked, sortBy } = report.chart;
-        const metric = state.metric[report.id];
-        const metricLabel = CHART_METRICS.find(([key]) => key === metric)[1];
+        const metric = state.metric[report.id] ?? 'importeNeto';
+        const metricLabel = CHART_METRICS.find(([key]) => key === metric)?.[1] ?? metric;
         const byX = groupBy(data, x);
         const labels = sortBy === 'metric'
-            ? [...byX.keys()].sort((a, b) => sumMetric(byX.get(b), metric) - sumMetric(byX.get(a), metric))
+            ? [...byX.keys()].sort((a, b) => sumMetric(byX.get(b) ?? [], metric) - sumMetric(byX.get(a) ?? [], metric))
             : sortValues(x, [...byX.keys()]);
 
         const datasets = series
             ? sortValues(series, [...new Set(data.map((record) => record[series]))]).map((value) => ({
                 label: value,
                 color: colorFor(series, value),
-                data: labels.map((label) => sumMetric(byX.get(label).filter((record) => record[series] === value), metric)),
+                data: labels.map((label) => sumMetric((byX.get(label) ?? []).filter((record) => record[series] === value), metric)),
             }))
-            : [{ label: metricLabel, color: SERIES_COLORS[0], data: labels.map((label) => sumMetric(byX.get(label), metric)) }];
+            : [{ label: metricLabel, color: SERIES_COLORS[0]!, data: labels.map((label) => sumMetric(byX.get(label) ?? [], metric)) }];
 
         // Las barras horizontales crecen con el número de categorías para que ninguna etiqueta se encime.
-        canvas.parentElement.style.height = horizontal ? `${Math.max(320, labels.length * 26 + 60)}px` : '';
+        canvas.parentElement!.style.height = horizontal ? `${Math.max(320, labels.length * 26 + 60)}px` : '';
         charts[report.id] = buildChart(canvas, { type, labels, datasets, horizontal, stacked });
         canvas.setAttribute('aria-label', `${report.title}: ${metricLabel}`);
     };
@@ -326,17 +350,17 @@ const initVentasHistoricas = (root, payload) => {
         && (!state.compare.meses.size || state.compare.meses.has(record.mes)));
 
     const compareColgroup = `<colgroup><col class="vh-cmp-col-label">${COMPARE_COLUMNS.map(() => '<col>').join('')}</colgroup>`;
-    const compareHeader = (firstLabel) => `<tr>
+    const compareHeader = (firstLabel: string) => `<tr>
         <th class="pvoc-label">${firstLabel}</th>${COMPARE_COLUMNS.map(([, label]) => `<th>${label}</th>`).join('')}
     </tr>`;
-    const compareCells = (items) => {
+    const compareCells = (items: VhRecord[]) => {
         if (!items.length) return COMPARE_COLUMNS.map(() => '<td class="pvoc-number vh-muted">–</td>').join('');
         const totals = aggregate(items);
         return COMPARE_COLUMNS.map(([key, , decimals]) => `<td class="pvoc-number">${formatNumber(totals[key], decimals)}</td>`).join('');
     };
 
     /** Tabla de un año (A o B) por mes o por semestre; values = filas compartidas con el otro año. */
-    const yearTable = (base, slot, key, values, area) => {
+    const yearTable = (base: VhRecord[], slot: CompareSlot, key: 'mes' | 'semestre', values: string[], area: string) => {
         const anio = state.compare[slot];
         const items = base.filter((record) => record.anio === anio);
         const byValue = groupBy(items, key);
@@ -354,9 +378,9 @@ const initVentasHistoricas = (root, payload) => {
         </table></div>`;
     };
 
-    const variationTable = (base, semestres) => {
+    const variationTable = (base: VhRecord[], semestres: string[]) => {
         const { anioA, anioB } = state.compare;
-        const variationCells = (itemsA, itemsB) => {
+        const variationCells = (itemsA: VhRecord[], itemsB: VhRecord[]) => {
             const a = aggregate(itemsA);
             const b = aggregate(itemsB);
             return COMPARE_COLUMNS.map(([key]) => {
@@ -383,7 +407,7 @@ const initVentasHistoricas = (root, payload) => {
     };
 
     /** Selector de año en columna, a un lado de su tabla (como el segmentador de Excel). */
-    const yearSlicer = (slot, area) => {
+    const yearSlicer = (slot: CompareSlot, area: string) => {
         const label = slot === 'anioA' ? 'Año A' : 'Año B';
         const chips = allYears.slice().reverse().map((anio) => {
             const on = state.compare[slot] === anio;
@@ -407,14 +431,14 @@ const initVentasHistoricas = (root, payload) => {
     };
 
     const renderCompare = () => {
-        const section = elements.reports.querySelector('[data-vh-report="comparativo"]');
+        const section = elements.reports.querySelector<HTMLElement>('[data-vh-report="comparativo"]')!;
         const base = compareBase();
         const { anioA, anioB } = state.compare;
         const bothYears = base.filter((record) => record.anio === anioA || record.anio === anioB);
         const meses = sortValues('mes', [...new Set(bothYears.map((record) => record.mes))]);
         const semestres = sortValues('semestre', [...new Set(bothYears.map((record) => record.semestre))]);
 
-        section.querySelector('[data-vh-table]').innerHTML = [
+        section.querySelector<HTMLElement>('[data-vh-table]')!.innerHTML = [
             yearSlicer('anioA', 'ya'),
             yearTable(base, 'anioA', 'mes', meses, 'ma'),
             monthSlicer(),
@@ -428,14 +452,14 @@ const initVentasHistoricas = (root, payload) => {
             </div>`,
         ].join('');
 
-        const metric = state.metric.comparativo;
+        const metric = state.metric.comparativo ?? 'importeNeto';
         const labels = MESES.filter((mes) => !state.compare.meses.size || state.compare.meses.has(mes));
-        const datasets = ['anioA', 'anioB'].map((slot) => ({
-            label: state.compare[slot],
+        const datasets = (['anioA', 'anioB'] as const).map((slot) => ({
+            label: state.compare[slot] ?? '',
             color: COMPARE_COLORS[slot],
             data: labels.map((mes) => sumMetric(base.filter((record) => record.anio === state.compare[slot] && record.mes === mes), metric)),
         }));
-        const canvas = section.querySelector('canvas');
+        const canvas = section.querySelector('canvas')!;
         charts.comparativo = buildChart(canvas, { type: 'bar', labels, datasets });
         canvas.setAttribute('aria-label', `Importe neto por mes: ${anioA} vs ${anioB}`);
     };
@@ -443,14 +467,14 @@ const initVentasHistoricas = (root, payload) => {
     // --- Contenedores de reporte ---------------------------------------------
 
     /** Cada subsección muestra su tabla y, debajo, su gráfica (medida fija: la de state.metric). */
-    const reportShell = ({ id }) => `
+    const reportShell = ({ id }: { id: string }) => `
         <section class="vh-report" data-vh-report="${id}">
             <div data-vh-table ${id === 'comparativo' ? 'class="vh-cmp"' : ''}></div>
             ${id === 'comparativo' ? '<h3 class="vh-chart-title">Importe neto por mes</h3>' : ''}
             <div class="vh-chart" data-vh-chart><canvas role="img"></canvas></div>
         </section>`;
 
-    const renderReport = (id) => {
+    const renderReport = (id: string) => {
         charts[id]?.destroy();
         delete charts[id];
 
@@ -459,32 +483,33 @@ const initVentasHistoricas = (root, payload) => {
             return;
         }
 
-        const section = elements.reports.querySelector(`[data-vh-report="${id}"]`);
+        const section = elements.reports.querySelector<HTMLElement>(`[data-vh-report="${id}"]`);
         const report = REPORTS.find((candidate) => candidate.id === id);
+        if (!section || !report) return;
         const data = filteredRecords();
-        const container = section.querySelector('[data-vh-table]');
+        const container = section.querySelector<HTMLElement>('[data-vh-table]')!;
         container.className = 'pvoc-table-scroll vh-report-table';
         renderReportTable(report, container, data);
-        renderReportChart(report, section.querySelector('canvas'), data);
+        renderReportChart(report, section.querySelector('canvas')!, data);
     };
 
     // Solo se dibuja la subsección visible: Chart.js no puede medir un canvas oculto.
     const renderReports = () => renderReport(state.activeReport);
 
     const syncSubtabs = () => {
-        elements.subtabs.querySelectorAll('[data-vh-subtab]').forEach((button) => {
+        elements.subtabs.querySelectorAll<HTMLElement>('[data-vh-subtab]').forEach((button) => {
             const active = button.dataset.vhSubtab === state.activeReport;
             button.classList.toggle('is-active', active);
             button.setAttribute('aria-selected', String(active));
         });
-        elements.reports.querySelectorAll('[data-vh-report]').forEach((section) =>
+        elements.reports.querySelectorAll<HTMLElement>('[data-vh-report]').forEach((section) =>
             section.classList.toggle('is-hidden', section.dataset.vhReport !== state.activeReport));
     };
 
     /** Tocar un filtro (slicers o selectores del comparativo) suelta la fila seleccionada. */
-    const clearSelections = () => elements.reports.querySelectorAll('[data-vh-table]').forEach(clearRowSelection);
+    const clearSelections = () => elements.reports.querySelectorAll<HTMLElement>('[data-vh-table]').forEach(clearRowSelection);
 
-    /** El botón "Filtrar" del navbar muestra cuántos filtros hay activos (lo escucha dashboard.js). */
+    /** El botón "Filtrar" del navbar muestra cuántos filtros hay activos (lo escucha dashboard.ts). */
     const syncFilterCount = () => {
         const count = SLICERS.filter(({ key }) => state.selected[key].size).length;
         root.dispatchEvent(new CustomEvent('pvoc:filtros', { bubbles: true, detail: { tab: 'history', count } }));
@@ -507,45 +532,46 @@ const initVentasHistoricas = (root, payload) => {
         `<button type="button" role="tab" aria-selected="false" data-vh-subtab="${id}">${escapeHtml(title)}</button>`).join('');
 
     elements.subtabs.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-vh-subtab]');
-        if (!button || button.dataset.vhSubtab === state.activeReport) return;
+        const button = (event.target as Element).closest<HTMLElement>('[data-vh-subtab]');
+        if (!button?.dataset.vhSubtab || button.dataset.vhSubtab === state.activeReport) return;
         state.activeReport = button.dataset.vhSubtab;
         syncSubtabs();
         renderReports();
     });
 
     elements.reports.innerHTML = [...REPORTS, compareReport].map(reportShell).join('');
-    elements.reports.querySelectorAll('[data-vh-table]').forEach(bindRowSelection);
+    elements.reports.querySelectorAll<HTMLElement>('[data-vh-table]').forEach(bindRowSelection);
     syncSubtabs();
 
     elements.reports.addEventListener('click', (event) => {
-        const section = event.target.closest('[data-vh-report]');
-        if (!section) return;
-        const id = section.dataset.vhReport;
-        const target = event.target;
+        const target = event.target as Element;
+        const section = target.closest<HTMLElement>('[data-vh-report]');
+        const id = section?.dataset.vhReport;
+        if (!id) return;
 
-        const toggle = target.closest('[data-vh-toggle]');
-        if (toggle) {
-            const groupId = toggle.dataset.vhToggle;
-            state.collapsed[id].has(groupId) ? state.collapsed[id].delete(groupId) : state.collapsed[id].add(groupId);
+        const toggle = target.closest<HTMLElement>('[data-vh-toggle]');
+        const collapsed = state.collapsed[id];
+        if (toggle && collapsed) {
+            const groupId = toggle.dataset.vhToggle ?? '';
+            if (collapsed.has(groupId)) collapsed.delete(groupId); else collapsed.add(groupId);
             renderReport(id);
             return;
         }
 
         if (target.closest('[data-vh-compare-year], [data-vh-compare-month], [data-vh-compare-clear]')) clearSelections();
 
-        const yearChip = target.closest('[data-vh-compare-year]');
+        const yearChip = target.closest<HTMLElement>('[data-vh-compare-year]');
         if (yearChip) {
-            state.compare[yearChip.dataset.vhCompareYear] = yearChip.dataset.vhValue;
+            state.compare[yearChip.dataset.vhCompareYear as CompareSlot] = yearChip.dataset.vhValue;
             renderReport('comparativo');
             return;
         }
 
-        const monthChip = target.closest('[data-vh-compare-month]');
+        const monthChip = target.closest<HTMLElement>('[data-vh-compare-month]');
         if (monthChip) {
             const { meses } = state.compare;
-            const mes = monthChip.dataset.vhValue;
-            meses.has(mes) ? meses.delete(mes) : meses.add(mes);
+            const mes = monthChip.dataset.vhValue ?? '';
+            if (meses.has(mes)) meses.delete(mes); else meses.add(mes);
             renderReport('comparativo');
             return;
         }
@@ -569,20 +595,20 @@ const initVentasHistoricas = (root, payload) => {
  * que se abre por primera vez: Chart.js no puede medir un canvas oculto y así no retrasa Compara.
  * scope = raíz del dashboard, que emite 'pvoc:tab' al cambiar de pestaña.
  */
-export const mountVentasHistoricas = (scope, onError) => {
-    scope.querySelectorAll('[data-ventas-historicas]').forEach((root) => {
-        const datos = http.get(root.dataset.historicoUrl);
+export const mountVentasHistoricas = (scope: HTMLElement, onError: (container: HTMLElement) => void) => {
+    scope.querySelectorAll<HTMLElement>('[data-ventas-historicas]').forEach((root) => {
+        const datos = http.get<HistoricoPayload>(root.dataset.historicoUrl ?? '');
         datos.catch(() => {});
         let montado = false;
 
         scope.addEventListener('pvoc:tab', async (event) => {
-            if (event.detail !== 'history' || montado) return;
+            if ((event as CustomEvent<string>).detail !== 'history' || montado) return;
             montado = true;
             try {
                 initVentasHistoricas(root, await datos);
             } catch (error) {
                 console.error('No se pudieron cargar las ventas históricas.', error);
-                onError(root.querySelector('[data-vh-reports]'));
+                onError(root.querySelector<HTMLElement>('[data-vh-reports]')!);
             }
         });
     });
