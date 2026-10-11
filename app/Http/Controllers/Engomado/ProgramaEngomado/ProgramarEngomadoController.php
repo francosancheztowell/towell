@@ -154,10 +154,7 @@ class ProgramarEngomadoController extends Controller
 
             // Cargar información de UrdProgramaUrdido para verificar status "Finalizado"
             $folios = $ordenes->pluck('Folio')->unique()->toArray();
-            $urdidos = UrdProgramaUrdido::whereIn('Folio', $folios)
-                ->select('Folio', 'Status')
-                ->get()
-                ->keyBy('Folio');
+            $statusUrdido = UrdProgramaUrdido::whereIn('Folio', $folios)->pluck('Status', 'Folio');
 
             $ordenesOrdenadas = $this->prioridadService->sortRecords(
                 $ordenes,
@@ -180,8 +177,7 @@ class ProgramarEngomadoController extends Controller
                 // Solo incluir si la tabla es válida (1-2)
                 if ($tabla !== null && isset($ordenesPorTabla[$tabla])) {
                     // Verificar si la orden de urdido está finalizada
-                    $urdido = $urdidos->get($orden->Folio);
-                    $urdidoFinalizado = $urdido && $urdido->Status === 'Finalizado';
+                    $urdidoFinalizado = $statusUrdido->get($orden->Folio) === 'Finalizado';
 
                     $ordenesPorTabla[$tabla][] = [
                         'id' => $orden->Id,
