@@ -142,6 +142,29 @@ class BpmTest extends TestCase
         $this->assertSame(['Autorizado', '100', 'Usuario prueba'], [$encabezado->Status, $encabezado->CveEmplAutoriza, $encabezado->{$area->columnaAutoriza()}]);
     }
 
+    public function test_tejedores_termina_con_telares_sin_calificar(): void
+    {
+        $area = AreaBpm::Tejedores;
+        [$modulo, $prefijo, $digitos] = $area->folio();
+        $folio = $prefijo.str_pad('8', $digitos, '0', STR_PAD_LEFT);
+        DB::connection('sqlsrv')->table('dbo.SSYSFoliosSecuencias')->insert(['modulo' => $modulo, 'prefijo' => $prefijo, 'consecutivo' => 7]);
+        $this->actingAs($this->usuarioCon([$area->modulo() => ['acceso', 'crear', 'modificar']]));
+        Livewire::test(Folios::class, ['area' => $area])->call('abrirAlta')->set('form.entrega', '202')->call('guardar');
+
+        $lineas = ($area->modeloLinea())::where('Folio', $folio)->get();
+        $checklist = Livewire::test(Checklist::class, ['area' => $area, 'folio' => $folio]);
+        $checklist->call('terminar');
+        $this->assertSame('Creado', ($area->modelo())::where('Folio', $folio)->value('Status'), 'sin ningún telar calificado no se termina');
+
+        // Telar 201 a medias: no se termina.
+        $checklist->call('marcar', $lineas->firstWhere('NoTelarId', '201')->Id)->call('terminar');
+        $this->assertSame('Creado', ($area->modelo())::where('Folio', $folio)->value('Status'), 'el telar empezado se completa');
+
+        // Telar 201 completo, 202 sin calificar: sí se termina.
+        $checklist->call('marcar', $lineas->where('NoTelarId', '201')->last()->Id)->call('terminar');
+        $this->assertSame('Terminado', ($area->modelo())::where('Folio', $folio)->value('Status'));
+    }
+
     public function test_el_cliente_no_puede_cambiar_de_area_ni_de_folio(): void
     {
         $this->actingAs($this->usuarioCon([35 => ['acceso']]));

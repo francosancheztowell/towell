@@ -61,7 +61,19 @@ class Checklist extends Component
         $this->auditar('modificar', 'terminar');
         $this->exigirStatus('Creado', 'Solo se termina un folio Creado.');
 
-        $faltan = $this->lineas()->filter(fn ($l) => $this->sinMarca($l->getAttribute('Valor') === null ? null : (string) $l->getAttribute('Valor')))->count();
+        $vacia = fn ($l): bool => $this->sinMarca($l->getAttribute('Valor') === null ? null : (string) $l->getAttribute('Valor'));
+        $lineas = $this->lineas();
+        if ($this->area->porTelar()) {
+            // Tejedores: un telar sin ninguna marca se deja fuera (no se calificó); el que se empezó se completa.
+            $lineas = $lineas->groupBy('NoTelarId')->reject(fn (Collection $telar) => $telar->every($vacia))->flatten();
+            if ($lineas->isEmpty()) {
+                $this->dispatch('aviso', tipo: 'warning', texto: 'Califica al menos un telar antes de terminar.');
+
+                return;
+            }
+        }
+
+        $faltan = $lineas->filter($vacia)->count();
         if ($faltan > 0) {
             $this->dispatch('aviso', tipo: 'warning', texto: "Faltan {$faltan} marca(s). Marca todas (✓, ✗".($this->area->porTelar() ? ' o mantenimiento' : '').') antes de terminar.');
 
