@@ -22,7 +22,7 @@ class CostoJuliosExport implements FromArray, ShouldAutoSize, WithHeadings, With
 
     public function headings(): array
     {
-        return ['Fecha', 'Folio', 'No. julio', 'Máquina', 'Artículo', 'Rizo/Pie', 'Horario', 'T. prod (min)', 'Cantidad (kg)',
+        return ['Fecha', 'Folio', 'No. julio', 'Máquina', 'Artículo', 'Rizo/Pie', 'Horario', 'T. prod (min)', 'T. paro (min)', 'Cantidad (kg)',
             'MP', ...array_values($this->conceptos), 'Conversión', 'Costo total', 'MP $/kg', 'Conversión $/kg', 'Total $/kg'];
     }
 
@@ -34,7 +34,7 @@ class CostoJuliosExport implements FromArray, ShouldAutoSize, WithHeadings, With
             $kg = (float) $j['kg'];
 
             return [$j['fecha'], $j['folio'], $j['julio'], $j['maquina'], $j['articulo'], $j['rizoPie'], $j['horario'],
-                $j['minutos'], $j['kg'], $j['mp'], ...array_map(fn ($col) => $j[$col], array_keys($this->conceptos)),
+                $j['minutos'], $j['paro'], $j['kg'], $j['mp'], ...array_map(fn ($col) => $j[$col], array_keys($this->conceptos)),
                 $conversion, $total,
                 $kg > 0 ? (float) $j['mp'] / $kg : null, $kg > 0 ? $conversion / $kg : null, $kg > 0 ? $total / $kg : null];
         })->values()->all();

@@ -13,7 +13,7 @@ use App\Services\Costos\CuotasUrdidoService;
  */
 trait CalculaCuotasUrdido
 {
-    /** @var array{año?: string, desde?: string, hasta?: string, conParos?: bool, tiempoMuerto?: bool}|null diálogo abierto; null = cerrado */
+    /** @var array{año?: string, desde?: string, hasta?: string, descontarParos?: bool, tiempoMuerto?: bool}|null diálogo abierto; null = cerrado */
     public ?array $calculo = null;
 
     public function abrirCalculo(): void
@@ -22,7 +22,7 @@ trait CalculaCuotasUrdido
 
         $this->resetValidation();
         $mes = (string) now()->subMonth()->month; // el último mes cerrado
-        $this->calculo = ['año' => (string) now()->year, 'desde' => $mes, 'hasta' => $mes, 'conParos' => false, 'tiempoMuerto' => false];
+        $this->calculo = ['año' => (string) now()->year, 'desde' => $mes, 'hasta' => $mes, 'descontarParos' => true, 'tiempoMuerto' => false];
     }
 
     public function calcularUrdido(CuotasUrdidoService $servicio): void
@@ -33,13 +33,13 @@ trait CalculaCuotasUrdido
             'calculo.año' => ['required', 'integer', 'digits:4', 'between:2000,'.(now()->year + 1)],
             'calculo.desde' => ['required', 'integer', 'between:1,12'],
             'calculo.hasta' => ['required', 'integer', 'between:1,12', 'gte:calculo.desde'],
-            'calculo.conParos' => ['boolean'],
+            'calculo.descontarParos' => ['boolean'],
             'calculo.tiempoMuerto' => ['boolean'],
         ], ['calculo.hasta.gte' => 'El mes final no puede ser antes del inicial.'], [
             'calculo.año' => 'año', 'calculo.desde' => 'desde', 'calculo.hasta' => 'hasta',
         ])['calculo'];
 
-        $r = $servicio->actualizarRango((int) $datos['año'], (int) $datos['desde'], (int) $datos['hasta'], (bool) ($datos['tiempoMuerto'] ?? false), (bool) ($datos['conParos'] ?? false));
+        $r = $servicio->actualizarRango((int) $datos['año'], (int) $datos['desde'], (int) $datos['hasta'], (bool) ($datos['tiempoMuerto'] ?? false), ! ($datos['descontarParos'] ?? true));
 
         $this->calculo = null;
         $this->tabla = 'real';

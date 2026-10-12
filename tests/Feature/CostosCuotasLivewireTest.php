@@ -449,8 +449,8 @@ class CostosCuotasLivewireTest extends TestCase
         Livewire::test(Cuotas::class)
             ->assertSee('Calcular Urdido')
             ->call('abrirCalculo')
-            ->assertSet('calculo.conParos', false)->assertSet('calculo.tiempoMuerto', false)
-            ->set('calculo.año', '2026')->set('calculo.desde', '4')->set('calculo.hasta', '6')->set('calculo.tiempoMuerto', true)->set('calculo.conParos', true)
+            ->assertSet('calculo.descontarParos', true)->assertSet('calculo.tiempoMuerto', false)
+            ->set('calculo.año', '2026')->set('calculo.desde', '4')->set('calculo.hasta', '6')->set('calculo.tiempoMuerto', true)->set('calculo.descontarParos', false)
             ->call('calcularUrdido')
             ->assertHasNoErrors()
             ->assertSet('calculo', null)
@@ -464,8 +464,8 @@ class CostosCuotasLivewireTest extends TestCase
 
         Livewire::test(Cuotas::class)
             ->call('abrirCalculo')
-            ->set('calculo.desde', '8')->set('calculo.hasta', '4')->set('calculo.conParos', 'quizá')
+            ->set('calculo.desde', '8')->set('calculo.hasta', '4')->set('calculo.descontarParos', 'quizá')
             ->call('calcularUrdido')
-            ->assertHasErrors(['calculo.hasta', 'calculo.conParos']);
+            ->assertHasErrors(['calculo.hasta', 'calculo.descontarParos']);
     }
 }

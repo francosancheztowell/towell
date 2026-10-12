@@ -209,8 +209,8 @@
                 </div>
 
                 <div class="grid gap-4">
-                    <flux:switch wire:model="calculo.conParos" label="Con paros"
-                                 description="Apagado (default): cuota = Sab ÷ (Minutos − Min. paro), solo el tiempo productivo. Encendido: cuota = Sab ÷ Minutos, el producto absorbe los paros." />
+                    <flux:switch wire:model="calculo.descontarParos" label="Descontar paros"
+                                 description="Encendido (default): a cada julio se le restan los paros que cayeron durante él; cuota = Sab ÷ (Minutos − Min. paro). Apagado: no se restan; cuota = Sab ÷ Minutos, el producto absorbe los paros." />
                     <flux:switch wire:model="calculo.tiempoMuerto" label="Incluir tiempo muerto"
                                  description="Apagado (default): paros mecánicos, eléctricos y demás. Encendido: también tiempo muerto (hay paros que quedaron abiertos por semanas)." />
                 </div>

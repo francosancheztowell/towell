@@ -7,7 +7,9 @@ namespace App\Livewire\Costos;
 use App\Exports\CostoJuliosExport;
 use App\Models\Costos\CosCuota;
 use App\Models\Costos\CosCuotasReal;
+use App\Models\Inventario\InvKardexMPConsol;
 use App\Models\Urdido\UrdProduccionUrdido;
+use App\Services\Costos\CostosJulio;
 use App\Services\Costos\CuotasUrdidoService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -36,6 +38,9 @@ class CostoJulios extends Component
     /** Costos fijos: el costeo directo no los toma (igual que CosCuota::FIJOS en las cuotas). */
     public const FIJOS = ['GtsF', 'Pf'];
 
+    /** Máquina como se ve en pantalla => prefijo de sus columnas de consumo en el kardex (MC1KG, MC1IMP…). */
+    public const KARDEX = ['Mc Coy 1' => 'MC1', 'Mc Coy 2' => 'MC2', 'Mc Coy 3' => 'MC3', 'Karl Mayer' => 'KM'];
+
     /** Sábana de la cuota real => columna del julio: Σ julios del mes = Sab (CostosJulio). */
     public const SABANA = ['SabMO' => 'MOD', 'SabMOI' => 'MOI', 'SabGtosVariable' => 'GtsV', 'SabGtosFijos' => 'GtsF'];
 
@@ -54,13 +59,20 @@ class CostoJulios extends Component
     #[Url(as: 'julios_maquina', except: '')]
     public string $maquina = '';
 
+    /** @var array{desde?: string, hasta?: string}|null diálogo "Exportar" abierto; null = cerrado */
+    public ?array $rangoExcel = null;
+
     public function mount(): void
     {
         abort_unless(userCan('acceso', Cuotas::MODULO), 403, 'No tienes acceso a las cuotas de costos.');
 
-        if ($this->anio < 2000 || $this->mes < 1 || $this->mes > 12) {
-            $previo = now()->subMonth(); // el último mes cerrado
-            [$this->anio, $this->mes] = [$previo->year, $previo->month];
+        // Lo que no venga en la URL (o venga mal) toma el último mes cerrado; uno no reinicia al otro.
+        $previo = now()->subMonth();
+        if ($this->anio < 2000) {
+            $this->anio = $previo->year;
+        }
+        if ($this->mes < 1 || $this->mes > 12) {
+            $this->mes = $previo->month;
         }
     }
 
@@ -85,20 +97,43 @@ class CostoJulios extends Component
      *
      * @return Collection<int, array<string, mixed>>
      */
-    public function julios(): Collection
+    public function julios(?int $desdeMes = null, ?int $hastaMes = null): Collection
     {
-        $desde = sprintf('%04d-%02d-01', $this->anio, $this->mes);
+        $desde = sprintf('%04d-%02d-01', $this->anio, $desdeMes ?? $this->mes);
+        $hasta = date('Y-m-t', (int) strtotime(sprintf('%04d-%02d-01', $this->anio, $hastaMes ?? $desdeMes ?? $this->mes)));
+
+        $paros = $this->parosPorJulio($desdeMes ?? $this->mes, $hastaMes ?? $desdeMes ?? $this->mes);
 
         return UrdProduccionUrdido::query()
             ->with('programa:Folio,MaquinaId,Cuenta,Calibre,Fibra,RizoPie')
-            ->whereBetween('Fecha', [$desde, date('Y-m-t', (int) strtotime($desde))])
+            ->whereBetween('Fecha', [$desde, $hasta])
             ->orderBy('Fecha')->orderBy('Folio')->orderBy('HoraInicial')
             ->get(['Id', 'Folio', 'Fecha', 'NoJulio', 'Hilos', 'KgNeto', 'HoraInicial', 'HoraFinal', 'ImporteMP', ...array_keys(self::CONCEPTOS)])
-            ->map(fn (UrdProduccionUrdido $j): array => $this->renglon($j));
+            ->map(fn (UrdProduccionUrdido $j): array => $this->renglon($j, $paros[(int) $j->Id] ?? 0.0));
+    }
+
+    /**
+     * Minutos de paro de su máquina que cayeron dentro de cada julio, con la misma regla que el cálculo
+     * (CuotasUrdidoService::paros, sin Tiempo Muerto, y CostosJulio::paroDurante).
+     *
+     * @return array<int, float> id del julio => minutos
+     */
+    private function parosPorJulio(int $desdeMes, int $hastaMes): array
+    {
+        $servicio = app(CuotasUrdidoService::class);
+        $minutos = [];
+        foreach (range($desdeMes, $hastaMes) as $mes) {
+            $paros = $servicio->paros($this->anio, $mes);
+            foreach ($servicio->julios($this->anio, $mes) as $j) {
+                $minutos[$j['id']] = CostosJulio::paroDurante($j, $paros[$j['maquina']] ?? []);
+            }
+        }
+
+        return $minutos;
     }
 
     /** @return array<string, mixed> */
-    private function renglon(UrdProduccionUrdido $j): array
+    private function renglon(UrdProduccionUrdido $j, float $paro): array
     {
         $p = $j->programa;
         $fila = [
@@ -109,6 +144,7 @@ class CostoJulios extends Component
             'hilos' => $j->Hilos,
             'horario' => $j->HoraInicial ? substr((string) $j->HoraInicial, 0, 5).'–'.substr((string) $j->HoraFinal, 0, 5) : '',
             'minutos' => CuotasUrdidoService::duracion($j->HoraInicial, $j->HoraFinal),
+            'paro' => $paro,
             // El programa trae "MC Coy 3" y "Mc Coy 3": misma máquina.
             'maquina' => preg_replace('/^mc\s*coy\s*/i', 'Mc Coy ', trim((string) $p?->MaquinaId)) ?: 'Sin máquina',
             'articulo' => trim(implode(' · ', array_filter([$p?->Cuenta, $p?->Calibre, $p?->Fibra]))),
@@ -148,7 +184,7 @@ class CostoJulios extends Component
      */
     public static function totales(Collection $julios, array $conceptos): array
     {
-        $t = ['julios' => $julios->count(), 'minutos' => (float) $julios->sum('minutos'), 'kg' => (float) $julios->sum('kg'), 'mp' => (float) $julios->sum('mp')];
+        $t = ['julios' => $julios->count(), 'minutos' => (float) $julios->sum('minutos'), 'paro' => (float) $julios->sum('paro'), 'kg' => (float) $julios->sum('kg'), 'mp' => (float) $julios->sum('mp')];
         foreach (array_keys($conceptos) as $col) {
             $t[$col] = (float) $julios->sum($col);
         }
@@ -175,7 +211,7 @@ class CostoJulios extends Component
     }
 
     /**
-     * Julios por mes del año, para las pills: [mes => [julios, sin costo]].
+     * Meses del año que ya tienen costo (al menos un julio costeado por Calcular Urdido), con sus julios.
      *
      * @return array<int, array{julios: int, sinCosto: int}>
      */
@@ -186,7 +222,9 @@ class CostoJulios extends Component
             ->whereBetween('Fecha', [$this->anio.'-01-01', $this->anio.'-12-31'])
             ->selectRaw('MONTH(Fecha) AS mes, COUNT(*) AS julios, SUM(CASE WHEN MOD IS NULL THEN 1 ELSE 0 END) AS sinCosto')
             ->groupByRaw('MONTH(Fecha)')
+            ->orderByRaw('MONTH(Fecha)')
             ->toBase()->get()
+            ->filter(fn ($m) => (int) $m->julios > (int) $m->sinCosto)
             ->mapWithKeys(fn ($m) => [(int) $m->mes => ['julios' => (int) $m->julios, 'sinCosto' => (int) $m->sinCosto]])
             ->all();
     }
@@ -211,35 +249,74 @@ class CostoJulios extends Component
         return $cuadre;
     }
 
-    /** Excel con un renglón por julio (lo filtrado), con todos los decimales para que el contador recalcule. */
+    /**
+     * Consumo de MP de cada máquina en el mes según el kardex de AX (hilo que salió del almacén), para
+     * cuadrarlo contra la MP de los julios. Todos los tamaños: medianos y cabezuelas son devoluciones.
+     * null = el kardex aún no tiene el mes o no se pudo leer (servidor .24); la pantalla sigue sin el cuadre.
+     *
+     * @return array<string, array{kg: float, imp: float}>|null máquina => kg e importe consumidos
+     */
+    private function kardex(): ?array
+    {
+        // Una suma por columna de máquina: el builder no la expresa sin raw. Prefijos fijos, sin datos del usuario.
+        $fila = rescue(fn () => InvKardexMPConsol::query()
+            ->where('YEARDATE', $this->anio)->where('MONTHDATE', $this->mes)
+            ->selectRaw(implode(', ', array_map(fn ($p) => "SUM({$p}KG) AS {$p}KG, SUM({$p}IMP) AS {$p}IMP", self::KARDEX)))
+            ->toBase()->first());
+        if ($fila === null || $fila->MC1KG === null) {
+            return null;
+        }
+
+        return array_map(fn ($p) => ['kg' => (float) $fila->{$p.'KG'}, 'imp' => (float) $fila->{$p.'IMP'}], self::KARDEX);
+    }
+
+    public function abrirExportar(): void
+    {
+        $this->resetValidation();
+        $this->rangoExcel = ['desde' => (string) $this->mes, 'hasta' => (string) $this->mes];
+    }
+
+    /**
+     * Excel con un renglón por julio de los meses elegidos del año en pantalla (sin la búsqueda ni la
+     * máquina), con todos los decimales para que el contador recalcule.
+     */
     public function exportar(): BinaryFileResponse
     {
-        $conceptos = $this->conceptosVisibles($this->julios());
-        $nombre = sprintf('costo-julios-urdido-%04d-%02d.xlsx', $this->anio, $this->mes);
+        $rango = $this->validate([
+            'rangoExcel.desde' => ['required', 'integer', 'between:1,12'],
+            'rangoExcel.hasta' => ['required', 'integer', 'between:1,12', 'gte:rangoExcel.desde'],
+        ], ['rangoExcel.hasta.gte' => 'El mes final no puede ser antes del inicial.'])['rangoExcel'];
+        [$desde, $hasta] = [(int) $rango['desde'], (int) $rango['hasta']];
 
-        return Excel::download(new CostoJuliosExport($this->filtrados($this->julios()), $conceptos), $nombre);
+        $julios = $this->julios($desde, $hasta);
+        $nombre = sprintf('costo-julios-urdido-%04d-%02d%s.xlsx', $this->anio, $desde, $hasta > $desde ? sprintf('-a-%02d', $hasta) : '');
+        $this->rangoExcel = null;
+
+        return Excel::download(new CostoJuliosExport($julios, $this->conceptosVisibles($julios)), $nombre);
     }
 
     public function render(): View
     {
+        // Un mes sin costo (de la URL o al cambiar de año) no se muestra: se pasa al último que sí tiene.
+        $meses = $this->meses();
+        if ($meses !== [] && ! isset($meses[$this->mes])) {
+            $this->mes = max(array_keys($meses));
+        }
+
         $julios = $this->julios();
         $conceptos = $this->conceptosVisibles($julios);
         $filtrados = $this->filtrados($julios);
 
         return view('livewire.costos.costo-julios', [
             'conceptos' => $conceptos,
-            'meses' => $this->meses(),
+            'meses' => $meses,
             'nombreMes' => CosCuota::MESES[$this->mes] ?? '',
             'mesTotal' => self::totales($julios, $conceptos),
             'porMaquina' => $julios->groupBy('maquina')->sortKeys()->map(fn ($l) => self::totales($l, $conceptos)),
             'folios' => $filtrados->groupBy('folio')->map(fn ($l) => ['julios' => $l] + self::totales($l, $conceptos) + $l->first()),
             'filtroTotal' => self::totales($filtrados, $conceptos),
             'cuadre' => $this->cuadre($julios),
-            'avisos' => [
-                'sinCosto' => $julios->where('sinCosto', true)->count(),
-                'sinMp' => $julios->filter(fn ($j) => ! $j['mp'])->count(),
-                'sinKg' => $julios->filter(fn ($j) => ! $j['kg'])->count(),
-            ],
+            'kardex' => $this->kardex(),
             'anios' => range(now()->year, 2025),
         ]);
     }

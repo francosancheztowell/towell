@@ -7,69 +7,52 @@
         'Pf' => 'bg-rose-500', 'PV' => 'bg-cyan-500', 'Maquila' => 'bg-slate-500'];
     $sabDe = array_flip(\App\Livewire\Costos\CostoJulios::SABANA);
     $pct = fn (float $parte, float $total): string => $total > 0 ? number_format($parte / $total * 100, 1).'%' : '—';
-    $mesCorto = fn (int $n): string => mb_substr(\App\Models\Costos\CosCuota::MESES[$n], 0, 3);
-    $diferencia = $cuadre === null ? null : array_sum(array_map(fn ($c) => $c['julios'] - $c['sab'], $cuadre));
 @endphp
 {{-- Raíz sin scroll: el spinner queda al centro de lo visible, no del contenido desplazado. --}}
 <div class="relative flex min-h-0 flex-1 flex-col">
 <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-2">
-    {{-- Periodo: año + los doce meses con cuántos julios tiene cada uno. Punto ámbar = julios sin costo. --}}
-    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-        <div class="w-28 shrink-0">
-        <flux:select wire:model.live="anio" aria-label="Año">
-            @foreach ($anios as $a)
-                <flux:select.option value="{{ $a }}">{{ $a }}</flux:select.option>
-            @endforeach
-        </flux:select>
+    @php
+        $diferencia = $cuadre === null ? null : array_sum(array_map(fn ($c) => $c['julios'] - $c['sab'], $cuadre));
+        [$cuadreTono, $cuadreTexto] = match (true) {
+            $cuadre === null => ['bg-slate-100 text-slate-600', 'Sin cuota real'],
+            abs($diferencia) < 1 => ['bg-emerald-100 text-emerald-800', 'Cuadra con AX'],
+            default => ['bg-amber-100 text-amber-800', 'Diferencia con AX: '.$pesos($diferencia, 0)],
+        };
+    @endphp
+    {{-- Periodo y estado del mes en una sola barra. Solo los meses con costo; cada uno dice cuántos julios tiene. --}}
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+        <div class="w-24 shrink-0">
+            <flux:select wire:model.live="anio" aria-label="Año">
+                @foreach ($anios as $a)
+                    <flux:select.option value="{{ $a }}">{{ $a }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+        <div class="w-56 shrink-0">
+            <flux:select wire:model.live="mes" aria-label="Mes">
+                @forelse ($meses as $n => $info)
+                    <flux:select.option value="{{ $n }}">{{ \App\Models\Costos\CosCuota::MESES[$n] }} · {{ number_format($info['julios']) }} julios</flux:select.option>
+                @empty
+                    <flux:select.option value="{{ $mes }}">Sin meses con costo</flux:select.option>
+                @endforelse
+            </flux:select>
         </div>
 
-        <nav aria-label="Mes" class="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:thin]">
-            @foreach (\App\Models\Costos\CosCuota::MESES as $n => $nombre)
-                @php $info = $meses[$n] ?? null; @endphp
-                <button type="button" wire:click="$set('mes', {{ $n }})" @disabled($info === null)
-                        aria-pressed="{{ $mes === $n ? 'true' : 'false' }}" title="{{ $nombre }}: {{ $info['julios'] ?? 0 }} julios{{ ($info['sinCosto'] ?? 0) > 0 ? ' · '.$info['sinCosto'].' sin costo' : '' }}"
-                        class="relative flex min-h-touch min-w-16 shrink-0 flex-col items-center justify-center rounded-lg px-2 text-sm transition-colors
-                               {{ $mes === $n ? 'bg-blue-600 text-white shadow' : 'text-slate-700 hover:bg-blue-50 disabled:text-slate-300 disabled:hover:bg-transparent' }}">
-                    <span class="font-semibold">{{ $mesCorto($n) }}</span>
-                    <span class="text-caption tabular-nums {{ $mes === $n ? 'text-blue-100' : 'text-slate-400' }}">{{ $info ? number_format($info['julios']) : '—' }}</span>
-                    @if (($info['sinCosto'] ?? 0) > 0)
-                        <span class="absolute right-1 top-1 size-2 rounded-full bg-amber-500" aria-hidden="true"></span>
-                    @endif
-                </button>
-            @endforeach
-        </nav>
-
-        <flux:button icon="arrow-down-tray" class="min-h-touch shrink-0" wire:click="exportar" :disabled="$mesTotal['julios'] === 0">Excel</flux:button>
-    </div>
-
-    @if ($mesTotal['julios'] === 0)
-        <div class="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-500">
-            <i class="fa-solid fa-inbox mb-2 text-3xl text-slate-300" aria-hidden="true"></i>
-            <p>No hay julios urdidos en {{ mb_strtolower($nombreMes) }} de {{ $anio }}.</p>
-        </div>
-    @else
-        @php
-            [$cuadreTono, $cuadreTexto] = match (true) {
-                $cuadre === null => ['bg-slate-100 text-slate-600', 'Sin cuota real'],
-                abs($diferencia) < 1 => ['bg-emerald-100 text-emerald-800', 'Cuadra con AX'],
-                default => ['bg-amber-100 text-amber-800', 'Diferencia con AX: '.$pesos($diferencia, 0)],
-            };
-            $incompletos = array_filter([
-                $avisos['sinCosto'] ? $avisos['sinCosto'].' sin costo (corre Calcular Urdido)' : null,
-                $avisos['sinMp'] ? $avisos['sinMp'].' sin MP' : null,
-                $avisos['sinKg'] ? $avisos['sinKg'].' sin cantidad' : null,
-            ]);
-        @endphp
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
-            <h2 class="text-xl font-bold text-slate-900">Urdido · {{ $nombreMes }} {{ $anio }}</h2>
-            <span class="text-sm text-slate-500">{{ number_format($mesTotal['julios']) }} julios · {{ number_format($folios->count()) }} folios</span>
+        @if ($mesTotal['julios'] > 0)
+            <span class="text-sm text-slate-500">{{ number_format($folios->count()) }} folios</span>
             <span class="rounded-full px-2.5 py-0.5 text-sm font-semibold {{ $cuadreTono }}"
                   title="Suma del costo de los julios contra la sábana de gastos de AX">{{ $cuadreTexto }}</span>
-            @if ($incompletos)
-                <span class="text-sm text-amber-700"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>Julios {{ implode(' · ', $incompletos) }}</span>
-            @endif
-        </div>
+        @endif
 
+        <flux:button icon="arrow-down-tray" class="ms-auto min-h-touch shrink-0" wire:click="abrirExportar" :disabled="$meses === []">Exportar</flux:button>
+    </div>
+
+    @if ($meses === [] || $mesTotal['julios'] === 0)
+        <div class="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-slate-500">
+            <i class="fa-solid fa-inbox mb-2 text-3xl text-slate-300" aria-hidden="true"></i>
+            <p>{{ $meses === [] ? "No hay meses con costo en {$anio}: corre Calcular Urdido." : 'No hay julios urdidos en '.mb_strtolower($nombreMes)." de {$anio}." }}</p>
+        </div>
+    @else
         <div class="grid gap-3 lg:grid-cols-3">
             {{-- Resumen del mes: el costo por kg y de qué se compone. --}}
             <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-label="Resumen del mes">
@@ -152,6 +135,52 @@
             </section>
         </div>
 
+        {{-- MP de los julios contra el consumo del kardex de AX, por máquina. Kg en ámbar fuera de 90–110 %. --}}
+        @if ($kardex !== null)
+            @php
+                $filasMp = collect($kardex)->map(fn ($k, $m) => ['kardex' => $k, 'julios' => $porMaquina[$m] ?? ['kg' => 0.0, 'mp' => 0.0]]);
+                $totalMp = ['kardex' => ['kg' => $filasMp->sum('kardex.kg'), 'imp' => $filasMp->sum('kardex.imp')], 'julios' => ['kg' => $filasMp->sum('julios.kg'), 'mp' => $filasMp->sum('julios.mp')]];
+            @endphp
+            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="cj-kardex">
+                <h3 id="cj-kardex" class="text-sm text-slate-500">MP contra kardex de AX
+                    <span class="text-caption">· el kardex es el hilo que salió del almacén; 2–6 % menos en los julios es la merma</span></h3>
+                <div class="mt-2 overflow-x-auto">
+                    <table class="w-full text-sm tabular-nums">
+                        <thead class="text-caption text-slate-500">
+                            <tr>
+                                <th class="pb-1 text-start font-normal">Máquina</th>
+                                <th class="pb-1 text-end font-normal">Kg julios</th>
+                                <th class="pb-1 text-end font-normal">Kg kardex</th>
+                                <th class="pb-1 text-end font-normal">%</th>
+                                <th class="pb-1 text-end font-normal">MP julios</th>
+                                <th class="pb-1 text-end font-normal">MP kardex</th>
+                                <th class="pb-1 text-end font-normal">$/kg julios</th>
+                                <th class="pb-1 text-end font-normal">$/kg kardex</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ([...$filasMp->all(), 'Total' => $totalMp] as $nombre => $f)
+                                @php
+                                    $pctKg = $f['kardex']['kg'] > 0 ? $f['julios']['kg'] / $f['kardex']['kg'] * 100 : null;
+                                    $fuera = $pctKg === null || $pctKg < 90 || $pctKg > 110;
+                                @endphp
+                                <tr class="{{ $nombre === 'Total' ? 'border-t border-slate-200 font-semibold' : '' }}">
+                                    <td class="py-1">{{ $nombre }}</td>
+                                    <td class="py-1 text-end">{{ $num($f['julios']['kg'], 0) }}</td>
+                                    <td class="py-1 text-end">{{ $num($f['kardex']['kg'], 0) }}</td>
+                                    <td class="py-1 text-end {{ $fuera ? 'font-semibold text-amber-700' : '' }}">{{ $pctKg === null ? '—' : number_format($pctKg, 1).'%' }}</td>
+                                    <td class="py-1 text-end">{{ $pesos($f['julios']['mp'], 0) }}</td>
+                                    <td class="py-1 text-end">{{ $pesos($f['kardex']['imp'], 0) }}</td>
+                                    <td class="py-1 text-end">{{ $porKg($f['julios']['kg'] > 0 ? $f['julios']['mp'] / $f['julios']['kg'] : null) }}</td>
+                                    <td class="py-1 text-end">{{ $porKg($f['kardex']['kg'] > 0 ? $f['kardex']['imp'] / $f['kardex']['kg'] : null) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @endif
+
         {{-- Detalle: folios (orden de urdido) que se despliegan en sus julios. --}}
         <section class="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm" aria-labelledby="cj-detalle"
                  x-data="{ abiertos: {}, todos: false }">
@@ -184,6 +213,7 @@
                             <th class="px-2 py-2 text-start font-semibold">Máquina</th>
                             <th class="px-2 py-2 text-start font-semibold">Artículo</th>
                             <th class="px-2 py-2 text-end font-semibold" title="Tiempo de producción en minutos">T. prod</th>
+                            <th class="px-2 py-2 text-end font-semibold" title="Minutos de paro de la máquina durante el julio (sin tiempo muerto)">T. paro</th>
                             <th class="px-2 py-2 text-end font-semibold" title="Kg neto">Cantidad</th>
                             <th class="px-2 py-2 text-end font-semibold" title="Materia prima">MP</th>
                             @foreach ($conceptos as $col => $nombre)
@@ -216,6 +246,7 @@
                                     @endif
                                 </td>
                                 <td class="px-2 py-2 text-end">{{ $num($f['minutos'], 0) }}</td>
+                                <td class="px-2 py-2 text-end {{ $f['paro'] > 0 ? 'text-rose-700' : 'text-slate-400' }}">{{ $num($f['paro'], 0) }}</td>
                                 <td class="px-2 py-2 text-end">{{ $num($f['kg']) }}</td>
                                 <td class="px-2 py-2 text-end">{{ $pesos($f['mp']) }}</td>
                                 @foreach ($conceptos as $col => $nombre)
@@ -235,6 +266,7 @@
                                     <td class="whitespace-nowrap px-2 py-1.5 text-slate-500">{{ $j['hilos'] ? number_format((float) $j['hilos']).' hilos' : '' }}</td>
                                     <td></td>
                                     <td class="px-2 py-1.5 text-end">{{ $num($j['minutos'], 0) }}</td>
+                                    <td class="px-2 py-1.5 text-end {{ $j['paro'] > 0 ? 'text-rose-700' : 'text-slate-400' }}">{{ $num($j['paro'], 0) }}</td>
                                     <td class="px-2 py-1.5 text-end">{{ $num($j['kg']) }}</td>
                                     <td class="px-2 py-1.5 text-end">{{ $pesos($j['mp']) }}</td>
                                     @foreach ($conceptos as $col => $nombre)
@@ -247,7 +279,7 @@
                         </tbody>
                     @empty
                         <tbody>
-                            <tr><td colspan="{{ 9 + count($conceptos) }}" class="py-10 text-center text-slate-500">Ningún julio coincide con la búsqueda.</td></tr>
+                            <tr><td colspan="{{ 10 + count($conceptos) }}" class="py-10 text-center text-slate-500">Ningún julio coincide con la búsqueda.</td></tr>
                         </tbody>
                     @endforelse
                     <tfoot class="sticky bottom-0 z-10 bg-slate-800 font-semibold text-white">
@@ -257,6 +289,7 @@
                                 <span class="ms-1 font-normal text-slate-300">· {{ number_format($filtroTotal['julios']) }} julios</span>
                             </td>
                             <td class="px-2 py-2 text-end">{{ $num($filtroTotal['minutos'], 0) }}</td>
+                            <td class="px-2 py-2 text-end">{{ $num($filtroTotal['paro'], 0) }}</td>
                             <td class="px-2 py-2 text-end">{{ $num($filtroTotal['kg']) }}</td>
                             <td class="px-2 py-2 text-end">{{ $pesos($filtroTotal['mp']) }}</td>
                             @foreach ($conceptos as $col => $nombre)
@@ -271,6 +304,28 @@
         </section>
     @endif
 </div>
+
+{{-- Exportar: rango de meses del año en pantalla. Mismo <dialog> que los de Cuotas. --}}
+@if ($rangoExcel !== null)
+    <dialog wire:key="cj-exportar" wire:ignore.self x-data x-init="$el.showModal()"
+            x-on:close="$wire.set('rangoExcel', null)" x-on:click="if ($event.target === $el) $el.close()"
+            aria-labelledby="cj-exportar-titulo" class="ui-dialogo ui-dialogo--formulario">
+        <form wire:submit="exportar" class="ui-dialogo__cuerpo" novalidate>
+            <flux:heading id="cj-exportar-titulo" size="xl">Exportar costo por julio</flux:heading>
+            <flux:text>Un renglón por julio de los meses elegidos de {{ $anio }}, con todos los decimales.</flux:text>
+            <div class="grid grid-cols-2 gap-4">
+                @foreach (['desde' => 'Desde', 'hasta' => 'Hasta'] as $campo => $etiqueta)
+                    <flux:select wire:model="rangoExcel.{{ $campo }}" :label="$etiqueta">
+                        @foreach (array_keys($meses) as $n)
+                            <flux:select.option value="{{ $n }}">{{ \App\Models\Costos\CosCuota::MESES[$n] }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                @endforeach
+            </div>
+            <x-dialogo-botones accion="exportar" texto="Descargar" />
+        </form>
+    </dialog>
+@endif
 
 {{-- Spinner al centro mientras se leen los julios de otro mes, la búsqueda o la máquina. --}}
 <div wire:loading.delay.flex wire:target="anio,mes,costeo,buscar,filtrarMaquina"

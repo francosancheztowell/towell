@@ -39,7 +39,8 @@ class Cuotas extends Component
     /** Pestaña de solo lectura con el costo de cada julio del mes (App\Livewire\Costos\CostoJulios). */
     public const JULIOS = 'julios';
 
-    /** Siempre abre en la estándar (primera pestaña); no va en la URL para que un enlace viejo no abra la real. */
+    /** Pestaña abierta; va en la URL para que al recargar se quede donde estaba. Default: la estándar. */
+    #[Url(as: 'vista', except: 'std')]
     public string $tabla = 'std';
 
     /** Año elegido en las pills junto a las pestañas; '' = todos. String: es el valor del radio. */
@@ -66,8 +67,8 @@ class Cuotas extends Component
     {
         abort_unless(userCan('acceso', self::MODULO), 403, 'No tienes acceso a las cuotas de costos.');
 
-        if (! isset(self::TABLAS[$this->tabla])) {
-            $this->tabla = 'std';
+        if (! isset(self::TABLAS[$this->tabla]) && $this->tabla !== self::JULIOS) {
+            $this->tabla = 'std'; // vista de la URL que no existe
         }
     }
 
