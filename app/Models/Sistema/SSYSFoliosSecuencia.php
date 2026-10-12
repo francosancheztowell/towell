@@ -60,6 +60,12 @@ class SSYSFoliosSecuencia extends Model
     /** @var array<string, string>|null */
     private static ?array $columnMap = null;
 
+    /** Para la suite: el memo es static y PHPUnit corre todo en un proceso. */
+    public static function flushColumnMap(): void
+    {
+        self::$columnMap = null;
+    }
+
     private static function leerColumnMap(): array
     {
         $table = (new static)->getTable();
