@@ -55,7 +55,8 @@ test('Compara: los campos que decodePayload lee existen en PvVsOcPayloadBuilder'
   assert.deepEqual(nf, ['piezas', 'kilos', 'vb', 'desc', 'vn'])
   assert.deepEqual(series, ['plan', 'pedido', 'real'])
   assert.match(ts, /type Metric = 'piezas' \| 'kilos' \| 'vb' \| 'desc' \| 'vn'/)
-  assert.match(ts, /type Series = 'plan' \| 'pedido' \| 'real'/)
+  // Series vive en compara.ts (reglas de las tablas de Compara), que dashboard.ts importa.
+  assert.match(leer('resources/js/ventas/compara.ts'), /type Series = 'plan' \| 'pedido' \| 'real'/)
 })
 
 test('Ventas históricas: los campos tipados (Field y medidas) son los SF/NF de VentasHistoricasPayloadBuilder', () => {

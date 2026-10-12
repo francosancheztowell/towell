@@ -102,6 +102,13 @@ const REPORTS: Report[] = [
     },
 ];
 
+const COMPARE_REPORT = { id: 'comparativo', title: 'Comparativo por Año' };
+
+/** Subsecciones de Ventas históricas, en el orden de la sidebar. */
+export const HISTORY_SECTIONS = [...REPORTS, COMPARE_REPORT].map(({ id, title }) => ({ id, title }));
+
+const isHistoryReport = (id: string | undefined): id is string => HISTORY_SECTIONS.some((section) => section.id === id);
+
 /** Paleta categórica validada (orden fijo, nunca ciclado): el color sigue a la entidad, no al rango. */
 const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
 /** Comparativo por año: Año A en verde y Año B en azul, igual en tablas, selectores y gráfica. */
@@ -241,13 +248,13 @@ const initVentasHistoricas = (root: HTMLElement, payload: HistoricoPayload) => {
             anioB: allYears[allYears.length - 1],
             meses: new Set<string>(),
         } as Record<CompareSlot, string | undefined> & { meses: Set<string> },
-        activeReport: REPORTS[0]!.id,
+        // El reporte lo elige la sidebar (data-vh-requested); sin elección, el primero.
+        activeReport: isHistoryReport(root.dataset.vhRequested) ? root.dataset.vhRequested : REPORTS[0]!.id,
     };
     const charts: Partial<Record<string, Chart>> = {};
-    // La vista Blade trae los tres contenedores; si faltaran, mountVentasHistoricas muestra el error.
+    // La vista Blade trae los dos contenedores; si faltaran, mountVentasHistoricas muestra el error.
     const elements = {
         slicers: root.querySelector<HTMLElement>('[data-vh-slicers]')!,
-        subtabs: root.querySelector<HTMLElement>('[data-vh-subtabs]')!,
         reports: root.querySelector<HTMLElement>('[data-vh-reports]')!,
     };
 
@@ -496,12 +503,7 @@ const initVentasHistoricas = (root: HTMLElement, payload: HistoricoPayload) => {
     // Solo se dibuja la subsección visible: Chart.js no puede medir un canvas oculto.
     const renderReports = () => renderReport(state.activeReport);
 
-    const syncSubtabs = () => {
-        elements.subtabs.querySelectorAll<HTMLElement>('[data-vh-subtab]').forEach((button) => {
-            const active = button.dataset.vhSubtab === state.activeReport;
-            button.classList.toggle('is-active', active);
-            button.setAttribute('aria-selected', String(active));
-        });
+    const syncReports = () => {
         elements.reports.querySelectorAll<HTMLElement>('[data-vh-report]').forEach((section) =>
             section.classList.toggle('is-hidden', section.dataset.vhReport !== state.activeReport));
     };
@@ -526,22 +528,18 @@ const initVentasHistoricas = (root: HTMLElement, payload: HistoricoPayload) => {
 
     elements.slicers.replaceChildren(...SLICERS.map(({ key }) => pickers[key].element));
 
-    const compareReport = { id: 'comparativo', title: 'Comparativo por Año' };
-
-    elements.subtabs.innerHTML = [...REPORTS, compareReport].map(({ id, title }) =>
-        `<button type="button" role="tab" aria-selected="false" data-vh-subtab="${id}">${escapeHtml(title)}</button>`).join('');
-
-    elements.subtabs.addEventListener('click', (event) => {
-        const button = (event.target as Element).closest<HTMLElement>('[data-vh-subtab]');
-        if (!button?.dataset.vhSubtab || button.dataset.vhSubtab === state.activeReport) return;
-        state.activeReport = button.dataset.vhSubtab;
-        syncSubtabs();
+    // La sidebar (sidebar.ts) elige el reporte con 'vh:report'.
+    root.addEventListener('vh:report', (event) => {
+        const id = (event as CustomEvent<string>).detail;
+        if (!isHistoryReport(id) || id === state.activeReport) return;
+        state.activeReport = id;
+        syncReports();
         renderReports();
     });
 
-    elements.reports.innerHTML = [...REPORTS, compareReport].map(reportShell).join('');
+    elements.reports.innerHTML = [...REPORTS, COMPARE_REPORT].map(reportShell).join('');
     elements.reports.querySelectorAll<HTMLElement>('[data-vh-table]').forEach(bindRowSelection);
-    syncSubtabs();
+    syncReports();
 
     elements.reports.addEventListener('click', (event) => {
         const target = event.target as Element;
