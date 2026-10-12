@@ -16,3 +16,6 @@ Route::get('/costos', fn () => app(UsuarioController::class)->showSubModulos('co
 
 // El acceso lo valida el componente (App\Livewire\Costos\Cuotas::mount).
 Route::view('/costos/cuotas', 'modulos.costos.cuotas.index')->name('costos.cuotas');
+
+// Hoja de costo unitario por artículo. ponytail: sin módulo en SYSRoles aún, basta con auth.
+Route::view('/costos/hojacostos', 'modulos.costos.hoja-costos.index')->name('costos.hojacostos');
