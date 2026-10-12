@@ -1,13 +1,13 @@
-<div class="flex min-h-0 flex-1 flex-col gap-2">
+<div class="relative flex min-h-0 flex-1 flex-col gap-2">
     {{-- Las dos tablas en una pantalla: la pestaña elige cuál se ve y se edita. --}}
     <div class="flex flex-wrap items-center gap-3">
         <flux:radio.group wire:model.live="tabla" variant="segmented" aria-label="Tabla de cuotas" class="w-full sm:w-auto">
             {{-- Activa en azul, como el encabezado de la tabla (Flux la marca con data-checked). --}}
             <flux:radio value="std" label="Cuotas estándar (STD)" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
             <flux:radio value="real" label="Cuotas reales" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
+            <flux:radio value="julios" label="Costo por julio" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
         </flux:radio.group>
 
-        <span wire:loading.delay wire:target="tabla,anio,costeo" class="text-xs font-semibold text-zinc-500">Cargando…</span>
 
         {{-- Costeo: absorbente (todas las columnas) o directo (sin los costos fijos). Las pills usan el
              acento de Flux (morado); aquí se pasa a azul, como la pestaña activa. --}}
@@ -32,6 +32,10 @@
         @endif
     </div>
 
+    @if ($tabla === 'julios')
+        {{-- Costo de cada julio del mes: componente aparte, solo lectura. Comparte el costeo de arriba. --}}
+        <livewire:costos.costo-julios :costeo="$costeo" wire:key="costo-julios" />
+    @else
     <x-tabla :columnas="$this->columnas()"
              :filas="$filas"
              :seleccionado="$seleccionado"
@@ -74,6 +78,7 @@
             @endif
         </x-slot:acciones>
     </x-tabla>
+    @endif
 
     {{-- Alta / edición: <dialog> con el aspecto de los demás diálogos (.ui-dialogo). Se abre al
          renderizarse; wire:ignore.self evita que un refresco le quite `open`. Esc, clic fuera o
@@ -214,4 +219,10 @@
             </form>
         </dialog>
     @endif
+
+    {{-- Spinner al centro mientras cambia la pestaña, el año o el costeo. --}}
+    <div wire:loading.delay.flex wire:target="tabla,anio,costeo"
+         class="absolute inset-0 z-30 hidden items-center justify-center rounded-xl bg-white/60">
+        <x-ui.spinner size="lg" :inline="true" />
+    </div>
 </div>

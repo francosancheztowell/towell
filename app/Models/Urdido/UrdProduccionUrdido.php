@@ -3,6 +3,7 @@
 namespace App\Models\Urdido;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
@@ -12,6 +13,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $HoraInicial
  * @property string|null $HoraFinal
  * @property string|null $ImporteMP decimal(18,4): KgNeto × Σ(cump × %) del folio, ver CumpKardexService
+ * @property string|null $NoJulio
+ * @property int|string|null $Hilos
+ * @property-read UrdProgramaUrdido|null $programa
  */
 class UrdProduccionUrdido extends Model
 {
@@ -65,7 +69,8 @@ class UrdProduccionUrdido extends Model
         'FechaDefecto',
     ];
 
-    public function programa()
+    /** @return BelongsTo<UrdProgramaUrdido, $this> */
+    public function programa(): BelongsTo
     {
         return $this->belongsTo(UrdProgramaUrdido::class, 'Folio', 'Folio');
     }

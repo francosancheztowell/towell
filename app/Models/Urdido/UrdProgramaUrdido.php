@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $Folio
  * @property string|null $BomId
  * @property string|null $MaquinaId
+ * @property string|null $Cuenta
+ * @property string|null $Calibre
+ * @property string|null $Fibra
+ * @property string|null $RizoPie
  * @property mixed $FechaProg
  */
 class UrdProgramaUrdido extends Model

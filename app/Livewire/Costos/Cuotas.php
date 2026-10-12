@@ -36,6 +36,9 @@ class Cuotas extends Component
         'std' => CosCuotasSTD::class,
     ];
 
+    /** Pestaña de solo lectura con el costo de cada julio del mes (App\Livewire\Costos\CostoJulios). */
+    public const JULIOS = 'julios';
+
     /** Siempre abre en la estándar (primera pestaña); no va en la URL para que un enlace viejo no abra la real. */
     public string $tabla = 'std';
 
@@ -75,7 +78,7 @@ class Cuotas extends Component
      */
     public function updatedTabla(): void
     {
-        if (! isset(self::TABLAS[$this->tabla])) {
+        if (! isset(self::TABLAS[$this->tabla]) && $this->tabla !== self::JULIOS) {
             $this->tabla = 'std';
         }
 
@@ -345,6 +348,10 @@ class Cuotas extends Component
 
     public function render(): View
     {
+        if ($this->tabla === self::JULIOS) {
+            return view('livewire.costos.cuotas', ['anios' => [], 'puede' => []]);
+        }
+
         $modelo = $this->modelo();
         $anios = $this->anios();
         if ($this->anio !== '' && ! isset($anios[(int) $this->anio])) {
