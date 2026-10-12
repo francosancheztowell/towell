@@ -156,12 +156,8 @@ class BpmTest extends TestCase
         $checklist->call('terminar');
         $this->assertSame('Creado', ($area->modelo())::where('Folio', $folio)->value('Status'), 'sin ningún telar calificado no se termina');
 
-        // Telar 201 a medias: no se termina.
+        // Una sola marca (telar 201 a medias, 202 sin calificar): sí se termina.
         $checklist->call('marcar', $lineas->firstWhere('NoTelarId', '201')->Id)->call('terminar');
-        $this->assertSame('Creado', ($area->modelo())::where('Folio', $folio)->value('Status'), 'el telar empezado se completa');
-
-        // Telar 201 completo, 202 sin calificar: sí se termina.
-        $checklist->call('marcar', $lineas->where('NoTelarId', '201')->last()->Id)->call('terminar');
         $this->assertSame('Terminado', ($area->modelo())::where('Folio', $folio)->value('Status'));
     }
 
