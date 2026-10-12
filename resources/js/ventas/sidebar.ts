@@ -1,0 +1,92 @@
+import { escapeHtml } from '../utils/format';
+
+const COLLAPSED_KEY = 'ventas-sidebar-oculta';
+
+const readCollapsed = () => {
+    try {
+        return localStorage.getItem(COLLAPSED_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+
+const storeCollapsed = (collapsed: boolean) => {
+    try {
+        localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
+    } catch {
+        // Sin almacenamiento: la sidebar arranca abierta en la siguiente visita.
+    }
+};
+
+/**
+ * Sidebar de secciones (Compara, Ventas históricas) y subsecciones. Reemplaza las pestañas:
+ * mostrar una sección emite 'pvoc:tab' (lo escuchan el botón Filtrar y Ventas históricas) y
+ * una subsección de Ventas históricas emite 'vh:report' sobre su panel.
+ * history = reportes de Ventas históricas ({ id, title }), en el orden en que se muestran.
+ */
+export const bindSidebar = (root: HTMLElement, history: { id: string; title: string }[]) => {
+    const sidebar = root.querySelector<HTMLElement>('[data-pvoc-sidebar]');
+    if (!sidebar) return;
+
+    const historyList = sidebar.querySelector<HTMLElement>('[data-pvoc-nav-history]');
+    if (historyList) {
+        historyList.innerHTML = history.map(({ id, title }) =>
+            `<li><button type="button" class="pvoc-nav-item" data-pvoc-nav="history" data-pvoc-nav-sub="${escapeHtml(id)}">${escapeHtml(title)}</button></li>`).join('');
+    }
+
+    // Ocultar / mostrar toda la sidebar (se recuerda por navegador).
+    const toggle = sidebar.querySelector<HTMLElement>('[data-pvoc-sidebar-toggle]');
+    const setCollapsed = (collapsed: boolean) => {
+        sidebar.classList.toggle('is-collapsed', collapsed);
+        toggle?.setAttribute('aria-expanded', String(!collapsed));
+        toggle?.setAttribute('title', collapsed ? 'Mostrar secciones' : 'Ocultar secciones');
+        toggle?.setAttribute('aria-label', collapsed ? 'Mostrar secciones' : 'Ocultar secciones');
+        storeCollapsed(collapsed);
+    };
+    toggle?.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('is-collapsed')));
+    setCollapsed(readCollapsed());
+
+    // Cada sección se despliega o pliega sin cambiar lo que se está viendo.
+    sidebar.querySelectorAll<HTMLElement>('[data-pvoc-nav-section]').forEach((button) => button.addEventListener('click', () => {
+        const list = document.getElementById(button.getAttribute('aria-controls') ?? '');
+        const expanded = button.getAttribute('aria-expanded') !== 'true';
+        button.setAttribute('aria-expanded', String(expanded));
+        if (list) list.hidden = !expanded;
+    }));
+
+    let activeTab = root.querySelector<HTMLElement>('[data-pvoc-panel]:not(.is-hidden)')?.dataset.pvocPanel ?? 'summary';
+
+    const show = (button: HTMLElement) => {
+        const tab = button.dataset.pvocNav ?? 'summary';
+        const sub = button.dataset.pvocNavSub ?? '';
+        sidebar.querySelectorAll<HTMLElement>('[data-pvoc-nav]').forEach((item) => {
+            const active = item === button;
+            item.classList.toggle('is-active', active);
+            if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
+        });
+        sidebar.querySelectorAll<HTMLElement>('[data-pvoc-nav-group]').forEach((group) =>
+            group.classList.toggle('is-current', group.dataset.pvocNavGroup === tab));
+
+        const panel = root.querySelector<HTMLElement>(`[data-pvoc-panel="${tab}"]`);
+        if (!panel) return;
+        if (tab === 'history') panel.dataset.vhRequested = sub;
+        else {
+            panel.querySelectorAll<HTMLElement>('[data-pvoc-subpanel]').forEach((subpanel) =>
+                subpanel.classList.toggle('is-hidden', subpanel.dataset.pvocSubpanel !== sub));
+        }
+
+        if (tab !== activeTab) {
+            activeTab = tab;
+            root.querySelectorAll<HTMLElement>('[data-pvoc-panel]').forEach((element) =>
+                element.classList.toggle('is-hidden', element.dataset.pvocPanel !== tab));
+            root.dispatchEvent(new CustomEvent('pvoc:tab', { detail: tab }));
+        }
+        // Si Ventas históricas aún no se monta, toma el reporte de data-vh-requested al montarse.
+        if (tab === 'history') panel.dispatchEvent(new CustomEvent('vh:report', { detail: sub }));
+    };
+
+    sidebar.addEventListener('click', (event) => {
+        const button = (event.target as Element).closest<HTMLElement>('[data-pvoc-nav]');
+        if (button) show(button);
+    });
+};
