@@ -6,39 +6,104 @@
  * seleccionada y la función para refrescar la tabla.
  */
 import { combobox, destruirCombobox, refrescarCombobox } from '../utils/combobox.ts';
+import { http, HttpError } from '../utils/http.ts';
+import { escapeHtml } from '../utils/format.ts';
+import { qs } from '../utils/dom.ts';
+import { notify, showToast } from '../utils/notifications.ts';
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+/** Fila de CatCodificados tal como llega a la grilla (columnas dinámicas). */
+export type RegistroCat = Record<string, unknown>;
+
+interface ColorAx { InventColorId: string; Name: string }
+interface ClaveMatriz { tipo: string; calibre: number | null; fibraId: string | null; cuenta: string | null }
+interface EquivalenciaMatriz { ItemId: string; ConfigId: string; InventSizeId: string; InventColorId: string }
+interface RespuestaLMat<T> { success?: boolean; message?: string; data?: T; found?: boolean }
+
+/** Fila guardada en CatLMat (GET por-orden). */
+interface FilaCatLMat {
+    ItemId?: string | null;
+    ConfigId?: string | null;
+    InventSizeId?: string | null;
+    InventColorId?: string | null;
+    NombreColor?: string | null;
+    InventLocationId?: string | null;
+    Qty?: number | string | null;
+    Porcentaje?: number | string | null;
+    Tipo?: number | string | null;
+    Nombre?: string | null;
+    PesoCrudo?: number | string | null;
+    ItemIdCrudo?: string | null;
+    InventSizeCrudo?: string | null;
 }
 
-function defaultToast(message, type = 'info') {
-    if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
-        return;
-    }
-
-    console.warn(message);
+/** Fila del modal (un componente de la lista de materiales). */
+interface FilaLMat {
+    articulo: string;
+    combinacion: string;
+    items: string;
+    pasadas: string;
+    pasadasField?: string | undefined;
+    nombreColor: string;
+    config: string;
+    tamano: string;
+    color: string;
+    almacen: string;
+    cantidad: number;
+    porcentaje: string;
+    rol: string;
+    calibreFormula?: number | string | undefined;
+    matriz: ClaveMatriz | null;
+    matrizEncontrada?: boolean;
+    desdeCatLMat?: boolean;
 }
 
-// ── Materiales del modal L.Mat (Artículo/Tamaño/Color, cascada por ItemId) ──
+/** Lo que el modal reporta a la pantalla al guardar. */
+export interface LMatGuardada {
+    orden: string;
+    telarId: string;
+    bomId: string;
+    bomName: string;
+    updatedBom: boolean;
+    actualizaLmat: unknown;
+    pasadas: Record<string, number>;
+    formula: Record<string, number>;
+    fibras: Record<string, string>;
+    combinacionesVacias: number[];
+    luchaje: number | null;
+}
+
+interface RespuestaGuardarLMat {
+    success?: boolean;
+    message?: string;
+    updatedBom?: boolean;
+    bomId?: string;
+    bomName?: string;
+    actualizaLmat?: unknown;
+}
+
+interface ContextoLMat {
+    getSelectedRecord?: () => RegistroCat | null | undefined;
+    onSaved?: (datos: LMatGuardada) => void;
+}
+
+/// ── Materiales del modal L.Mat (Artículo/Tamaño/Color, cascada por ItemId) ──
 const LMatMateriales = (() => {
-    let calibres = null;
-    let calibresPendientes = null;
-    const configs = new Map();
-    const tamanos = new Map();
-    const colores = new Map();
-    const nombresColores = new Map();
-    const catalogosPendientes = new Map();
-    const matrices = new Map();
+    let calibres: string[] | null = null;
+    let calibresPendientes: Promise<string[]> | null = null;
+    const configs = new Map<string, string[]>();
+    const tamanos = new Map<string, string[]>();
+    const colores = new Map<string, ColorAx[]>();
+    const nombresColores = new Map<string, string>();
+    const catalogosPendientes = new Map<string, Promise<void>>();
+    const matrices = new Map<string, EquivalenciaMatriz>();
 
-    const normalizarItemId = (itemId) => String(itemId ?? '').trim();
+    const normalizarItemId = (itemId: unknown): string => String(itemId ?? '').trim();
+    const aColorAx = (c: Partial<ColorAx>): ColorAx => ({
+        InventColorId: String(c.InventColorId ?? '').trim(),
+        Name: String(c.Name ?? '').trim(),
+    });
 
-    async function esperarCatalogosPendientes(itemId) {
+    async function esperarCatalogosPendientes(itemId: string): Promise<void> {
         const pendiente = catalogosPendientes.get(itemId);
         if (!pendiente) return;
         try {
@@ -48,94 +113,83 @@ const LMatMateriales = (() => {
         }
     }
 
-    async function getCalibres() {
+    async function getCalibres(): Promise<string[]> {
         if (calibres) return calibres;
         if (calibresPendientes) return calibresPendientes;
 
         calibresPendientes = (async () => {
+            let lista: string[] = [];
             try {
-                const resp = await fetch('/planeacion/lmat/api/calibres', { headers: { Accept: 'application/json' } });
-                const json = await resp.json();
-                calibres = (json.data || []).map(i => i.ItemId).filter(Boolean);
+                const json = await http.get<RespuestaLMat<{ ItemId?: string }[]>>('/planeacion/lmat/api/calibres');
+                lista = (json.data || []).map(i => i.ItemId ?? '').filter(Boolean);
             } catch (e) {
                 console.error('No se pudieron cargar artículos (calibres) L.Mat', e);
-                calibres = [];
             } finally {
                 calibresPendientes = null;
             }
-            return calibres;
+            calibres = lista;
+            return lista;
         })();
 
         return calibresPendientes;
     }
 
-    async function getConfigs(itemId) {
-        itemId = normalizarItemId(itemId);
+    /** Lista AX de un ItemId: caché por artículo y espera al lote en curso antes de pedirla sola. */
+    async function catalogoPorItem<T>(
+        cache: Map<string, T[]>,
+        itemId: string,
+        cargar: () => Promise<T[]>,
+        error: string,
+    ): Promise<T[]> {
         if (!itemId) return [];
-        if (configs.has(itemId)) return configs.get(itemId);
-        await esperarCatalogosPendientes(itemId);
-        if (configs.has(itemId)) return configs.get(itemId);
-        let lista = [];
+        if (!cache.has(itemId)) await esperarCatalogosPendientes(itemId);
+        const enCache = cache.get(itemId);
+        if (enCache) return enCache;
+        let lista: T[] = [];
         try {
-            const resp = await fetch('/planeacion/lmat/api/configs?itemId=' + encodeURIComponent(itemId), { headers: { Accept: 'application/json' } });
-            const json = await resp.json();
-            lista = (json.data || [])
-                .map(c => c.ConfigId)
+            lista = await cargar();
+        } catch (e) {
+            console.error(error, e);
+        }
+        cache.set(itemId, lista);
+        return lista;
+    }
+
+    function getConfigs(itemIdCrudo: unknown): Promise<string[]> {
+        const itemId = normalizarItemId(itemIdCrudo);
+        return catalogoPorItem(configs, itemId, async () => {
+            const json = await http.get<RespuestaLMat<{ ConfigId?: string }[]>>('/planeacion/lmat/api/configs', { params: { itemId } });
+            return (json.data || [])
+                .map(c => c.ConfigId ?? '')
                 .filter(Boolean)
                 .filter(c => String(c).trim().toUpperCase() !== 'HILO');
-        } catch (e) {
-            console.error('No se pudieron cargar configs (fibra) L.Mat', e);
-        }
-        configs.set(itemId, lista);
-        return lista;
+        }, 'No se pudieron cargar configs (fibra) L.Mat');
     }
 
-    async function getTamanos(itemId) {
-        itemId = normalizarItemId(itemId);
-        if (!itemId) return [];
-        if (tamanos.has(itemId)) return tamanos.get(itemId);
-        await esperarCatalogosPendientes(itemId);
-        if (tamanos.has(itemId)) return tamanos.get(itemId);
-        let lista = [];
-        try {
-            const resp = await fetch('/planeacion/lmat/api/tamanos?itemId=' + encodeURIComponent(itemId), { headers: { Accept: 'application/json' } });
-            const json = await resp.json();
-            lista = (json.data || []).map(i => i.InventSizeId).filter(Boolean);
-        } catch (e) {
-            console.error('No se pudieron cargar tamaños L.Mat', e);
-        }
-        tamanos.set(itemId, lista);
-        return lista;
+    function getTamanos(itemIdCrudo: unknown): Promise<string[]> {
+        const itemId = normalizarItemId(itemIdCrudo);
+        return catalogoPorItem(tamanos, itemId, async () => {
+            const json = await http.get<RespuestaLMat<{ InventSizeId?: string }[]>>('/planeacion/lmat/api/tamanos', { params: { itemId } });
+            return (json.data || []).map(i => i.InventSizeId ?? '').filter(Boolean);
+        }, 'No se pudieron cargar tamaños L.Mat');
     }
 
-    async function getColores(itemId) {
-        itemId = normalizarItemId(itemId);
-        if (!itemId) return [];
-        if (colores.has(itemId)) return colores.get(itemId);
-        await esperarCatalogosPendientes(itemId);
-        if (colores.has(itemId)) return colores.get(itemId);
-        let lista = [];
-        try {
-            const resp = await fetch('/planeacion/lmat/api/colores?itemId=' + encodeURIComponent(itemId), { headers: { Accept: 'application/json' } });
-            const json = await resp.json();
+    async function getColores(itemIdCrudo: unknown): Promise<ColorAx[]> {
+        const itemId = normalizarItemId(itemIdCrudo);
+        const lista = await catalogoPorItem(colores, itemId, async () => {
+            const json = await http.get<RespuestaLMat<Partial<ColorAx>[]>>('/planeacion/lmat/api/colores', { params: { itemId } });
             // AX InventColor: InventColorId (código) + Name (nombre color).
-            lista = (json.data || [])
-                .map((c) => ({
-                    InventColorId: String(c.InventColorId ?? '').trim(),
-                    Name: String(c.Name ?? '').trim(),
-                }))
-                .filter((c) => c.InventColorId);
-        } catch (e) {
-            console.error('No se pudieron cargar colores L.Mat', e);
-        }
-        colores.set(itemId, lista);
+            return (json.data || []).map(aColorAx).filter((c) => c.InventColorId);
+        }, 'No se pudieron cargar colores L.Mat');
         lista.forEach((color) => {
             nombresColores.set(itemId + '|' + color.InventColorId, color.Name || '');
         });
         return lista;
     }
 
-    async function precargarCatalogos(itemIds) {
+    interface MaterialAx { configs?: unknown[]; tamanos?: { InventSizeId?: string }[]; colores?: Partial<ColorAx>[] }
+
+    async function precargarCatalogos(itemIds: unknown[]): Promise<void> {
         const faltantes = Array.from(new Set((itemIds || []).map(normalizarItemId).filter(Boolean)))
             .filter((itemId) => !configs.has(itemId) || !tamanos.has(itemId) || !colores.has(itemId))
             .slice(0, 10);
@@ -144,12 +198,9 @@ const LMatMateriales = (() => {
         const params = new URLSearchParams();
         faltantes.forEach((itemId) => params.append('itemIds[]', itemId));
         const carga = (async () => {
-            const resp = await fetch('/planeacion/lmat/api/catalogos-materiales?' + params.toString(), {
-                headers: { Accept: 'application/json' },
-            });
-            const json = await resp.json().catch(() => ({}));
-            if (!resp.ok || json.success !== true) {
-                throw new Error(json.message || `Error ${resp.status} al precargar catálogos L.Mat`);
+            const json = await http.get<RespuestaLMat<Record<string, MaterialAx>>>('/planeacion/lmat/api/catalogos-materiales?' + params.toString());
+            if (json.success !== true) {
+                throw new Error(json.message || 'Error al precargar catálogos L.Mat');
             }
 
             faltantes.forEach((itemId) => {
@@ -161,12 +212,7 @@ const LMatMateriales = (() => {
                 const tamanosItem = (material.tamanos || [])
                     .map((tamano) => String(tamano.InventSizeId ?? '').trim())
                     .filter(Boolean);
-                const coloresItem = (material.colores || [])
-                    .map((color) => ({
-                        InventColorId: String(color.InventColorId ?? '').trim(),
-                        Name: String(color.Name ?? '').trim(),
-                    }))
-                    .filter((color) => color.InventColorId);
+                const coloresItem = (material.colores || []).map(aColorAx).filter((color) => color.InventColorId);
 
                 configs.set(itemId, configsItem);
                 tamanos.set(itemId, tamanosItem);
@@ -189,37 +235,31 @@ const LMatMateriales = (() => {
         }
     }
 
-    function idsColores(lista) {
-        return (lista || []).map((c) => (typeof c === 'string' ? c : c.InventColorId)).filter(Boolean);
+    function idsColores(lista: ColorAx[]): string[] {
+        return (lista || []).map((c) => c.InventColorId).filter(Boolean);
     }
 
-    function nombreColorPorId(lista, inventColorId) {
+    function nombreColorPorId(lista: ColorAx[], inventColorId: unknown): string {
         const id = String(inventColorId ?? '').trim();
         if (!id) return '';
-        const hit = (lista || []).find((c) => (
-            typeof c === 'string' ? c === id : String(c.InventColorId) === id
-        ));
-        if (!hit || typeof hit === 'string') return '';
-        return hit.Name || '';
+        return (lista || []).find((c) => String(c.InventColorId) === id)?.Name || '';
     }
 
-    async function getNombreColor(itemId, inventColorId) {
+    async function getNombreColor(itemId: unknown, inventColorId: unknown): Promise<string> {
         const articulo = String(itemId ?? '').trim();
         const color = String(inventColorId ?? '').trim();
         if (!articulo || !color) return '';
 
         const key = articulo + '|' + color;
-        if (nombresColores.has(key)) return nombresColores.get(key);
-        await esperarCatalogosPendientes(articulo);
-        if (nombresColores.has(key)) return nombresColores.get(key);
+        if (!nombresColores.has(key)) await esperarCatalogosPendientes(articulo);
+        const conocido = nombresColores.get(key);
+        if (conocido !== undefined) return conocido;
 
         let nombre = '';
         try {
-            const params = new URLSearchParams({ itemId: articulo, inventColorId: color });
-            const resp = await fetch('/planeacion/lmat/api/colores?' + params.toString(), {
-                headers: { Accept: 'application/json' },
+            const json = await http.get<RespuestaLMat<Partial<ColorAx>[]>>('/planeacion/lmat/api/colores', {
+                params: { itemId: articulo, inventColorId: color },
             });
-            const json = await resp.json();
             const coincidencia = (json.data || []).find((c) => (
                 String(c.InventColorId ?? '').trim() === color
             ));
@@ -232,53 +272,45 @@ const LMatMateriales = (() => {
         return nombre;
     }
 
-    function claveMatrizKey(clave) {
+    function claveMatrizKey(clave: ClaveMatriz): string {
         const calibre = clave.calibre === null ? '' : Number(clave.calibre).toFixed(1);
         return [clave.tipo, calibre, clave.fibraId || '', clave.cuenta || ''].join('|');
     }
 
-    async function getMatrizCalibre(clave) {
+    async function getMatrizCalibre(clave: ClaveMatriz): Promise<EquivalenciaMatriz | null> {
         const key = claveMatrizKey(clave);
-        if (matrices.has(key)) return matrices.get(key);
-        const params = new URLSearchParams({
-            tipo: clave.tipo,
-        });
-        if (clave.calibre !== null) params.set('calibre', clave.calibre.toFixed(1));
-        if (clave.fibraId !== null) params.set('fibraId', clave.fibraId);
-        if (clave.cuenta) params.set('cuenta', clave.cuenta);
+        const enCache = matrices.get(key);
+        if (enCache) return enCache;
+        const params: Record<string, string> = { tipo: clave.tipo };
+        if (clave.calibre !== null) params.calibre = clave.calibre.toFixed(1);
+        if (clave.fibraId !== null) params.fibraId = clave.fibraId;
+        if (clave.cuenta) params.cuenta = clave.cuenta;
 
-        const resp = await fetch('/planeacion/lmat/api/matriz-calibre?' + params.toString(), {
-            headers: { Accept: 'application/json' },
-        });
-        const json = await resp.json().catch(() => ({}));
-        if (!resp.ok || json.success !== true) {
-            throw new Error(json.message || `Error ${resp.status} al consultar Matriz de Calibres`);
+        const json = await http.get<RespuestaLMat<EquivalenciaMatriz>>('/planeacion/lmat/api/matriz-calibre', { params });
+        if (json.success !== true) {
+            throw new Error(json.message || 'Error al consultar Matriz de Calibres');
         }
 
-        const equivalencia = json.found ? json.data : null;
+        const equivalencia = json.found ? json.data ?? null : null;
         // No guardar misses: la matriz puede aprender una equivalencia al guardar L.Mat.
         if (equivalencia) matrices.set(key, equivalencia);
         return equivalencia;
     }
 
-    async function getMatricesCalibres(claves) {
-        const unicas = new Map();
-        (claves || []).filter(Boolean).forEach((clave) => unicas.set(claveMatrizKey(clave), clave));
+    async function getMatricesCalibres(claves: (ClaveMatriz | null)[]): Promise<Map<string, EquivalenciaMatriz | null>> {
+        const unicas = new Map<string, ClaveMatriz>();
+        (claves || []).forEach((clave) => {
+            if (clave) unicas.set(claveMatrizKey(clave), clave);
+        });
         const faltantes = Array.from(unicas.entries()).filter(([key]) => !matrices.has(key));
 
         if (faltantes.length) {
             try {
-                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                const resp = await fetch('/planeacion/lmat/api/matriz-calibre/lote', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
-                    body: JSON.stringify({
-                        claves: faltantes.map(([key, clave]) => ({ key, ...clave })),
-                    }),
+                const json = await http.post<RespuestaLMat<Record<string, EquivalenciaMatriz | null>>>('/planeacion/lmat/api/matriz-calibre/lote', {
+                    claves: faltantes.map(([key, clave]) => ({ key, ...clave })),
                 });
-                const json = await resp.json().catch(() => ({}));
-                if (!resp.ok || json.success !== true) {
-                    throw new Error(json.message || `Error ${resp.status} al consultar Matriz de Calibres`);
+                if (json.success !== true) {
+                    throw new Error(json.message || 'Error al consultar Matriz de Calibres');
                 }
                 faltantes.forEach(([key]) => {
                     const equivalencia = json.data?.[key] || null;
@@ -303,7 +335,7 @@ const LMatMateriales = (() => {
         return new Map(Array.from(unicas.keys()).map((key) => [key, matrices.get(key) || null]));
     }
 
-    function limpiarMatrices() {
+    function limpiarMatrices(): void {
         matrices.clear();
     }
 
@@ -317,14 +349,12 @@ const LMatMateriales = (() => {
         nombreColorPorId,
         getNombreColor,
         claveMatrizKey,
-        getMatrizCalibre,
         getMatricesCalibres,
         limpiarMatrices,
     };
 })();
 
-function setSelectOptionsLMat(selectEl, opciones, valorActual) {
-    if (!selectEl) return;
+function setSelectOptionsLMat(selectEl: HTMLSelectElement, opciones: unknown[], valorActual: unknown): void {
     const esConfig = selectEl.name === 'config[]';
     const esArticulo = selectEl.name === 'articulo[]';
     const esTamano = selectEl.name === 'tamano[]';
@@ -359,11 +389,11 @@ function setSelectOptionsLMat(selectEl, opciones, valorActual) {
     selectEl.title = fueraDeAx ? `${actual} no existe en AX: elige otro o dalo de alta en AX` : '';
 }
 
-function parseCalibrePartsLMat(valor) {
+function parseCalibrePartsLMat(valor: unknown): { base: string; frac: string | null; num: number } | null {
     const s = String(valor ?? '').trim().replace(',', '.');
     // Acepta artículos AX con sufijo, por ejemplo 450/1T.
     const m = s.match(/^(\d+)(?:[./](\d+))?[A-Za-z]*$/);
-    if (!m) return null;
+    if (!m?.[1]) return null;
     const base = m[1];
     const frac = m[2] != null ? m[2] : null;
     const num = Number(frac != null ? `${base}.${frac}` : base);
@@ -372,13 +402,13 @@ function parseCalibrePartsLMat(valor) {
 }
 
 /** Resuelve Items crudo (ej. 8.0) a un ItemId del GET de calibres: exacto o más cercano del mismo base (8/1). Si no hay ninguno, ''. */
-function resolverArticuloDesdeCalibres(itemsCrudo, calibres) {
+function resolverArticuloDesdeCalibres(itemsCrudo: unknown, calibres: string[]): string {
     const lista = (calibres || []).map(String).filter(Boolean);
     if (!lista.length) return '';
     const parts = parseCalibrePartsLMat(itemsCrudo);
     if (!parts) return '';
 
-    const candidatosExactos = [];
+    const candidatosExactos: string[] = [];
     if (parts.frac != null) {
         candidatosExactos.push(`${parts.base}/${parts.frac}`);
         candidatosExactos.push(`${parts.base}.${parts.frac}`);
@@ -412,14 +442,14 @@ function resolverArticuloDesdeCalibres(itemsCrudo, calibres) {
     return mejor;
 }
 
-function crearClaveMatrizLMat(tipo, calibre, fibraId, cuenta = null) {
+function crearClaveMatrizLMat(tipo: string, calibre: unknown, fibraId: unknown, cuenta: string | null = null): ClaveMatriz | null {
     const tipoNormalizado = String(tipo ?? '').trim().toUpperCase();
     const fibraNormalizada = String(fibraId ?? '').trim().toUpperCase() || null;
     if (!['RIZO', 'PIE', 'TRAMA', 'BARRA1', 'BARRA2', 'BARRA3', 'BARRA4'].includes(tipoNormalizado)) {
         return null;
     }
 
-    let calibreNormalizado = null;
+    let calibreNormalizado: number | null = null;
     if (String(calibre ?? '').trim() !== '') {
         const calibreNumerico = Number(String(calibre ?? '').replace(',', '.'));
         if (Number.isFinite(calibreNumerico) && calibreNumerico > 0) {
@@ -442,23 +472,15 @@ function crearClaveMatrizLMat(tipo, calibre, fibraId, cuenta = null) {
     };
 }
 
-function serializarClaveMatrizLMat(clave) {
-    if (!clave) return '';
-    const calibre = clave.calibre === null ? '' : clave.calibre.toFixed(1);
-    return [clave.tipo, calibre, clave.fibraId || '', clave.cuenta || ''].join('|');
-}
-
-async function openLMatModal(context = {}) {
+async function openLMatModal(context: ContextoLMat = {}): Promise<void> {
     const {
-        fallbackToast = defaultToast,
         getSelectedRecord = () => null,
         onSaved = () => {},
-        showToast = window.showToast || defaultToast,
     } = context;
     const registroSeleccionado = getSelectedRecord();
 
     if (!registroSeleccionado) {
-        fallbackToast('Selecciona primero una fila.', 'warning');
+        showToast('Selecciona primero una fila.', 'warning');
         return;
     }
 
@@ -467,33 +489,32 @@ async function openLMatModal(context = {}) {
 
     const telarId = String(registroSeleccionado?.TelarId ?? '').trim();
     if (!telarId) {
-        fallbackToast('La fila seleccionada no tiene telar.', 'warning');
+        showToast('La fila seleccionada no tiene telar.', 'warning');
         return;
     }
 
-    const orden = registroSeleccionado?.OrdenTejido || '';
-    const salon = registroSeleccionado?.Departamento || '';
+    const orden = String(registroSeleccionado?.OrdenTejido || '');
+    const salon = String(registroSeleccionado?.Departamento || '');
     // Karl Mayer (401-402) no teje rizo/pie/trama/C1..C5: teje 4 barras de JULIO-URDIDO.
     const salonCompactoLMat = String(salon).toUpperCase().replace(/\s+/g, '');
     const esKarlMayerLMat = salonCompactoLMat
         ? ['KM', 'KARLMAYER'].includes(salonCompactoLMat)
-        : [401, 402].includes(parseInt(registroSeleccionado?.TelarId, 10));
+        : [401, 402].includes(parseInt(telarId, 10));
     const rolResidualLMat = esKarlMayerLMat ? 'b1' : 'rizo';
-    const esJulioFijoLMat = (rol) => rol === 'rizo' || rol === 'pie' || /^b[1-4]$/.test(String(rol || ''));
-    const telarSeleccionado = parseInt(registroSeleccionado?.TelarId, 10) || 0;
+    const esJulioFijoLMat = (rol: string): boolean => rol === 'rizo' || rol === 'pie' || /^b[1-4]$/.test(String(rol || ''));
+    const telarSeleccionado = parseInt(telarId, 10) || 0;
 
     // Respuesta visual inmediata mientras se resuelven CatLMat y Matriz de Calibres.
-    window.notify.loading('Lista de materiales');
+    notify.loading('Lista de materiales');
 
     // El catálogo de artículos AX puede cargarse en paralelo con CatLMat.
     const calibresPromise = LMatMateriales.getCalibres();
 
     // Si ya hay una L.Mat guardada para esta Orden en CatLMat, se recarga para editarla.
-    let guardadoLMat = null;
+    let guardadoLMat: FilaCatLMat[] | null = null;
     if (orden) {
         try {
-            const respGuardado = await fetch('/planeacion/lmat/api/por-orden/' + encodeURIComponent(orden), { headers: { Accept: 'application/json' } });
-            const jsonGuardado = await respGuardado.json();
+            const jsonGuardado = await http.get<RespuestaLMat<FilaCatLMat[]>>('/planeacion/lmat/api/por-orden/' + encodeURIComponent(orden));
             if (jsonGuardado.success && Array.isArray(jsonGuardado.data) && jsonGuardado.data.length) {
                 guardadoLMat = jsonGuardado.data;
             }
@@ -501,28 +522,28 @@ async function openLMatModal(context = {}) {
             console.error('No se pudo cargar CatLMat', e);
         }
     }
-    let tamano = registroSeleccionado?.InventSizeId || 'Tamaño';
-    let itemId = registroSeleccionado?.ItemId || '';
-    const articulo = registroSeleccionado?.Nombre || registroSeleccionado?.ItemId || 'Nombre Articulo';
-    const codigoDibujo = registroSeleccionado?.CodigoDibujo || 'Cod Dibujo';
-    let pesoCrudo = registroSeleccionado?.P_crudo || registroSeleccionado?.PesoCrudo || 737;
+    let tamano = String(registroSeleccionado?.InventSizeId || 'Tamaño');
+    let itemId = String(registroSeleccionado?.ItemId || '');
+    const articulo = String(registroSeleccionado?.Nombre || registroSeleccionado?.ItemId || 'Nombre Articulo');
+    const codigoDibujo = String(registroSeleccionado?.CodigoDibujo || 'Cod Dibujo');
+    let pesoCrudo: unknown = registroSeleccionado?.P_crudo || registroSeleccionado?.PesoCrudo || 737;
     const cuentaRizo = String(registroSeleccionado?.CuentaRizo ?? '').trim();
     const cuentaPie = String(registroSeleccionado?.CuentaPie ?? '').trim();
     // Calibre numérico → formato ItemId: 450.1 → 450/1, 16.1 → 16/1, pero entero (10.0) queda como 10.
-    const calibreAItemId = (numero) => Number.isInteger(numero) ? String(numero) : numero.toFixed(1).replace('.', '/');
-    const formatearCalibre = (valor, fallback) => {
+    const calibreAItemId = (numero: number): string => Number.isInteger(numero) ? String(numero) : numero.toFixed(1).replace('.', '/');
+    const formatearCalibre = (valor: unknown, fallback: string): string => {
         const numero = Number(String(valor ?? '').replace(',', '.'));
         return Number.isFinite(numero) ? calibreAItemId(numero) : fallback;
     };
     const calibreRizo = formatearCalibre(registroSeleccionado?.CalibreRizo, 'CalibreRizo');
     const calibrePie = formatearCalibre(registroSeleccionado?.CalibrePie, 'CalibrePie');
     // CatCodificados: FibraRizo / FibraPie / FibraId(trama). null → vacío (no inventar).
-    const normalizarTextoCatLMat = (valor) => {
+    const normalizarTextoCatLMat = (valor: unknown): string => {
         const s = String(valor ?? '').trim();
         if (!s || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined') return '';
         return s;
     };
-    const formatoCalibreCatLMat = (valor) => {
+    const formatoCalibreCatLMat = (valor: unknown): string => {
         const crudo = normalizarTextoCatLMat(valor);
         if (!crudo) return '';
         const n = Number(String(crudo).replace(',', '.'));
@@ -530,7 +551,7 @@ async function openLMatModal(context = {}) {
         // Tra "10" → "10"; CalibreRizo "12.1" → "12.1"
         return Number.isInteger(n) ? String(n) : n.toFixed(1);
     };
-    const formatoPasadasCatLMat = (valor) => {
+    const formatoPasadasCatLMat = (valor: unknown): string => {
         const crudo = normalizarTextoCatLMat(valor);
         if (!crudo) return '';
         const n = Number(String(crudo).replace(',', '.'));
@@ -545,24 +566,24 @@ async function openLMatModal(context = {}) {
     // InventSizeId sin espacios: 2766-16/1 (no "2766 - 16/1").
     const tamanoRizo = String(cuentaRizo || 'CuentaRizo').trim() + '-' + String(calibreRizo).trim();
     const tamanoPie = String(cuentaPie || 'CuentaPie').trim() + '-' + String(calibrePie).trim();
-    const normalizarInventSizeIdLMat = (valor) => String(valor ?? '')
+    const normalizarInventSizeIdLMat = (valor: unknown): string => String(valor ?? '')
         .trim()
         .replace(/\s*-\s*/g, '-')
         .replace(/\s+/g, '');
-    const truncLmat = (value, max) => {
+    const truncLmat = (value: unknown, max: number): string => {
         const text = String(value ?? '');
         return text.length > max ? text.slice(0, max) : text;
     };
-    function resolverAlmacenLMat(articuloLMat) {
+    function resolverAlmacenLMat(articuloLMat: unknown): string {
         if (String(articuloLMat || '').startsWith('JU-ENG-') || articuloLMat === 'JULIO-URDIDO') return 'A-EP-TEJID';
         if (telarSeleccionado >= 305 && telarSeleccionado <= 316) return 'A-PTE-LISO';
         if (telarSeleccionado >= 200 && telarSeleccionado <= 220) return 'A-PTE-JACQ';
         if ((telarSeleccionado >= 299 && telarSeleccionado <= 304) || (telarSeleccionado >= 317 && telarSeleccionado <= 320)) return 'A-PTE-ITEM';
         return '';
     }
-    function almacenVisibleLMat(item) {
-        const guardado = String(item?.almacen ?? '').trim();
-        return guardado !== '' ? guardado : resolverAlmacenLMat(item?.articulo);
+    function almacenVisibleLMat(item: FilaLMat): string {
+        const guardado = String(item.almacen ?? '').trim();
+        return guardado !== '' ? guardado : resolverAlmacenLMat(item.articulo);
     }
     // Nombre: TEJ + Nombre artículo
     let nombreLMat = truncLmat(['TEJ', articulo].filter(Boolean).join(' '), 20);
@@ -572,12 +593,9 @@ async function openLMatModal(context = {}) {
         // L.Mat nueva: precargar Nombre/Descrip de la última creada con el mismo ItemIdCrudo + InventSizeCrudo.
         // Si no hay ninguna, quedan los concatenados de arriba.
         try {
-            const respUltima = await fetch(
-                '/planeacion/lmat/api/ultima?itemIdCrudo=' + encodeURIComponent(itemId)
-                + '&inventSizeCrudo=' + encodeURIComponent(String(tamano ?? '').trim()),
-                { headers: { Accept: 'application/json' } },
-            );
-            const jsonUltima = await respUltima.json();
+            const jsonUltima = await http.get<RespuestaLMat<{ Nombre?: string; Descrip?: string }>>('/planeacion/lmat/api/ultima', {
+                params: { itemIdCrudo: itemId, inventSizeCrudo: tamano.trim() },
+            });
             if (jsonUltima.success && jsonUltima.data) {
                 nombreLMat = truncLmat(jsonUltima.data.Nombre ?? nombreLMat, 20);
                 descripcionLMat = truncLmat(jsonUltima.data.Descrip ?? descripcionLMat, 60);
@@ -586,25 +604,21 @@ async function openLMatModal(context = {}) {
             console.error('No se pudo cargar la última L.Mat por crudo', e);
         }
     }
-    if (guardadoLMat) {
+    const cabeceraGuardada = guardadoLMat?.[0];
+    if (cabeceraGuardada) {
         // Recargar cabecera desde lo guardado (Nombre=BomId). Descripción se recalcula sin tamaño.
-        nombreLMat = truncLmat(guardadoLMat[0].Nombre ?? nombreLMat, 20);
-        if (guardadoLMat[0].PesoCrudo != null && guardadoLMat[0].PesoCrudo !== '') pesoCrudo = guardadoLMat[0].PesoCrudo;
-        if (guardadoLMat[0].ItemIdCrudo != null && guardadoLMat[0].ItemIdCrudo !== '') itemId = guardadoLMat[0].ItemIdCrudo;
-        if (guardadoLMat[0].InventSizeCrudo != null && guardadoLMat[0].InventSizeCrudo !== '') tamano = guardadoLMat[0].InventSizeCrudo;
+        nombreLMat = truncLmat(cabeceraGuardada.Nombre ?? nombreLMat, 20);
+        if (cabeceraGuardada.PesoCrudo != null && cabeceraGuardada.PesoCrudo !== '') pesoCrudo = cabeceraGuardada.PesoCrudo;
+        if (cabeceraGuardada.ItemIdCrudo != null && cabeceraGuardada.ItemIdCrudo !== '') itemId = cabeceraGuardada.ItemIdCrudo;
+        if (cabeceraGuardada.InventSizeCrudo != null && cabeceraGuardada.InventSizeCrudo !== '') tamano = cabeceraGuardada.InventSizeCrudo;
     }
-    const escapeAttr = (value) => String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
 
     // Cálculo Excel (curvas → pesos g → % → cantidad kg):
     // Trama/Cn = SI(P>0, ((P*(AnchoPeine+(13/TL))*curva_peine)/100)*0.59/Hilo, 0)
     // Pie = (((Largo+Corte)*curva_luchaje/100)*0.59/HiloPie)*1.076*(CuentaPie/TL)
     // Rizo = PesoCrudo - (Pie+Trama+C1..C5)
     // Cantidad(kg) = peso_g / 1000 ; % = peso_g / PesoCrudo
-    const numLMat = (valor) => {
+    const numLMat = (valor: unknown): number => {
         const n = Number(String(valor ?? '').replace(',', '.'));
         return Number.isFinite(n) ? n : 0;
     };
@@ -634,7 +648,7 @@ async function openLMatModal(context = {}) {
         calibreBarra: [1, 2, 3, 4].map((n) => numLMat(registroSeleccionado?.[`CalibreBarra${n}2`])
             || numLMat(registroSeleccionado?.[`CalibreBarra${n}`])),
     };
-    const campoPasadasPorRolLMat = {
+    const campoPasadasPorRolLMat: Record<string, string> = {
         trama: 'PasadasTramaFondoC1',
         c1: 'PasadasComb1',
         c2: 'PasadasComb2',
@@ -644,7 +658,7 @@ async function openLMatModal(context = {}) {
     };
     // Fibra editable → columna de CatCodificados. Solo C1..C5: rizo, pie y trama
     // se muestran como texto informativo.
-    const campoFibraPorRolLMat = {
+    const campoFibraPorRolLMat: Record<string, string> = {
         c1: 'FibraComb1',
         c2: 'FibraComb2',
         c3: 'FibraComb3',
@@ -655,7 +669,7 @@ async function openLMatModal(context = {}) {
     // CalibreComb{n} (nvarchar, p. ej. '10.1') es el calibre de catálogo y
     // CalibreComb{n}2 (float, p. ej. 10.0 u 8.86) el divisor de la fórmula: NO son
     // el mismo número, por eso una combinación puede tener uno y no el otro.
-    const combinacionTieneDatosLMat = (n) => (
+    const combinacionTieneDatosLMat = (n: number): boolean => (
         formatoCalibreCatLMat(registroSeleccionado?.[`CalibreComb${n}`]) !== ''
         || normalizarTextoCatLMat(registroSeleccionado?.[`FibraComb${n}`]) !== ''
         || numLMat(registroSeleccionado?.[`PasadasComb${n}`]) > 0
@@ -665,7 +679,7 @@ async function openLMatModal(context = {}) {
     // de catálogo perdía las combinaciones capturadas desde este modal (que escribe
     // fibra/pasadas/CalibreComb{n}2 pero no CalibreComb{n}) y descuadraba el empate
     // contra CatLMat al reabrir.
-    const defTieneDatosLMat = (def) => Boolean(
+    const defTieneDatosLMat = (def: FilaLMat): boolean => Boolean(
         def.items || def.combinacion || def.pasadas || Number(def.calibreFormula) > 0
     );
     const sumaPasadasInicialLMat = inputsCalculoLMat.pasadasTrama
@@ -682,7 +696,7 @@ async function openLMatModal(context = {}) {
         pasadasComb: [...inputsCalculoLMat.pasadasComb],
         hiloComb: [...inputsCalculoLMat.hiloComb],
     };
-    const calcularPesosComponentesLMat = (pesoCrudoG, datosCalculo = inputsCalculoLMat) => {
+    const calcularPesosComponentesLMat = (pesoCrudoG: unknown, datosCalculo: typeof inputsCalculoLMat = inputsCalculoLMat) => {
         const pesoCrudoTotal = numLMat(pesoCrudoG);
         const { peine, anchoPeine, largo, corte, luchaje, tl, hiloPie, cuentaPie, hiloTrama, hiloComb } = datosCalculo;
         const pasadasTrama = numLMat(datosCalculo.pasadasTrama);
@@ -692,7 +706,7 @@ async function openLMatModal(context = {}) {
         );
         const curvaLuchaje = luchaje >= 33 ? 1.083 : 1.055;
         const curvaPeine = peine >= 50 ? 1.001 : 1.002;
-        const pesoTramaCn = (pasadas, hilo) => {
+        const pesoTramaCn = (pasadas: number, hilo: number): number => {
             if (!(pasadas > 0) || !(hilo > 0) || !(tl > 0)) return 0;
             // No usar Ancho como fallback: es el ancho terminado y no sustituye al ancho
             // en peine. Si falta TramaAnchoPeine, la fila queda sin cantidad calculada.
@@ -701,7 +715,7 @@ async function openLMatModal(context = {}) {
             return ((pasadas * anchoTira * curvaPeine) / 100) * DENSIDAD_HILO_LMAT / hilo;
         };
         const tramaG = pesoTramaCn(pasadasTrama, hiloTrama);
-        const combG = pasadasComb.map((p, i) => pesoTramaCn(p, hiloComb[i]));
+        const combG = pasadasComb.map((p, i) => pesoTramaCn(p, hiloComb[i] ?? 0));
         let pieG = 0;
         if (hiloPie > 0 && tl > 0) {
             pieG = (((largo + corte) * curvaLuchaje / 100) * DENSIDAD_HILO_LMAT / hiloPie)
@@ -721,41 +735,41 @@ async function openLMatModal(context = {}) {
         const barrasG = ponderadoBarras.map((w) => (sumaBarras > 0 ? pesoCrudoTotal * (w / sumaBarras) : 0));
         return { rizoG, pieG, tramaG, combG, barrasG, pesoCrudoTotal };
     };
-    const pesoACantidadYPorcentajeLMat = (pesoG, pesoCrudoTotal) => {
+    const pesoACantidadYPorcentajeLMat = (pesoG: number, pesoCrudoTotal: number) => {
         const cantidad = pesoG / 1000;
         const porcentaje = pesoCrudoTotal > 0
             ? Number(((pesoG / pesoCrudoTotal) * 100).toFixed(2))
             : 0;
         return { cantidad, porcentaje: porcentaje.toFixed(2) + '%' };
     };
-    const formatearCantidadLMat = (valor) => {
+    const formatearCantidadLMat = (valor: unknown): string => {
         const cantidad = Number(valor);
         if (!Number.isFinite(cantidad) || cantidad <= 0) return '0.0000';
         return cantidad.toFixed(4);
     };
-    const formatearPorcentajeLMat = (valor) => {
+    const formatearPorcentajeLMat = (valor: unknown): string => {
         const porcentaje = Number(String(valor ?? '').replace('%', '').replace(',', '.'));
         return Number.isFinite(porcentaje) && porcentaje >= 0 ? porcentaje.toFixed(2) : '0.00';
     };
-    const serializarCantidadRawLMat = (valor) => {
+    const serializarCantidadRawLMat = (valor: unknown): string => {
         const cantidad = Number(valor);
         return Number.isFinite(cantidad) && cantidad > 0 ? String(cantidad) : '0';
     };
     // Tamaño AX de una barra: Cuenta-Calibre/hilos (2028 + 370 → 2028-370/1, 16.1 → 16/1).
-    const tamanoBarraLMat = (cuenta, calibre) => {
+    const tamanoBarraLMat = (cuenta: string, calibre: unknown): string => {
         const c = String(cuenta ?? '').trim();
         const n = numLMat(calibre);
         if (!c || !(n > 0)) return '';
         const entero = Math.trunc(n);
         return `${c}-${entero}/${Math.round((n - entero) * 10) || 1}`;
     };
-    const armarFilasDesdeCalculoLMat = (pesoCrudoG) => {
+    const armarFilasDesdeCalculoLMat = (pesoCrudoG: unknown): FilaLMat[] => {
         const pesos = calcularPesosComponentesLMat(pesoCrudoG);
         if (esKarlMayerLMat) {
             // Igual que rizo/pie: julio de artículo fijo; Config/Tamaño/Color los resuelve
             // la matriz con una clave por barra (BARRA1..BARRA4).
-            return [1, 2, 3, 4].map((n) => {
-                const barra = pesoACantidadYPorcentajeLMat(pesos.barrasG[n - 1], pesos.pesoCrudoTotal);
+            return [1, 2, 3, 4].map((n): FilaLMat => {
+                const barra = pesoACantidadYPorcentajeLMat(pesos.barrasG[n - 1] ?? 0, pesos.pesoCrudoTotal);
                 const cuenta = String(registroSeleccionado?.[`CuentaBarra${n}`] ?? '').trim();
                 const calibre = registroSeleccionado?.[`CalibreBarra${n}`];
                 const fibra = normalizarTextoCatLMat(registroSeleccionado?.[`FibraBarra${n}`]);
@@ -783,7 +797,7 @@ async function openLMatModal(context = {}) {
         const trama = pesoACantidadYPorcentajeLMat(pesos.tramaG, pesos.pesoCrudoTotal);
         // Fibra + Calibre = SOLO informativos desde CatCodificados (no son Config).
         // Config empieza vacío y se elige/guarda aparte en CatLMat.ConfigId.
-        const filas = [
+        const filas: FilaLMat[] = [
             {
                 articulo: 'JU-ENG-RI-C',
                 combinacion: fibraRizo,
@@ -838,7 +852,7 @@ async function openLMatModal(context = {}) {
                 nombreColor: '',
                 config: '',
                 tamano: '',
-                color: registroSeleccionado?.CodColorTrama || '',
+                color: String(registroSeleccionado?.CodColorTrama || ''),
                 almacen: '',
                 cantidad: trama.cantidad,
                 porcentaje: trama.porcentaje,
@@ -853,7 +867,7 @@ async function openLMatModal(context = {}) {
         }
         // C1..C5 siempre visibles: llenos o vacíos según CatCodificados.
         for (let n = 1; n <= 5; n++) {
-            const comb = pesoACantidadYPorcentajeLMat(pesos.combG[n - 1], pesos.pesoCrudoTotal);
+            const comb = pesoACantidadYPorcentajeLMat(pesos.combG[n - 1] ?? 0, pesos.pesoCrudoTotal);
             filas.push({
                 articulo: '',
                 combinacion: normalizarTextoCatLMat(registroSeleccionado?.[`FibraComb${n}`]),
@@ -863,7 +877,7 @@ async function openLMatModal(context = {}) {
                 nombreColor: '',
                 config: '',
                 tamano: '',
-                color: registroSeleccionado?.[`CodColorC${n}`] || '',
+                color: String(registroSeleccionado?.[`CodColorC${n}`] || ''),
                 almacen: '',
                 cantidad: comb.cantidad,
                 porcentaje: comb.porcentaje,
@@ -882,7 +896,7 @@ async function openLMatModal(context = {}) {
     let articulos = armarFilasDesdeCalculoLMat(pesoCrudo);
 
     let falloConsultaMatriz = false;
-    const completarFilasDesdeMatrizLMat = async (filasPendientes) => {
+    const completarFilasDesdeMatrizLMat = async (filasPendientes: FilaLMat[]): Promise<void> => {
         const filasConMatriz = filasPendientes.filter((item) => item.matriz);
         if (!filasConMatriz.length) return;
         try {
@@ -890,7 +904,7 @@ async function openLMatModal(context = {}) {
                 filasConMatriz.map((item) => item.matriz),
             );
             filasConMatriz.forEach((item) => {
-                const equivalencia = equivalencias.get(LMatMateriales.claveMatrizKey(item.matriz));
+                const equivalencia = item.matriz && equivalencias.get(LMatMateriales.claveMatrizKey(item.matriz));
                 if (!equivalencia) return;
 
                 item.articulo = equivalencia.ItemId;
@@ -910,13 +924,13 @@ async function openLMatModal(context = {}) {
         await completarFilasDesdeMatrizLMat(articulos);
     }
 
-    const filasExistentesLMat = [];
+    const filasExistentesLMat: FilaLMat[] = [];
     articulos.forEach((f) => {
         if (f.rol === 'trama' || String(f.rol || '').startsWith('c')) filasExistentesLMat.push(f);
     });
 
     // Helper: Calibre display desde ItemId (solo filas añadidas manualmente, sin rol CatCodificados).
-    const calibreDisplayDesdeItemIdLMat = (itemId) => {
+    const calibreDisplayDesdeItemIdLMat = (itemId: unknown): string => {
         const s = String(itemId ?? '').trim();
         if (!s || s.startsWith('JU-ENG-')) return '';
         const parts = parseCalibrePartsLMat(s);
@@ -928,9 +942,9 @@ async function openLMatModal(context = {}) {
     // Fibra (combinacion) y Calibre (items) SIEMPRE se quedan de CatCodificados.
     if (guardadoLMat) {
         const defaults = articulos.slice();
-        const usados = new Set();
+        const usados = new Set<number>();
         const calibresParaMapeo = await calibresPromise;
-        const noEsRizoNiPie = (registro) => {
+        const noEsRizoNiPie = (registro: FilaCatLMat): boolean => {
             const id = String(registro.ItemId ?? '').trim();
             return !(id === 'JU-ENG-RI-C' || id.startsWith('JU-ENG-RI')
                 || id === 'JU-ENG-PI-C' || id.startsWith('JU-ENG-PI'));
@@ -941,15 +955,15 @@ async function openLMatModal(context = {}) {
         const guardadosTramaComb = guardadoLMat.filter(noEsRizoNiPie);
         const hayHuecosTramaComb = guardadosTramaComb.length < defaultsTramaComb.length;
 
-        const tomarGuardado = (predicado) => {
+        const tomarGuardado = (predicado: (r: FilaCatLMat) => boolean): FilaCatLMat | null => {
             const idx = guardadoLMat.findIndex((r, i) => !usados.has(i) && predicado(r));
             if (idx < 0) return null;
             usados.add(idx);
-            return guardadoLMat[idx];
+            return guardadoLMat[idx] ?? null;
         };
 
-        articulos = defaults.map((def) => {
-            let saved = null;
+        articulos = defaults.map((def): FilaLMat | null => {
+            let saved: FilaCatLMat | null = null;
             if (def.rol === 'rizo') {
                 saved = tomarGuardado((r) => {
                     const id = String(r.ItemId ?? '').trim();
@@ -1001,7 +1015,7 @@ async function openLMatModal(context = {}) {
                     : String(def.porcentaje || '0.00').replace('%', '')) + '%',
                 desdeCatLMat: true,
             };
-        }).filter(Boolean);
+        }).filter((f): f is FilaLMat => f !== null);
 
         // Filas extra en CatLMat que no matchearon defaults (añadidas a mano).
         guardadoLMat.forEach((r, i) => {
@@ -1042,7 +1056,7 @@ async function openLMatModal(context = {}) {
     // Cada fila precargada (Tra/CalibreComb1..5) trae su propio valor real de articulo/tamaño/color;
     // hay que incluirlo aquí para que quede "selected" desde el primer render (si no está en la
     // lista, el <select> no marca nada y el navegador cae al primer option de la lista).
-    const sinHiloConfig = (valor) => String(valor ?? '').trim().toUpperCase() !== 'HILO';
+    const sinHiloConfig = (valor: unknown): boolean => String(valor ?? '').trim().toUpperCase() !== 'HILO';
     const opcionesSelectLMat = {
         articulo: Array.from(new Set([
             '',
@@ -1057,7 +1071,7 @@ async function openLMatModal(context = {}) {
         // fila la trae cargarMaterialesFilaLMat vía AX/ConfigTable, por ItemId específico.
         // No mezclar aquí los ConfigId guardados de OTRAS filas: un config válido/vigente
         // para un artículo puede no serlo (o ni existir) para el artículo de otra fila.
-        config: [],
+        config: [] as string[],
         tamano: Array.from(new Set([
             tamano,
             tamanoRizo,
@@ -1111,7 +1125,7 @@ async function openLMatModal(context = {}) {
         : (totalPorcentajeRedondeado > 100 || totalPorcentajeRedondeado < 90 ? 'text-red-700 bg-red-50' : 'text-orange-700 bg-orange-50');
     const clasesPorcentajeTotal = ['text-green-700', 'bg-green-50', 'text-orange-700', 'bg-orange-50', 'text-red-700', 'bg-red-50'];
 
-    function buildSelectLMat(nombre, valorActual, opciones) {
+    function buildSelectLMat(nombre: string, valorActual: unknown, opciones: unknown[]): string {
         const esConfig = nombre === 'config[]';
         const esArticulo = nombre === 'articulo[]';
         let actual = valorActual != null ? String(valorActual) : '';
@@ -1139,37 +1153,37 @@ async function openLMatModal(context = {}) {
         `;
     }
 
-    function renderConfigLMat(item) {
+    function renderConfigLMat(item: FilaLMat): string {
         return buildSelectLMat('config[]', item.config, opcionesSelectLMat.config);
     }
 
-    function renderTamanoLMat(item) {
+    function renderTamanoLMat(item: FilaLMat): string {
         return buildSelectLMat('tamano[]', item.tamano, opcionesSelectLMat.tamano);
     }
 
-    function renderPlanoOSelectLMat(item, campo, nombre, opciones) {
+    function renderPlanoOSelectLMat(item: FilaLMat, campo: keyof FilaLMat, nombre: string, opciones: string[]): string {
         if (esJulioFijoLMat(item.rol)) {
             return `<span class="font-medium text-gray-800">${escapeHtml(item[campo])}</span>`;
         }
         return buildSelectLMat(nombre, item[campo], opciones);
     }
 
-    function atributosMatrizLMat(item) {
+    function atributosMatrizLMat(item: FilaLMat): string {
         const clave = item.matriz;
         if (!clave) return '';
 
         return [
-            `data-matriz-clave="${escapeAttr(serializarClaveMatrizLMat(clave))}"`,
-            `data-matriz-tipo="${escapeAttr(clave.tipo)}"`,
-            `data-matriz-calibre="${escapeAttr(clave.calibre === null ? '' : clave.calibre.toFixed(1))}"`,
-            `data-matriz-fibra-id="${escapeAttr(clave.fibraId || '')}"`,
-            `data-matriz-cuenta="${escapeAttr(clave.cuenta || '')}"`,
+            `data-matriz-clave="${escapeHtml(LMatMateriales.claveMatrizKey(clave))}"`,
+            `data-matriz-tipo="${escapeHtml(clave.tipo)}"`,
+            `data-matriz-calibre="${escapeHtml(clave.calibre === null ? '' : clave.calibre.toFixed(1))}"`,
+            `data-matriz-fibra-id="${escapeHtml(clave.fibraId || '')}"`,
+            `data-matriz-cuenta="${escapeHtml(clave.cuenta || '')}"`,
             `data-matriz-encontrada="${item.matrizEncontrada ? '1' : '0'}"`,
             `data-preservar-articulo="${item.matrizEncontrada || item.desdeCatLMat ? '1' : '0'}"`,
         ].join(' ');
     }
 
-    function renderFibraLMat(item) {
+    function renderFibraLMat(item: FilaLMat): string {
         const campo = campoFibraPorRolLMat[item.rol];
         if (!campo) return escapeHtml(item.combinacion || '');
 
@@ -1178,14 +1192,14 @@ async function openLMatModal(context = {}) {
                 type="text"
                 name="fibra[]"
                 maxlength="50"
-                data-fibra-field="${escapeAttr(campo)}"
+                data-fibra-field="${escapeHtml(campo)}"
                 class="lmat-fibra-input w-32 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                value="${escapeAttr(item.combinacion || '')}"
+                value="${escapeHtml(item.combinacion || '')}"
             >
         `;
     }
 
-    function renderPasadasLMat(item) {
+    function renderPasadasLMat(item: FilaLMat): string {
         if (!item.pasadasField) return '';
 
         return `
@@ -1193,14 +1207,14 @@ async function openLMatModal(context = {}) {
                 type="text"
                 name="pasadas[]"
                 inputmode="numeric"
-                data-pasadas-field="${escapeAttr(item.pasadasField)}"
+                data-pasadas-field="${escapeHtml(item.pasadasField)}"
                 class="lmat-pasadas-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                value="${escapeAttr(item.pasadas || '')}"
+                value="${escapeHtml(item.pasadas || '')}"
             >
         `;
     }
 
-    function renderCalibreFormulaLMat(item) {
+    function renderCalibreFormulaLMat(item: FilaLMat): string {
         if (!['pie', 'trama', 'c1', 'c2', 'c3', 'c4', 'c5', 'b1', 'b2', 'b3', 'b4'].includes(item.rol)) {
             return escapeHtml(item.items || '');
         }
@@ -1209,20 +1223,20 @@ async function openLMatModal(context = {}) {
             <input
                 type="text"
                 inputmode="decimal"
-                data-calibre-rol="${escapeAttr(item.rol)}"
-                title="Calibre de catálogo: ${escapeAttr(item.items || '')}"
+                data-calibre-rol="${escapeHtml(item.rol)}"
+                title="Calibre de catálogo: ${escapeHtml(item.items || '')}"
                 class="lmat-calibre-formula-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                value="${escapeAttr(String(item.calibreFormula ?? ''))}"
+                value="${escapeHtml(String(item.calibreFormula ?? ''))}"
             >
         `;
     }
 
-    const etiquetaRolLMat = (rol) => (
-        { rizo: 'Rizo', pie: 'Pie', trama: 'Trama' }[rol]
+    const etiquetaRolLMat = (rol: string): string => (
+        ({ rizo: 'Rizo', pie: 'Pie', trama: 'Trama' } as Record<string, string>)[rol]
         || (/^b[1-4]$/.test(String(rol || '')) ? `Barra ${String(rol).slice(1)}` : null)
         || (rol ? String(rol).toUpperCase() : 'Extra')
     );
-    const esFilaVaciaLMat = (item) => String(item.rol || '').startsWith('c')
+    const esFilaVaciaLMat = (item: FilaLMat): boolean => String(item.rol || '').startsWith('c')
         && !item.combinacion && !item.items && !(Number(item.cantidad) > 0);
     const filas = articulos.map(item => {
         const vacia = esFilaVaciaLMat(item);
@@ -1232,19 +1246,19 @@ async function openLMatModal(context = {}) {
                 ? 'bg-blue-50 text-blue-700'
                 : 'bg-gray-100 text-gray-600');
         return `
-        <tr class="divide-x divide-gray-200 border-b border-gray-200 ${vacia ? 'bg-gray-100/70 text-gray-400' : 'even:bg-slate-50 hover:bg-blue-50/60'}"${esJulioFijoLMat(item.rol) ? ` data-articulo-fijo="${escapeAttr(item.articulo)}"` : ''}${item.rol ? ` data-rol="${escapeAttr(item.rol)}"` : ''}${item.matriz ? ` ${atributosMatrizLMat(item)}` : ''}${item.desdeCatLMat && !item.matriz ? ' data-preservar-articulo="1"' : ''}>
+        <tr class="divide-x divide-gray-200 border-b border-gray-200 ${vacia ? 'bg-gray-100/70 text-gray-400' : 'even:bg-slate-50 hover:bg-blue-50/60'}"${esJulioFijoLMat(item.rol) ? ` data-articulo-fijo="${escapeHtml(item.articulo)}"` : ''}${item.rol ? ` data-rol="${escapeHtml(item.rol)}"` : ''}${item.matriz ? ` ${atributosMatrizLMat(item)}` : ''}${item.desdeCatLMat && !item.matriz ? ' data-preservar-articulo="1"' : ''}>
             <td class="px-2 py-1.5 whitespace-nowrap">
                 <span class="inline-flex min-w-[52px] justify-center whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badgeClass}">${escapeHtml(etiquetaRolLMat(item.rol))}</span>
             </td>
             <td class="lmat-combinacion-cell px-2 py-1.5 font-medium whitespace-nowrap text-gray-800">${renderFibraLMat(item)}</td>
-            <td class="lmat-items-cell px-2 py-1.5 font-medium tabular-nums text-gray-800" data-calibre-informativo="${escapeAttr(item.items || '')}">${renderCalibreFormulaLMat(item)}</td>
+            <td class="lmat-items-cell px-2 py-1.5 font-medium tabular-nums text-gray-800" data-calibre-informativo="${escapeHtml(item.items || '')}">${renderCalibreFormulaLMat(item)}</td>
             <td class="lmat-pasadas-cell px-2 py-1.5 text-right font-medium tabular-nums text-gray-800">${renderPasadasLMat(item)}</td>
             <td class="px-2 py-1.5 min-w-[150px]">${renderPlanoOSelectLMat(item, 'articulo', 'articulo[]', opcionesSelectLMat.articulo)}</td>
             <td class="px-2 py-1.5 min-w-[130px]">${renderConfigLMat(item)}</td>
             <td class="px-2 py-1.5 min-w-[130px]">${renderTamanoLMat(item)}</td>
             <td class="px-2 py-1.5 min-w-[150px]">
                 ${buildSelectLMat('color[]', item.color, opcionesSelectLMat.color)}
-                <input type="hidden" class="lmat-nombre-color-input" value="${escapeAttr(item.nombreColor || '')}">
+                <input type="hidden" class="lmat-nombre-color-input" value="${escapeHtml(item.nombreColor || '')}">
             </td>
             <td class="lmat-almacen-cell px-2 py-1.5 font-medium whitespace-nowrap text-gray-800">${escapeHtml(almacenVisibleLMat(item))}</td>
             <td class="px-2 py-1.5 text-right">
@@ -1252,7 +1266,7 @@ async function openLMatModal(context = {}) {
                     type="text"
                     name="cantidad[]"
                     inputmode="decimal"
-                    data-cantidad-raw="${escapeAttr(serializarCantidadRawLMat(item.cantidad))}"
+                    data-cantidad-raw="${escapeHtml(serializarCantidadRawLMat(item.cantidad))}"
                     class="lmat-cantidad-input w-24 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
                     value="${formatearCantidadLMat(item.cantidad)}"
                 >
@@ -1263,7 +1277,7 @@ async function openLMatModal(context = {}) {
                     name="porcentaje[]"
                     inputmode="decimal"
                     class="lmat-porcentaje-input w-20 rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                    value="${escapeAttr(formatearPorcentajeLMat(item.porcentaje))}"
+                    value="${escapeHtml(formatearPorcentajeLMat(item.porcentaje))}"
                 >
             </td>
         </tr>
@@ -1271,8 +1285,8 @@ async function openLMatModal(context = {}) {
     }).join('');
 
     // Cierra el loading antes de abrir el formulario.
-    window.notify.close();
-    window.notify.dialog({
+    notify.close();
+    notify.dialog({
         titulo: 'Lista de materiales',
         tono: null,
         formulario: true,
@@ -1308,7 +1322,7 @@ async function openLMatModal(context = {}) {
                                 step="0.01"
                                 min="0"
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-right tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                value="${escapeAttr(pesoCrudo)}"
+                                value="${escapeHtml(pesoCrudo)}"
                             >
                         </div>
                         <div class="flex flex-col gap-0.5">
@@ -1325,7 +1339,7 @@ async function openLMatModal(context = {}) {
                                 step="0.01"
                                 min="0"
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                value="${escapeAttr(String(registroSeleccionado?.Largo ?? ''))}"
+                                value="${escapeHtml(String(registroSeleccionado?.Largo ?? ''))}"
                             >
                         </div>
                         <div class="flex flex-col gap-0.5">
@@ -1336,7 +1350,7 @@ async function openLMatModal(context = {}) {
                                 step="0.01"
                                 min="0"
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                value="${escapeAttr(String(registroSeleccionado?.TramaAnchoPeine ?? ''))}"
+                                value="${escapeHtml(String(registroSeleccionado?.TramaAnchoPeine ?? ''))}"
                             >
                         </div>
                         <div class="flex flex-col gap-0.5">
@@ -1347,7 +1361,7 @@ async function openLMatModal(context = {}) {
                                 step="1"
                                 min="0"
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                value="${escapeAttr(String(registroSeleccionado?.Luchaje ?? ''))}"
+                                value="${escapeHtml(String(registroSeleccionado?.Luchaje ?? ''))}"
                             >
                         </div>
                         <div class="flex flex-col gap-0.5">
@@ -1356,7 +1370,7 @@ async function openLMatModal(context = {}) {
                                 type="text"
                                 id="lmat-itemid"
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                value="${escapeAttr(itemId)}"
+                                value="${escapeHtml(itemId)}"
                             >
                         </div>
                         <div class="flex flex-col gap-0.5">
@@ -1365,7 +1379,7 @@ async function openLMatModal(context = {}) {
                                 type="text"
                                 id="lmat-tamano"
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                value="${escapeAttr(tamano)}"
+                                value="${escapeHtml(tamano)}"
                             >
                         </div>
                         <div class="col-span-2 flex flex-col gap-0.5">
@@ -1376,7 +1390,7 @@ async function openLMatModal(context = {}) {
                                 maxlength="20"
                                 ${nombreInputAttrsLMat}
                                 class="${nombreInputClassLMat}"
-                                value="${escapeAttr(nombreLMat)}"
+                                value="${escapeHtml(nombreLMat)}"
                             >
                             <p id="lmat-nombre-error" class="hidden mt-0.5 text-xs font-semibold text-red-600">Ya existe esa L.Mat</p>
                         </div>
@@ -1387,7 +1401,7 @@ async function openLMatModal(context = {}) {
                                 id="lmat-descripcion"
                                 maxlength="60"
                                 class="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                                value="${escapeAttr(descripcionLMat)}"
+                                value="${escapeHtml(descripcionLMat)}"
                             >
                         </div>
                         ${actLmatCheckboxHtml}
@@ -1456,12 +1470,12 @@ async function openLMatModal(context = {}) {
             const dialogoLMat = raizLMat.closest('dialog');
             if (dialogoLMat) dialogoLMat.style.maxWidth = 'min(1700px, 98vw)';
             const tbodyLMat = raizLMat.querySelector('tbody');
-            const pesoCrudoInput = document.getElementById('lmat-pesocrudo');
-            const largoInput = document.getElementById('lmat-largo');
-            const anchoPeineInput = document.getElementById('lmat-ancho-peine');
+            const pesoCrudoInput = qs<HTMLInputElement>('#lmat-pesocrudo');
+            const largoInput = qs<HTMLInputElement>('#lmat-largo');
+            const anchoPeineInput = qs<HTMLInputElement>('#lmat-ancho-peine');
             let totalPorcentajeActualLMat = totalPorcentajeRedondeado;
             let totalPasadasValidoLMat = true;
-            let onPorcentajeActualizadoLMat = null;
+            let onPorcentajeActualizadoLMat: (() => void) | null = null;
 
             const actualizarTotalPasadasLMat = () => {
                 const total = Math.floor(
@@ -1491,17 +1505,17 @@ async function openLMatModal(context = {}) {
                 return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
             };
 
-            const obtenerCantidadRawLMat = (input) => {
+            const obtenerCantidadRawLMat = (input: HTMLInputElement | null | undefined): number => {
                 const raw = Number(String(input?.dataset?.cantidadRaw ?? '').replace(',', '.'));
                 if (Number.isFinite(raw) && raw >= 0) return raw;
                 const visible = Number(String(input?.value ?? '').replace(',', '.'));
                 return Number.isFinite(visible) && visible >= 0 ? visible : 0;
             };
 
-            const cantidadesReferenciaPasadasLMat = {};
+            const cantidadesReferenciaPasadasLMat: Record<string, number> = {};
             const capturarReferenciaPasadasLMat = () => {
                 ['rizo', 'pie', 'trama', 'c1', 'c2', 'c3', 'c4', 'c5'].forEach((rol) => {
-                    const input = raizLMat.querySelector(
+                    const input = raizLMat.querySelector<HTMLInputElement>(
                         `tr[data-rol="${rol}"] .lmat-cantidad-input`,
                     );
                     if (input) cantidadesReferenciaPasadasLMat[rol] = obtenerCantidadRawLMat(input);
@@ -1517,11 +1531,11 @@ async function openLMatModal(context = {}) {
              * Limita decimales al teclear (cantidad ≤ 4, porcentaje ≤ 2).
              * No usa selectionStart/End sin null-check (Firefox en type=number).
              */
-            const restringirDecimalesLMat = (input, maxDecimales) => {
+            const restringirDecimalesLMat = (input: HTMLInputElement, maxDecimales: number): void => {
                 if (!input || input.dataset.lmatDecimalesBound === '1') return;
                 input.dataset.lmatDecimalesBound = '1';
 
-                const valorConDecimalesLimitados = (valor) => {
+                const valorConDecimalesLimitados = (valor: unknown): string => {
                     const texto = String(valor ?? '').replace(',', '.');
                     if (texto === '' || texto === '.' || texto === '-') return texto;
                     const match = texto.match(/^(-?\d*)(?:\.(\d*))?/);
@@ -1532,7 +1546,7 @@ async function openLMatModal(context = {}) {
                     return enteros + '.' + decimales.slice(0, maxDecimales);
                 };
 
-                input.addEventListener('beforeinput', (event) => {
+                input.addEventListener('beforeinput', (event: InputEvent) => {
                     if (event.inputType?.startsWith('delete') || event.inputType === 'historyUndo' || event.inputType === 'historyRedo') {
                         return;
                     }
@@ -1563,7 +1577,7 @@ async function openLMatModal(context = {}) {
                 });
             };
 
-            const asignarCantidadLMat = (input, cantidad) => {
+            const asignarCantidadLMat = (input: HTMLInputElement | null | undefined, cantidad: number): void => {
                 if (!input) return;
                 const raw = Number(cantidad);
                 input.dataset.cantidadRaw = Number.isFinite(raw) && raw > 0 ? String(raw) : '0';
@@ -1572,7 +1586,7 @@ async function openLMatModal(context = {}) {
                 input.dataset.cantidadInicialVisible = input.value;
             };
 
-            const actualizarTotalPorcentajeLMat = (totalPorcentaje) => {
+            const actualizarTotalPorcentajeLMat = (totalPorcentaje: number): void => {
                 const totalCell = document.getElementById('lmat-total-porcentaje');
                 const totalRedondeado = Number(totalPorcentaje.toFixed(2));
                 totalPorcentajeActualLMat = totalRedondeado;
@@ -1596,18 +1610,18 @@ async function openLMatModal(context = {}) {
 
                 let totalPorcentajeActual = 0;
                 let sumaCantidades = 0;
-                let porcentajeInputRizo = null;
-                document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
+                let porcentajeInputRizo = null as HTMLInputElement | null;
+                document.querySelectorAll<HTMLInputElement>('.lmat-cantidad-input').forEach((input) => {
                     const cantidad = obtenerCantidadRawLMat(input);
                     sumaCantidades += cantidad;
                     const fila = input.closest('tr');
-                    const porcentajeInput = fila?.querySelector('.lmat-porcentaje-input');
+                    const porcentajeInput = fila?.querySelector<HTMLInputElement>('.lmat-porcentaje-input');
                     // Redondear cada fila a 2 decimales y sumar los REDONDEADOS: lo que se
                     // muestra/guarda es lo que cuadra, no el valor interno sin redondear.
                     const porcentaje = Number((totalCantidadActual > 0 ? (cantidad / totalCantidadActual) * 100 : 0).toFixed(2));
                     if (porcentajeInput) porcentajeInput.value = porcentaje.toFixed(2);
                     if (fila?.dataset?.rol === rolResidualLMat) {
-                        porcentajeInputRizo = porcentajeInput;
+                        porcentajeInputRizo = porcentajeInput ?? null;
                     } else {
                         totalPorcentajeActual += porcentaje;
                     }
@@ -1628,12 +1642,12 @@ async function openLMatModal(context = {}) {
             const aplicarCantidadesCalculadasLMat = () => {
                 const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
                 const pesos = calcularPesosComponentesLMat(pesoCrudoActual);
-                const aplicar = (rol, pesoG) => {
-                    const fila = raizLMat.querySelector(`tr[data-rol="${rol}"]`);
+                const aplicar = (rol: string, pesoG: number): void => {
+                    const fila = raizLMat.querySelector<HTMLTableRowElement>(`tr[data-rol="${rol}"]`);
                     if (!fila) return;
                     const vals = pesoACantidadYPorcentajeLMat(pesoG, pesos.pesoCrudoTotal);
-                    const input = fila.querySelector('.lmat-cantidad-input');
-                    const pct = fila.querySelector('.lmat-porcentaje-input');
+                    const input = fila.querySelector<HTMLInputElement>('.lmat-cantidad-input');
+                    const pct = fila.querySelector<HTMLInputElement>('.lmat-porcentaje-input');
                     asignarCantidadLMat(input, vals.cantidad);
                     if (pct) pct.value = formatearPorcentajeLMat(vals.porcentaje);
                 };
@@ -1649,11 +1663,11 @@ async function openLMatModal(context = {}) {
             // Rizo = residuo real (PesoCrudo − todas las demás filas), no delta de fórmula:
             // absorbe el redondeo a 4 decimales de los Qty guardados y el total da 100% exacto.
             const ajustarRizoResidualLMat = () => {
-                const inputRizo = raizLMat.querySelector(`tr[data-rol="${rolResidualLMat}"] .lmat-cantidad-input`);
+                const inputRizo = raizLMat.querySelector<HTMLInputElement>(`tr[data-rol="${rolResidualLMat}"] .lmat-cantidad-input`);
                 if (!inputRizo) return;
                 const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
                 let sumaOtras = 0;
-                document.querySelectorAll('.lmat-cantidad-input').forEach((otro) => {
+                document.querySelectorAll<HTMLInputElement>('.lmat-cantidad-input').forEach((otro) => {
                     if (otro !== inputRizo) sumaOtras += obtenerCantidadRawLMat(otro);
                 });
                 asignarCantidadLMat(inputRizo, Math.max(0, (pesoCrudoActual / 1000) - sumaOtras));
@@ -1668,13 +1682,14 @@ async function openLMatModal(context = {}) {
                 const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
                 const pesosActuales = calcularPesosComponentesLMat(pesoCrudoActual);
                 const pesosReferencia = calcularPesosComponentesLMat(pesoCrudoActual, inputsReferenciaLMat);
-                const aplicarDiferencia = (rol, pesoActualG, pesoReferenciaG) => {
-                    if (!Object.prototype.hasOwnProperty.call(cantidadesReferenciaPasadasLMat, rol)) return;
-                    const fila = raizLMat.querySelector(`tr[data-rol="${rol}"]`);
-                    const input = fila?.querySelector('.lmat-cantidad-input');
+                const aplicarDiferencia = (rol: string, pesoActualG: number, pesoReferenciaG: number): void => {
+                    const referencia = cantidadesReferenciaPasadasLMat[rol];
+                    if (referencia === undefined) return;
+                    const fila = raizLMat.querySelector<HTMLTableRowElement>(`tr[data-rol="${rol}"]`);
+                    const input = fila?.querySelector<HTMLInputElement>('.lmat-cantidad-input');
                     const cantidad = Math.max(
                         0,
-                        cantidadesReferenciaPasadasLMat[rol] + ((pesoActualG - pesoReferenciaG) / 1000),
+                        referencia + ((pesoActualG - pesoReferenciaG) / 1000),
                     );
                     asignarCantidadLMat(input, cantidad);
                 };
@@ -1682,7 +1697,7 @@ async function openLMatModal(context = {}) {
                 aplicarDiferencia('trama', pesosActuales.tramaG, pesosReferencia.tramaG);
                 aplicarDiferencia('pie', pesosActuales.pieG, pesosReferencia.pieG);
                 pesosActuales.combG.forEach((pesoG, index) => {
-                    aplicarDiferencia(`c${index + 1}`, pesoG, pesosReferencia.combG[index]);
+                    aplicarDiferencia(`c${index + 1}`, pesoG, pesosReferencia.combG[index] ?? 0);
                 });
                 ajustarRizoResidualLMat();
                 recalcularPorcentajesLMat();
@@ -1704,7 +1719,7 @@ async function openLMatModal(context = {}) {
             // Al editar Fibra hay que mover también la clave de matriz de la fila: si no,
             // CatMatrizCalibres aprendería la equivalencia con la fibra vieja.
             const conectarInputsFibraLMat = () => {
-                document.querySelectorAll('.lmat-fibra-input').forEach((input) => {
+                document.querySelectorAll<HTMLInputElement>('.lmat-fibra-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
                     input.addEventListener('input', () => {
@@ -1716,7 +1731,7 @@ async function openLMatModal(context = {}) {
             };
 
             const conectarInputsPasadasLMat = () => {
-                document.querySelectorAll('.lmat-pasadas-input').forEach((input) => {
+                document.querySelectorAll<HTMLInputElement>('.lmat-pasadas-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
                     restringirDecimalesLMat(input, 0);
@@ -1739,7 +1754,7 @@ async function openLMatModal(context = {}) {
             };
 
             const conectarInputsCalibreFormulaLMat = () => {
-                document.querySelectorAll('.lmat-calibre-formula-input').forEach((input) => {
+                document.querySelectorAll<HTMLInputElement>('.lmat-calibre-formula-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
                     restringirDecimalesLMat(input, 4);
@@ -1762,7 +1777,7 @@ async function openLMatModal(context = {}) {
             };
 
             const conectarInputsCantidadLMat = () => {
-                document.querySelectorAll('.lmat-cantidad-input').forEach((input) => {
+                document.querySelectorAll<HTMLInputElement>('.lmat-cantidad-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
                     restringirDecimalesLMat(input, 4);
@@ -1788,7 +1803,7 @@ async function openLMatModal(context = {}) {
             };
 
             const conectarInputsPorcentajeLMat = () => {
-                document.querySelectorAll('.lmat-porcentaje-input').forEach((input) => {
+                document.querySelectorAll<HTMLInputElement>('.lmat-porcentaje-input').forEach((input) => {
                     if (input.dataset.lmatConnected === '1') return;
                     input.dataset.lmatConnected = '1';
                     restringirDecimalesLMat(input, 2);
@@ -1796,10 +1811,10 @@ async function openLMatModal(context = {}) {
                         const porcentaje = Number(String(input.value || '0').replace(',', '.'));
                         const porcentajeValido = Number.isFinite(porcentaje) && porcentaje >= 0 ? porcentaje : 0;
                         const totalCantidad = (Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0) / 1000;
-                        const cantidadInput = input.closest('tr')?.querySelector('.lmat-cantidad-input');
+                        const cantidadInput = input.closest('tr')?.querySelector<HTMLInputElement>('.lmat-cantidad-input');
                         asignarCantidadLMat(cantidadInput, totalCantidad * (porcentajeValido / 100));
 
-                        const totalPorcentaje = Array.from(document.querySelectorAll('.lmat-porcentaje-input'))
+                        const totalPorcentaje = Array.from(document.querySelectorAll<HTMLInputElement>('.lmat-porcentaje-input'))
                             .reduce((total, porcentajeInput) => {
                                 const valor = Number(String(porcentajeInput.value || '0').replace(',', '.'));
                                 return total + (Number.isFinite(valor) && valor >= 0 ? valor : 0);
@@ -1818,7 +1833,7 @@ async function openLMatModal(context = {}) {
                 inputsCalculoLMat.largo = numLMat(largoInput.value);
                 aplicarDiferenciaPasadasLMat();
             });
-            const luchajeInput = document.getElementById('lmat-luchaje');
+            const luchajeInput = qs<HTMLInputElement>('#lmat-luchaje');
             luchajeInput?.addEventListener('input', () => {
                 inputsCalculoLMat.luchaje = numLMat(luchajeInput.value);
                 aplicarDiferenciaPasadasLMat();
@@ -1830,7 +1845,7 @@ async function openLMatModal(context = {}) {
 
 
 
-            const actualizarAlmacenFilaLMat = (fila, articulo) => {
+            const actualizarAlmacenFilaLMat = (fila: HTMLTableRowElement | null, articulo: unknown): void => {
                 const cell = fila?.querySelector('.lmat-almacen-cell');
                 if (cell) cell.textContent = resolverAlmacenLMat(articulo);
             };
@@ -1838,7 +1853,7 @@ async function openLMatModal(context = {}) {
             // Fibra y Calibre son informativos (CatCodificados): NUNCA se sincronizan con Config.
             // Config es independiente y es lo que se guarda en CatLMat.ConfigId.
 
-            const actualizarCalibreFilaLMat = (fila, articulo) => {
+            const actualizarCalibreFilaLMat = (fila: HTMLTableRowElement | null, articulo: unknown): void => {
                 const cell = fila?.querySelector('.lmat-items-cell');
                 if (!cell) return;
                 const rol = String(fila?.dataset?.rol || '');
@@ -1849,26 +1864,26 @@ async function openLMatModal(context = {}) {
 
             // Nombre color = InventColor.Name del GET AX filtrado por ItemId (columna Artículos)
             // y el InventColorId elegido en columna Color.
-            const actualizarNombreColorFilaLMat = (fila, coloresLista, inventColorId = null) => {
-                const input = fila?.querySelector('.lmat-nombre-color-input');
+            const actualizarNombreColorFilaLMat = (fila: HTMLTableRowElement, coloresLista: ColorAx[], inventColorId: string | null = null): void => {
+                const input = fila?.querySelector<HTMLInputElement>('.lmat-nombre-color-input');
                 if (!input) return;
                 const colorId = inventColorId !== null && inventColorId !== undefined
                     ? inventColorId
-                    : (fila.querySelector('select[name="color[]"]')?.value || '');
+                    : (fila.querySelector<HTMLSelectElement>('select[name="color[]"]')?.value || '');
                 const nombre = LMatMateriales.nombreColorPorId(coloresLista, colorId);
                 if (nombre || !String(colorId || '').trim()) input.value = nombre;
             };
 
-            const itemIdDeFilaLMat = (fila) => (
-                fila?.querySelector('select[name="articulo[]"]')?.value
+            const itemIdDeFilaLMat = (fila: HTMLTableRowElement): string => (
+                fila?.querySelector<HTMLSelectElement>('select[name="articulo[]"]')?.value
                 || fila?.dataset?.articuloFijo
                 || ''
             );
 
-            const actualizarNombreColorPorSeleccionLMat = async (fila) => {
+            const actualizarNombreColorPorSeleccionLMat = async (fila: HTMLTableRowElement | null): Promise<void> => {
                 if (!fila) return;
                 const itemId = String(itemIdDeFilaLMat(fila)).trim();
-                const inventColorId = String(fila.querySelector('select[name="color[]"]')?.value || '').trim();
+                const inventColorId = String(fila.querySelector<HTMLSelectElement>('select[name="color[]"]')?.value || '').trim();
                 const solicitud = itemId + '|' + inventColorId;
                 fila.dataset.nombreColorSolicitud = solicitud;
 
@@ -1880,14 +1895,13 @@ async function openLMatModal(context = {}) {
                 const nombre = await LMatMateriales.getNombreColor(itemId, inventColorId);
                 if (fila.dataset.nombreColorSolicitud !== solicitud) return;
 
-                const input = fila.querySelector('.lmat-nombre-color-input');
+                const input = fila.querySelector<HTMLInputElement>('.lmat-nombre-color-input');
                 if (input && nombre) input.value = nombre;
             };
 
             // Al elegir color, el `change` nativo lo atienden el delegado del tbody
             // (Nombre color) y conectarSelectsSalidaMatrizLMat (filas de la matriz).
-            const inicializarColorBuscableLMat = (colorSelect) => {
-                if (!colorSelect) return;
+            const inicializarColorBuscableLMat = (colorSelect: HTMLSelectElement): void => {
                 destruirCombobox(colorSelect);
                 combobox(colorSelect, {
                     placeholder: 'Escribe código o nombre',
@@ -1896,8 +1910,8 @@ async function openLMatModal(context = {}) {
             };
 
             /** Rellena Color desde AX como "código — nombre"; si solo hay 1, lo selecciona. */
-            const aplicarColoresAxFilaLMat = (fila, coloresLista, colorPreferido = null) => {
-                const colorSelect = fila?.querySelector('select[name="color[]"]');
+            const aplicarColoresAxFilaLMat = (fila: HTMLTableRowElement, coloresLista: ColorAx[], colorPreferido: string | null = null): void => {
+                const colorSelect = fila?.querySelector<HTMLSelectElement>('select[name="color[]"]');
                 if (!colorSelect) return;
 
                 destruirCombobox(colorSelect);
@@ -1909,11 +1923,11 @@ async function openLMatModal(context = {}) {
 
                 // Si AX solo trae 1 color para ese ItemId, rellenarlo automáticamente.
                 if (ids.length === 1) {
-                    preferido = ids[0];
+                    preferido = ids[0] ?? '';
                 }
 
                 setSelectOptionsLMat(colorSelect, ids, preferido);
-                Array.from(colorSelect.options).forEach((option) => {
+                Array.from(colorSelect.options).forEach((option: HTMLOptionElement) => {
                     const id = String(option.value || '').trim();
                     if (!id) return;
                     const nombre = LMatMateriales.nombreColorPorId(coloresLista, id);
@@ -1921,10 +1935,10 @@ async function openLMatModal(context = {}) {
                 });
 
                 const opcionesNoVacias = Array.from(colorSelect.options)
-                    .map((o) => String(o.value || '').trim())
+                    .map((o: HTMLOptionElement) => String(o.value || '').trim())
                     .filter(Boolean);
                 if (opcionesNoVacias.length === 1) {
-                    colorSelect.value = opcionesNoVacias[0];
+                    colorSelect.value = opcionesNoVacias[0] ?? '';
                 }
 
                 actualizarNombreColorFilaLMat(fila, coloresLista, colorSelect.value);
@@ -1932,15 +1946,15 @@ async function openLMatModal(context = {}) {
                 actualizarNombreColorPorSeleccionLMat(fila);
             };
 
-            const cargarMaterialesFilaLMat = (fila, itemId, configPreferido = null) => {
+            const cargarMaterialesFilaLMat = (fila: HTMLTableRowElement | null, itemId: string | undefined, configPreferido: string | null = null): void => {
                 if (!fila || !itemId) {
                     if (fila) actualizarNombreColorFilaLMat(fila, [], '');
                     return;
                 }
                 const itemIdSolicitado = String(itemId).trim();
-                const configSelect = fila.querySelector('select[name="config[]"]');
-                const tamanoSelect = fila.querySelector('select[name="tamano[]"]');
-                const colorSelect = fila.querySelector('select[name="color[]"]');
+                const configSelect = fila.querySelector<HTMLSelectElement>('select[name="config[]"]');
+                const tamanoSelect = fila.querySelector<HTMLSelectElement>('select[name="tamano[]"]');
+                const colorSelect = fila.querySelector<HTMLSelectElement>('select[name="color[]"]');
                 const configInicial = configPreferido !== null
                     ? String(configPreferido || '')
                     : (configSelect?.value || '');
@@ -1965,30 +1979,29 @@ async function openLMatModal(context = {}) {
                 });
             };
 
-            const cargarTamanoYColorLMat = (articuloSelect) => {
-                const fila = articuloSelect?.closest('tr');
-                actualizarAlmacenFilaLMat(fila, articuloSelect?.value);
-                actualizarCalibreFilaLMat(fila, articuloSelect?.value);
-                cargarMaterialesFilaLMat(fila, articuloSelect?.value);
+            const cargarTamanoYColorLMat = (articuloSelect: HTMLSelectElement): void => {
+                const fila = articuloSelect.closest('tr');
+                actualizarAlmacenFilaLMat(fila, articuloSelect.value);
+                actualizarCalibreFilaLMat(fila, articuloSelect.value);
+                cargarMaterialesFilaLMat(fila, articuloSelect.value);
             };
 
-            const asignarValorSelectLMat = (select, valor) => {
-                if (!select) return;
+            const asignarValorSelectLMat = (select: HTMLSelectElement, valor: unknown): void => {
                 const normalizado = String(valor ?? '');
-                if (normalizado !== '' && !Array.from(select.options).some(option => option.value === normalizado)) {
+                if (normalizado !== '' && !Array.from(select.options).some((option: HTMLOptionElement) => option.value === normalizado)) {
                     select.add(new Option(normalizado, normalizado));
                 }
                 select.value = normalizado;
                 refrescarCombobox(select);
             };
 
-            const sincronizarSalidaMatrizLMat = (filaOrigen, nombreCampo, valor) => {
+            const sincronizarSalidaMatrizLMat = (filaOrigen: HTMLTableRowElement | null, nombreCampo: string, valor: string): void => {
                 const clave = filaOrigen?.dataset?.matrizClave || '';
                 if (!clave) return;
 
-                document.querySelectorAll('tr[data-matriz-clave]').forEach((filaDestino) => {
+                document.querySelectorAll<HTMLTableRowElement>('tr[data-matriz-clave]').forEach((filaDestino) => {
                     if (filaDestino === filaOrigen || filaDestino.dataset.matrizClave !== clave) return;
-                    const selectDestino = filaDestino.querySelector(`select[name="${nombreCampo}"]`);
+                    const selectDestino = filaDestino.querySelector<HTMLSelectElement>(`select[name="${nombreCampo}"]`);
                     if (!selectDestino) return;
 
                     asignarValorSelectLMat(selectDestino, valor);
@@ -2002,7 +2015,7 @@ async function openLMatModal(context = {}) {
             };
 
             const conectarArticuloSelectsLMat = () => {
-                document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
+                document.querySelectorAll<HTMLSelectElement>('select[name="articulo[]"]').forEach((sel) => {
                     if (sel.dataset.lmatConnected === '1') return;
                     sel.dataset.lmatConnected = '1';
 
@@ -2022,7 +2035,7 @@ async function openLMatModal(context = {}) {
 
             const conectarSelectsSalidaMatrizLMat = () => {
                 ['config[]', 'tamano[]', 'color[]'].forEach((nombreCampo) => {
-                    document.querySelectorAll(`select[name="${nombreCampo}"]`).forEach((select) => {
+                    document.querySelectorAll<HTMLSelectElement>(`select[name="${nombreCampo}"]`).forEach((select) => {
                         const dataKey = 'lmatMatrizConnected';
                         if (select.dataset[dataKey] === '1') return;
                         select.dataset[dataKey] = '1';
@@ -2036,13 +2049,14 @@ async function openLMatModal(context = {}) {
 
             // Delegado: Config limpia error; Color actualiza Nombre color.
             tbodyLMat?.addEventListener('change', (event) => {
-                const configSelect = event.target?.closest?.('select[name="config[]"], select[name="tamano[]"]');
+                const origen = event.target instanceof Element ? event.target : null;
+                const configSelect = origen?.closest<HTMLSelectElement>('select[name="config[]"], select[name="tamano[]"]');
                 if (configSelect) {
                     configSelect.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
                     configSelect.title = '';
                     return;
                 }
-                const colorSelect = event.target?.closest?.('select[name="color[]"]');
+                const colorSelect = origen?.closest('select[name="color[]"]');
                 if (!colorSelect) return;
                 actualizarNombreColorPorSeleccionLMat(colorSelect.closest('tr'));
             });
@@ -2059,9 +2073,9 @@ async function openLMatModal(context = {}) {
             if (!guardadoLMat) recalcularPorcentajesLMat();
 
             LMatMateriales.getCalibres().then((calibresDisponibles) => {
-                document.querySelectorAll('select[name="articulo[]"]').forEach((sel) => {
+                document.querySelectorAll<HTMLSelectElement>('select[name="articulo[]"]').forEach((sel) => {
                     const fila = sel.closest('tr');
-                    const itemsCell = fila?.querySelector('.lmat-items-cell');
+                    const itemsCell = fila?.querySelector<HTMLElement>('.lmat-items-cell');
                     const itemsVal = String(itemsCell?.dataset?.calibreInformativo ?? itemsCell?.textContent ?? '').trim();
                     let valorSeleccionado = '';
                     let opcionesDisponibles = calibresDisponibles;
@@ -2083,21 +2097,21 @@ async function openLMatModal(context = {}) {
             });
 
             // Rizo/Pie: cargar Config AX guardado en la fila (independiente de Fibra informativa).
-            document.querySelectorAll('tr[data-articulo-fijo]').forEach((fila) => {
-                const configSelect = fila.querySelector('select[name="config[]"]');
+            document.querySelectorAll<HTMLTableRowElement>('tr[data-articulo-fijo]').forEach((fila) => {
+                const configSelect = fila.querySelector<HTMLSelectElement>('select[name="config[]"]');
                 const configGuardado = configSelect?.value || '';
                 cargarMaterialesFilaLMat(fila, fila.dataset.articuloFijo, configGuardado);
             });
 
             // Validación: el Nombre (BOMID / columna "L.Mat" de liberar órdenes) no debe existir ya en BOMTABLE.
             // En actualización el nombre queda bloqueado y no se revalida contra AX.
-            const nombreInput = document.getElementById('lmat-nombre');
+            const nombreInput = qs<HTMLInputElement>('#lmat-nombre');
             const nombreError = document.getElementById('lmat-nombre-error');
             const bannerOcupada = document.getElementById('lmat-banner-ocupada');
-            const guardarBtn = document.getElementById('lmat-guardar-front');
+            const guardarBtn = qs<HTMLButtonElement>('#lmat-guardar-front');
             let lmatDuplicada = false;
             let guardandoLmat = false;
-            let lmatCheckTimer = null;
+            let lmatCheckTimer: ReturnType<typeof setTimeout> | undefined;
             // Firma de las advertencias ya mostradas: un segundo clic con las mismas confirma.
             let advertenciasReconocidas = '';
 
@@ -2121,7 +2135,7 @@ async function openLMatModal(context = {}) {
             onPorcentajeActualizadoLMat = actualizarEstadoGuardarBtn;
             actualizarEstadoGuardarBtn();
 
-            const setGuardarLmatLoading = (isLoading) => {
+            const setGuardarLmatLoading = (isLoading: boolean): void => {
                 guardandoLmat = isLoading;
                 const iconEl = guardarBtn?.querySelector('i');
                 const spanEl = guardarBtn?.querySelector('span');
@@ -2138,7 +2152,7 @@ async function openLMatModal(context = {}) {
                 actualizarEstadoGuardarBtn();
             };
 
-            const marcarLmatDuplicada = (duplicado) => {
+            const marcarLmatDuplicada = (duplicado: boolean): void => {
                 if (esActualizacionLMat) {
                     lmatDuplicada = false;
                     actualizarEstadoGuardarBtn();
@@ -2163,8 +2177,7 @@ async function openLMatModal(context = {}) {
                 const nombre = (nombreInput?.value || '').trim();
                 if (!nombre) { marcarLmatDuplicada(false); return; }
                 try {
-                    const resp = await fetch('/planeacion/lmat/api/existe?nombre=' + encodeURIComponent(nombre), { headers: { Accept: 'application/json' } });
-                    const json = await resp.json();
+                    const json = await http.get<{ existe?: boolean }>('/planeacion/lmat/api/existe', { params: { nombre } });
                     marcarLmatDuplicada(!!json.existe);
                 } catch (e) {
                     console.error('No se pudo validar la L.Mat', e);
@@ -2205,16 +2218,16 @@ async function openLMatModal(context = {}) {
 
                 // Recolectar las filas de la tabla del modal.
                 // Se conserva toda cantidad positiva; solo se omiten filas sin cantidad.
-                const filasData = [];
+                const filasData: Record<string, unknown>[] = [];
                 let omitidasSinCantidad = 0;
-                const filasSinArticulo = [];
-                const filasSinConfig = [];
-                const filasSinTamano = [];
-                const filasSinColor = [];
-                const pasadasData = {};
-                const pasadasInvalidas = [];
-                raizLMat.querySelectorAll('tbody tr').forEach((fila, index) => {
-                    const pasadasInput = fila.querySelector('.lmat-pasadas-input');
+                const filasSinArticulo: string[] = [];
+                const filasSinConfig: string[] = [];
+                const filasSinTamano: string[] = [];
+                const filasSinColor: string[] = [];
+                const pasadasData: Record<string, number> = {};
+                const pasadasInvalidas: string[] = [];
+                raizLMat.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach((fila, index) => {
+                    const pasadasInput = fila.querySelector<HTMLInputElement>('.lmat-pasadas-input');
                     // Filas C vacías (sin pasadas capturadas) no envían el campo ni bloquean.
                     if (pasadasInput && String(pasadasInput.value).trim() !== '') {
                         const pasadas = Number(pasadasInput.value);
@@ -2227,10 +2240,10 @@ async function openLMatModal(context = {}) {
                             pasadasData[campoPasadas] = pasadas;
                         }
                     }
-                    const qty = obtenerCantidadRawLMat(fila.querySelector('.lmat-cantidad-input'));
-                    const configSelect = fila.querySelector('select[name="config[]"]');
-                    const tamanoSelect = fila.querySelector('select[name="tamano[]"]');
-                    const colorSelect = fila.querySelector('select[name="color[]"]');
+                    const qty = obtenerCantidadRawLMat(fila.querySelector<HTMLInputElement>('.lmat-cantidad-input'));
+                    const configSelect = fila.querySelector<HTMLSelectElement>('select[name="config[]"]');
+                    const tamanoSelect = fila.querySelector<HTMLSelectElement>('select[name="tamano[]"]');
+                    const colorSelect = fila.querySelector<HTMLSelectElement>('select[name="color[]"]');
                     [configSelect, tamanoSelect, colorSelect].forEach((sel) => {
                         if (sel) sel.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
                     });
@@ -2238,7 +2251,7 @@ async function openLMatModal(context = {}) {
                         omitidasSinCantidad += 1;
                         return;
                     }
-                    const articuloVal = fila.querySelector('select[name="articulo[]"]')?.value ?? fila.dataset.articuloFijo ?? '';
+                    const articuloVal = fila.querySelector<HTMLSelectElement>('select[name="articulo[]"]')?.value ?? fila.dataset.articuloFijo ?? '';
                     const rolLabel = String(fila.dataset.rol || `fila ${index + 1}`).toUpperCase();
                     if (!articuloVal) {
                         filasSinArticulo.push(rolLabel);
@@ -2267,16 +2280,16 @@ async function openLMatModal(context = {}) {
                     filasData.push({
                         itemId: articuloVal,
                         configId: configVal,
-                        inventSizeId: normalizarInventSizeIdLMat(fila.querySelector('select[name="tamano[]"]')?.value || ''),
-                        inventColorId: fila.querySelector('select[name="color[]"]')?.value || '',
-                        nombreColor: fila.querySelector('.lmat-nombre-color-input')?.value || '',
+                        inventSizeId: normalizarInventSizeIdLMat(fila.querySelector<HTMLSelectElement>('select[name="tamano[]"]')?.value || ''),
+                        inventColorId: fila.querySelector<HTMLSelectElement>('select[name="color[]"]')?.value || '',
+                        nombreColor: fila.querySelector<HTMLInputElement>('.lmat-nombre-color-input')?.value || '',
                         inventLocationId: almacenVal,
                         qty: Number(qty.toFixed(4)),
                         porcentaje: Number((
-                            parseFloat(fila.querySelector('.lmat-porcentaje-input')?.value || '0') || 0
+                            parseFloat(fila.querySelector<HTMLInputElement>('.lmat-porcentaje-input')?.value || '0') || 0
                         ).toFixed(2)),
                         // KM: b1..b4 → CatLMat.Tipo 1..4 (el servidor lo ignora fuera de Karl Mayer).
-                        tipo: /^b[1-4]$/.test(String(fila.dataset.rol || '')) ? Number(fila.dataset.rol.slice(1)) : null,
+                        tipo: /^b[1-4]$/.test(String(fila.dataset.rol || '')) ? Number(String(fila.dataset.rol).slice(1)) : null,
                         matrizTipo: fila.dataset.matrizTipo || null,
                         matrizCalibre: fila.dataset.matrizCalibre || null,
                         matrizFibraId: fila.dataset.matrizFibraId || null,
@@ -2289,17 +2302,17 @@ async function openLMatModal(context = {}) {
                     return;
                 }
 
-                const formulaData = {
+                const formulaData: Record<string, number> = {
                     Largo: numLMat(largoInput?.value),
                     TramaAnchoPeine: numLMat(anchoPeineInput?.value),
                 };
                 // KM: la fórmula de barras no los usa; se guardan solo si vienen capturados.
                 if (esKarlMayerLMat) {
                     Object.keys(formulaData).forEach((campo) => {
-                        if (!(formulaData[campo] > 0)) delete formulaData[campo];
+                        if (!((formulaData[campo] ?? 0) > 0)) delete formulaData[campo];
                     });
                 }
-                const calibreFieldPorRol = {
+                const calibreFieldPorRol: Record<string, string> = {
                     pie: 'CalibrePie2',
                     trama: 'CalTramaFondoC1',
                     c1: 'CalibreComb12',
@@ -2312,17 +2325,17 @@ async function openLMatModal(context = {}) {
                     b3: 'CalibreBarra32',
                     b4: 'CalibreBarra42',
                 };
-                const formulaInvalidos = [];
-                if (!esKarlMayerLMat && !(formulaData.Largo > 0)) formulaInvalidos.push('Largo');
-                if (!esKarlMayerLMat && !(formulaData.TramaAnchoPeine > 0)) formulaInvalidos.push('Ancho peine');
-                document.querySelectorAll('.lmat-calibre-formula-input').forEach((input) => {
+                const formulaInvalidos: string[] = [];
+                if (!esKarlMayerLMat && !((formulaData.Largo ?? 0) > 0)) formulaInvalidos.push('Largo');
+                if (!esKarlMayerLMat && !((formulaData.TramaAnchoPeine ?? 0) > 0)) formulaInvalidos.push('Ancho peine');
+                document.querySelectorAll<HTMLInputElement>('.lmat-calibre-formula-input').forEach((input) => {
                     const rol = String(input.dataset.calibreRol || '');
                     const campo = calibreFieldPorRol[rol];
                     const calibre = numLMat(input.value);
                     if (!campo) return;
                     if (!(calibre > 0)) {
                         // Filas C vacías (sin cantidad) no exigen calibre.
-                        const qtyFila = obtenerCantidadRawLMat(input.closest('tr')?.querySelector('.lmat-cantidad-input'));
+                        const qtyFila = obtenerCantidadRawLMat(input.closest('tr')?.querySelector<HTMLInputElement>('.lmat-cantidad-input'));
                         if (qtyFila <= 0) {
                             input.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
                             return;
@@ -2341,12 +2354,12 @@ async function openLMatModal(context = {}) {
 
                 // Fibras editables → CatCodificados. Solo se envían las filas con cantidad,
                 // para no borrar la fibra de una combinación que quedó vacía en el modal.
-                const fibrasData = {};
-                document.querySelectorAll('.lmat-fibra-input').forEach((input) => {
+                const fibrasData: Record<string, string> = {};
+                document.querySelectorAll<HTMLInputElement>('.lmat-fibra-input').forEach((input) => {
                     const campo = input.dataset.fibraField;
                     const fila = input.closest('tr');
                     if (!campo || !fila) return;
-                    if (obtenerCantidadRawLMat(fila.querySelector('.lmat-cantidad-input')) <= 0) return;
+                    if (obtenerCantidadRawLMat(fila.querySelector<HTMLInputElement>('.lmat-cantidad-input')) <= 0) return;
                     fibrasData[campo] = input.value.trim();
                 });
 
@@ -2377,24 +2390,24 @@ async function openLMatModal(context = {}) {
 
                 // Advertencias no bloqueantes: el primer clic las muestra en el banner;
                 // un segundo clic con las mismas advertencias confirma y guarda.
-                const advertencias = [];
-                const qtyPorRol = {};
-                const datosSinCantidad = [];
-                raizLMat.querySelectorAll('tbody tr').forEach((fila) => {
+                const advertencias: string[] = [];
+                const qtyPorRol: Record<string, number> = {};
+                const datosSinCantidad: string[] = [];
+                raizLMat.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach((fila) => {
                     const rol = String(fila.dataset.rol || '');
-                    const qty = obtenerCantidadRawLMat(fila.querySelector('.lmat-cantidad-input'));
+                    const qty = obtenerCantidadRawLMat(fila.querySelector<HTMLInputElement>('.lmat-cantidad-input'));
                     if (rol) qtyPorRol[rol] = qty;
                     if (qty > 0 || !/^(trama|c[1-5])$/.test(rol)) return;
-                    const articuloVal = fila.querySelector('select[name="articulo[]"]')?.value || '';
-                    const pasadasVal = Number(fila.querySelector('.lmat-pasadas-input')?.value || 0);
-                    const calibreVal = numLMat(fila.querySelector('.lmat-calibre-formula-input')?.value);
+                    const articuloVal = fila.querySelector<HTMLSelectElement>('select[name="articulo[]"]')?.value || '';
+                    const pasadasVal = Number(fila.querySelector<HTMLInputElement>('.lmat-pasadas-input')?.value || 0);
+                    const calibreVal = numLMat(fila.querySelector<HTMLInputElement>('.lmat-calibre-formula-input')?.value);
                     if (articuloVal || pasadasVal > 0 || calibreVal > 0) datosSinCantidad.push(rol.toUpperCase());
                 });
                 for (let n = 2; n <= 5; n++) {
-                    if (!(qtyPorRol[`c${n}`] > 0)) continue;
-                    const vacias = [];
+                    if (!((qtyPorRol[`c${n}`] ?? 0) > 0)) continue;
+                    const vacias: string[] = [];
                     for (let m = 1; m < n; m++) {
-                        if (!(qtyPorRol[`c${m}`] > 0)) vacias.push(`C${m}`);
+                        if (!((qtyPorRol[`c${m}`] ?? 0) > 0)) vacias.push(`C${m}`);
                     }
                     if (vacias.length) {
                         advertencias.push(
@@ -2406,16 +2419,16 @@ async function openLMatModal(context = {}) {
                 }
                 // Combinaciones que tenian datos al abrir y quedaron completamente vacias:
                 // se limpian en CatCodificados para que no reaparezcan al reabrir el modal.
-                const combinacionesVacias = [];
-                raizLMat.querySelectorAll('tbody tr[data-rol]').forEach((fila) => {
+                const combinacionesVacias: number[] = [];
+                raizLMat.querySelectorAll<HTMLTableRowElement>('tbody tr[data-rol]').forEach((fila) => {
                     const indice = String(fila.dataset.rol).match(/^c([1-5])$/);
                     if (!indice) return;
                     const n = Number(indice[1]);
-                    const vacia = String(fila.querySelector('.lmat-fibra-input')?.value ?? '').trim() === ''
-                        && String(fila.querySelector('.lmat-pasadas-input')?.value ?? '').trim() === ''
-                        && numLMat(fila.querySelector('.lmat-calibre-formula-input')?.value) <= 0
-                        && String(fila.querySelector('select[name="articulo[]"]')?.value ?? '').trim() === ''
-                        && obtenerCantidadRawLMat(fila.querySelector('.lmat-cantidad-input')) <= 0;
+                    const vacia = String(fila.querySelector<HTMLInputElement>('.lmat-fibra-input')?.value ?? '').trim() === ''
+                        && String(fila.querySelector<HTMLInputElement>('.lmat-pasadas-input')?.value ?? '').trim() === ''
+                        && numLMat(fila.querySelector<HTMLInputElement>('.lmat-calibre-formula-input')?.value) <= 0
+                        && String(fila.querySelector<HTMLSelectElement>('select[name="articulo[]"]')?.value ?? '').trim() === ''
+                        && obtenerCantidadRawLMat(fila.querySelector<HTMLInputElement>('.lmat-cantidad-input')) <= 0;
                     if (vacia && combinacionTieneDatosLMat(n)) combinacionesVacias.push(n);
                 });
                 if (combinacionesVacias.length) {
@@ -2427,7 +2440,7 @@ async function openLMatModal(context = {}) {
                 if (datosSinCantidad.length) {
                     advertencias.push(`${datosSinCantidad.join(', ')} tiene(n) datos capturados pero cantidad 0: esa(s) fila(s) no se guardará(n).`);
                 }
-                if (Object.prototype.hasOwnProperty.call(qtyPorRol, 'rizo') && !(qtyPorRol.rizo > 0)) {
+                if (qtyPorRol.rizo !== undefined && !(qtyPorRol.rizo > 0)) {
                     advertencias.push('La cantidad de RIZO quedó en 0: revisa el Peso Crudo y las demás cantidades.');
                 }
                 const bannerAdvertencias = document.getElementById('lmat-advertencias');
@@ -2449,45 +2462,39 @@ async function openLMatModal(context = {}) {
                 advertenciasReconocidas = '';
                 bannerAdvertencias?.classList.add('hidden');
 
-                const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-                const luchajeTexto = String(document.getElementById('lmat-luchaje')?.value ?? '').trim();
+                const luchajeTexto = String(qs<HTMLInputElement>('#lmat-luchaje')?.value ?? '').trim();
                 const luchajeGuardadoLMat = luchajeTexto !== '' ? Math.trunc(Number(luchajeTexto)) : null;
                 const actLmatChecked = esBomIdEstand
-                    ? Boolean(document.getElementById('lmat-act-lmat')?.checked)
+                    ? Boolean(qs<HTMLInputElement>('#lmat-act-lmat')?.checked)
                     : false;
                 setGuardarLmatLoading(true);
                 try {
-                    const resp = await fetch('/planeacion/lmat/api/guardar', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, Accept: 'application/json' },
-                        body: JSON.stringify({
-                            orden: orden,
-                            salon: salon,
-                            telarId: String(telarSeleccionado || ''),
-                            nombre: nombreInput?.value || '',
-                            descrip: document.getElementById('lmat-descripcion')?.value || '',
-                            pesoCrudo: String(document.getElementById('lmat-pesocrudo')?.value || ''),
-                            itemIdCrudo: document.getElementById('lmat-itemid')?.value || '',
-                            inventSizeCrudo: document.getElementById('lmat-tamano')?.value || '',
-                            luchaje: luchajeGuardadoLMat,
-                            // No se muestra en el modal; se copia de CatCodificados al guardar.
-                            codigoDibujo: String(registroSeleccionado?.CodigoDibujo ?? '').trim() || null,
-                            actualizaLmat: actLmatChecked,
-                            pasadas: pasadasData,
-                            formula: formulaData,
-                            fibras: fibrasData,
-                            combinacionesVacias,
-                            filas: filasData,
-                        }),
+                    const json = await http.post<RespuestaGuardarLMat>('/planeacion/lmat/api/guardar', {
+                        orden: orden,
+                        salon: salon,
+                        telarId: String(telarSeleccionado || ''),
+                        nombre: nombreInput?.value || '',
+                        descrip: qs<HTMLInputElement>('#lmat-descripcion')?.value || '',
+                        pesoCrudo: String(qs<HTMLInputElement>('#lmat-pesocrudo')?.value || ''),
+                        itemIdCrudo: qs<HTMLInputElement>('#lmat-itemid')?.value || '',
+                        inventSizeCrudo: qs<HTMLInputElement>('#lmat-tamano')?.value || '',
+                        luchaje: luchajeGuardadoLMat,
+                        // No se muestra en el modal; se copia de CatCodificados al guardar.
+                        codigoDibujo: String(registroSeleccionado?.CodigoDibujo ?? '').trim() || null,
+                        actualizaLmat: actLmatChecked,
+                        pasadas: pasadasData,
+                        formula: formulaData,
+                        fibras: fibrasData,
+                        combinacionesVacias,
+                        filas: filasData,
                     });
-                    const json = await resp.json().catch(() => ({}));
-                    if (resp.ok && json.success) {
+                    if (json.success) {
                         const updatedBom = json.updatedBom === true;
                         const bomIdGuardado = updatedBom
                             ? (json.bomId ?? nombreInput?.value ?? '')
                             : (json.bomId ?? bomIdActualCat);
                         const bomNameGuardado = updatedBom
-                            ? (json.bomName ?? document.getElementById('lmat-descripcion')?.value ?? '')
+                            ? (json.bomName ?? qs<HTMLInputElement>('#lmat-descripcion')?.value ?? '')
                             : (json.bomName ?? String(registroSeleccionado?.BomName ?? ''));
                         const baseMsg = esActualizacionLMat
                             ? (json.message || 'L.Mat actualizada.')
@@ -2496,7 +2503,7 @@ async function openLMatModal(context = {}) {
                             ? baseMsg + ' Se omitieron ' + omitidasSinCantidad + ' fila(s) sin cantidad positiva.'
                             : baseMsg;
                         showToast(msg, 'success');
-                        window.notify.close();
+                        notify.close();
                         try {
                             onSaved({
                                 orden,
@@ -2515,19 +2522,19 @@ async function openLMatModal(context = {}) {
                             console.error('No se pudo actualizar localmente la fila de Codificación', error);
                         }
                     } else {
-                        const primerError = json?.errors
-                            ? Object.values(json.errors).flat().find(Boolean)
-                            : null;
-                        showToast(primerError || json.message || 'Error al guardar la L.Mat.', 'error');
+                        showToast(json.message || 'Error al guardar la L.Mat.', 'error');
                     }
                 } catch (e) {
-                    showToast('Error al guardar: ' + (e.message || 'desconocido'), 'error');
+                    const primerError = e instanceof HttpError && e.errors
+                        ? Object.values(e.errors).flat().find(Boolean)
+                        : null;
+                    showToast(primerError || 'Error al guardar: ' + ((e instanceof Error && e.message) || 'desconocido'), 'error');
                 } finally {
                     setGuardarLmatLoading(false);
                 }
             });
             document.getElementById('lmat-cerrar-front')?.addEventListener('click', () => {
-                window.notify.close();
+                notify.close();
             });
         },
     });

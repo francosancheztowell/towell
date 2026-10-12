@@ -8,48 +8,6 @@ use Illuminate\Support\Collection;
 class UsuarioRepository
 {
     /**
-     * Obtener todos los usuarios con paginación manual
-     */
-    public function getAll(int $page = 1, int $perPage = 50, array $filtros = []): array
-    {
-        $offset = ($page - 1) * $perPage;
-        $perPage = min($perPage, 100); // Máximo 100 por página
-
-        $query = Usuario::select([
-            'idusuario', 'numero_empleado', 'nombre', 'area',
-            'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje',
-        ]);
-
-        // Aplicar filtros
-        if (! empty($filtros['numero_empleado'])) {
-            $query->where('numero_empleado', 'like', '%'.$filtros['numero_empleado'].'%');
-        }
-
-        if (! empty($filtros['area'])) {
-            $query->where('area', $filtros['area']);
-        }
-
-        if (! empty($filtros['turno'])) {
-            $query->where('turno', $filtros['turno']);
-        }
-
-        $query->orderBy('idusuario', 'desc');
-
-        $total = (clone $query)->count();
-        $usuarios = $query->offset($offset)->limit($perPage)->get();
-
-        return [
-            'data' => $usuarios,
-            'current_page' => $page,
-            'per_page' => $perPage,
-            'total' => $total,
-            'last_page' => ceil($total / $perPage),
-            'from' => $offset + 1,
-            'to' => min($offset + $perPage, $total),
-        ];
-    }
-
-    /**
      * Obtener todos los usuarios sin paginación (para lista/select)
      */
     public function getAllForSelect(array $filtros = []): Collection

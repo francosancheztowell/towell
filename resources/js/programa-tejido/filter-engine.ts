@@ -6,7 +6,7 @@
 
 /** El operador llega del DOM: cualquier string, y lo no reconocido cae en 'contains'. */
 export type FilterOperator =
-    | 'equals' | 'starts' | 'ends' | 'not' | 'empty' | 'notEmpty' | 'contains';
+    | 'equals' | 'starts' | 'ends' | 'not' | 'empty' | 'notEmpty' | 'contains' | 'between';
 
 export interface ColumnFilter {
     operator: FilterOperator | string;
@@ -38,8 +38,26 @@ export function checkFilterMatch(
         case 'not': return !cv.includes(filterValue);
         case 'empty': return cv === '';
         case 'notEmpty': return cv !== '';
+        case 'between': return enRango(cv, filterValue);
         default: return cv.includes(filterValue); // 'contains'
     }
+}
+
+/**
+ * 'min..max' (cualquier lado vacío = abierto). Fechas ISO ('2026-10-01 06:30:00') se comparan
+ * por el día; lo demás como número. Un valor vacío o no numérico queda fuera del rango.
+ */
+export function enRango(valorCelda: string, rango: string): boolean {
+    const [min = '', max = ''] = rango.split('..').map((x) => x.trim());
+    const esFecha = /^\d{4}-\d{2}-\d{2}/;
+    if (esFecha.test(min) || esFecha.test(max)) {
+        const dia = valorCelda.slice(0, 10);
+        if (!esFecha.test(dia)) return false;
+        return (!min || dia >= min.slice(0, 10)) && (!max || dia <= max.slice(0, 10));
+    }
+    const n = Number(valorCelda.replace(/,/g, ''));
+    if (valorCelda === '' || Number.isNaN(n)) return false;
+    return (min === '' || n >= Number(min)) && (max === '' || n <= Number(max));
 }
 
 export function groupFiltersByColumn(filters: CustomFilter[]): FiltersByColumn {

@@ -57,20 +57,19 @@
                     <!-- Acciones dinámicas -->
                     <div class="flex flex-col space-y-2 lg:min-w-48">
                         @if(($statusSeleccionado ?? '') === 'En Proceso')
-                            <button type="button" wire:click="cambiarStatus('Solicitado')"
-                                wire:confirm="¿Está seguro de cambiar el status a Solicitar consumo?"
-                                class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors w-full">
-                                <i class="fas fa-list mr-2"></i>Solicitar consumo
-                            </button>
-                            <button type="button" wire:click="editar"
-                                class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors w-full">
-                                <i class="fas fa-pen-to-square mr-2"></i>Editar
-                            </button>
-                            <button type="button" wire:click="cambiarStatus('Cancelado')"
-                                wire:confirm="¿Está seguro de cancelar este requerimiento?"
-                                class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors w-full">
-                                <i class="fas fa-times mr-2"></i>Cancelar
-                            </button>
+                            <flux:button variant="primary" color="green" icon="list-bullet" class="min-h-touch w-full"
+                                :loading="true" wire:target="cambiarStatus('Solicitado')"
+                                x-on:click="notify.confirm({ title: '¿Solicitar consumo?', text: 'El folio pasa a status Solicitado.', confirmText: 'Sí, solicitar' }).then(ok => ok && $wire.cambiarStatus('Solicitado'))">
+                                Solicitar consumo
+                            </flux:button>
+                            <flux:button variant="primary" color="blue" icon="pencil-square" class="min-h-touch w-full" wire:click="editar">
+                                Editar
+                            </flux:button>
+                            <flux:button variant="danger" icon="x-mark" class="min-h-touch w-full"
+                                :loading="true" wire:target="cambiarStatus('Cancelado')"
+                                x-on:click="notify.confirm({ title: '¿Cancelar este requerimiento?', text: 'No se puede deshacer.', confirmText: 'Sí, cancelar', confirmColor: '#dc2626' }).then(ok => ok && $wire.cambiarStatus('Cancelado'))">
+                                Cancelar
+                            </flux:button>
                         @endif
 
                         @if($resumenUrl)
@@ -113,12 +112,7 @@
                                         <td class="px-4 py-2 text-sm text-gray-900 whitespace-nowrap">{{ $consumo['Cantidad'] ? number_format((float) $consumo['Cantidad'], 0) : '0' }}</td>
                                     </tr>
                                 @empty
-                                    <tr>
-                                        <td colspan="8" class="px-4 py-4 text-center text-gray-500 bg-white">
-                                            <i class="fas fa-inbox text-2xl mb-2"></i>
-                                            <p>No hay consumos registrados</p>
-                                        </td>
-                                    </tr>
+                                    <x-ui.table-empty colspan="8" message="No hay consumos registrados" />
                                 @endforelse
                             </tbody>
                         </table>
@@ -128,13 +122,8 @@
         </div>
     @else
         <div id="no-requerimientos" class="p-4">
-            <div class="text-center py-12">
-                <div class="bg-gray-100 rounded-2xl p-8 max-w-md mx-auto">
-                    <i class="fas fa-trash text-2xl mb-2"></i>
-                    <h3 class="text-lg font-semibold text-gray-600 mb-2">No hay requerimientos disponibles</h3>
-                    <p class="text-gray-500">No se encontraron requerimientos guardados en el sistema</p>
-                </div>
-            </div>
+            <x-empty.empty-state icon="fa-inbox" title="No hay requerimientos disponibles"
+                                 message="No se encontraron requerimientos guardados en el sistema" />
         </div>
     @endif
 </div>

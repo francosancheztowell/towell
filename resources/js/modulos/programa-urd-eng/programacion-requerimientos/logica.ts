@@ -75,7 +75,6 @@ export type CampoRequerido = Exclude<keyof FilaCapturada, 'telar' | 'fecha_req' 
 
 export const SEMANAS = 5;
 export const TIPOS_JULIO = ['Rizo', 'Pie'] as const;
-export const TIPOS_ATADO = ['Normal', 'Especial'] as const;
 export const MAX_TAMANOS_SUGERIDOS = 60;
 
 /* =================== Normalización =================== */

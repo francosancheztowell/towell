@@ -6,8 +6,9 @@
  * html2canvas-pro y no html2canvas: la 1.4.1 (la del CDN) truena con los colores
  * oklch() de Tailwind v4 ("unsupported color function"). Misma API.
  *
- *   const html2canvas = await window.librerias.html2canvas();
- *   const pdfjsLib = await window.librerias.pdfjs();
+ *   import { librerias } from '…/utils/librerias.ts';
+ *   const html2canvas = await librerias.html2canvas();
+ *   const pdfjsLib = await librerias.pdfjs();
  */
 import type Html2Canvas from 'html2canvas-pro';
 

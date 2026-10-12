@@ -48,13 +48,13 @@ Catálogo de Núcleos
     <!-- Tabla de Núcleos -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden w-full">
         <div class="overflow-x-auto w-full">
-            <table class="w-full text-sm">
-                <thead class=" bg-blue-500 text-white sticky top-0 z-10">
+            <x-ui.table class="w-full">
+                <x-slot:head>
                     <tr>
-                        <th class="px-4 py-3 text-left font-semibold">Salón</th>
-                        <th class="px-4 py-3 text-left font-semibold">Nombre</th>
+                        <th scope="col">Salón</th>
+                        <th scope="col">Nombre</th>
                     </tr>
-                </thead>
+                </x-slot:head>
                 <tbody>
                     @forelse($items as $item)
                         <tr class="border-b border-gray-200 hover:bg-blue-50 transition-colors duration-150 cursor-pointer"
@@ -71,18 +71,14 @@ Catálogo de Núcleos
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="2" class="px-4 py-8 text-center text-gray-500">
-                                <i class="fa-solid fa-inbox text-4xl mb-2 text-gray-300"></i>
-                                <p class="text-lg">No se encontraron núcleos</p>
-                                @if($q)
-                                    <p class="text-sm mt-2">Intenta con otro término de búsqueda</p>
-                                @endif
-                            </td>
-                        </tr>
+                        <x-ui.table-empty :colspan="2" message="No se encontraron núcleos">
+                            @if($q)
+                                <p class="text-sm text-gray-500">Intenta con otro término de búsqueda</p>
+                            @endif
+                        </x-ui.table-empty>
                     @endforelse
                 </tbody>
-            </table>
+            </x-ui.table>
         </div>
 
         <!-- Paginación -->

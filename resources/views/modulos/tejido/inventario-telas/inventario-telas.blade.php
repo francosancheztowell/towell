@@ -42,7 +42,7 @@
         <!-- Menú Dropdown -->
         <div
             id="menuDropdownTelares"
-            class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg border border-gray-200 max-h-96 overflow-y-auto z-50 shadow-none"
+            class="hidden fixed right-2 top-(--pt-navbar-height) w-56 bg-white rounded-lg border border-gray-200 max-h-96 overflow-y-auto z-50 shadow-none"
         >
             <div class="py-2">
                 <button

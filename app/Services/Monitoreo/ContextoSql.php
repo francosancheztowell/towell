@@ -3,6 +3,7 @@
 namespace App\Services\Monitoreo;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Lottery;
 use Laravel\Pulse\Facades\Pulse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -30,7 +31,9 @@ final class ContextoSql
             $previo = (string) $response->headers->get('Server-Timing', '');
             $response->headers->set('Server-Timing', ltrim($previo.', ', ', ').sprintf('ctx;dur=%.1f', $ms));
 
-            if (config('pulse.enabled')) {
+            // ponytail: muestreo 1/10 — avg/max siguen siendo válidos, count queda ~÷10. Sin él, cada
+            // request (wire:poll incluido) abría una transacción de escritura en el SQLite de Pulse.
+            if (config('pulse.enabled') && Lottery::odds(1, 10)->choose()) {
                 $llave = $request->hasHeader('X-Livewire') ? 'livewire' : $request->method();
                 Pulse::record(self::TIPO, $llave, (int) round($ms * 1000))->avg()->max()->count();
             }

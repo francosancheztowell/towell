@@ -396,10 +396,7 @@ class DividirTejido
      */
     private static function pedidoDesdeSaldo(float $saldo, ReqProgramaTejido $registro): float
     {
-        $produccion = (float) $registro->getAttribute('Produccion');
-        $porcentajeSegundos = max(0.0, (float) $registro->getAttribute('PorcentajeSegundos'));
-
-        return round(($saldo + $produccion) / (1 + $porcentajeSegundos / 100), 2);
+        return NumeroPrograma::pedidoDesdeSaldo($saldo, (float) $registro->getAttribute('Produccion'), $registro->getAttribute('PorcentajeSegundos'));
     }
 
     /** Saldo capturado en la fila (sin separador de miles). Clientes viejos solo mandan 'pedido'. */

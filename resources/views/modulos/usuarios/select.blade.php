@@ -2,14 +2,14 @@
 @section('navbar-right')
 <div class="flex items-center gap-2">
     <button
-        onclick="abrirModalFiltros()"
+        type="button" data-usuarios-filtrar
         class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
         title="Filtrar usuarios">
         <i class="fas fa-filter mr-2"></i>
         Filtrar
     </button>
     <x-navbar.button-create
-    onclick="abrirModalCrearUsuario()"
+    data-usuarios-crear
     title="Nuevo Usuario"
     icon="fa-plus"
     iconColor="text-white"
@@ -45,15 +45,6 @@
     @endphp
 
     <div class="">
-        @if (session('success'))
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    if (window.notify) {
-                        notify.success(@json(session('success')));
-                    }
-                });
-            </script>
-        @endif
 
         <div class="bg-white " id="usuarios-container">
             @forelse ($usuarios as $u)
@@ -80,8 +71,8 @@
                         </div>
 
                         <div class="flex-1 min-w-0">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1 basis-64">
                                     <div class="flex items-center gap-2 mb-2">
                                         <h3 class="text-base font-semibold text-gray-900">{{ $u->nombre }}</h3>
                                         <span class="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
@@ -117,7 +108,7 @@
                                     </div>
                                 </div>
 
-                                <div class="flex items-center gap-2 ml-4 flex-shrink-0">
+                                <div class="flex flex-wrap items-center gap-2">
                                     <a href="{{ route('configuracion.usuarios.edit', $u->idusuario) }}"
                                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors">
                                         <i class="fas fa-edit mr-1"></i>
@@ -135,7 +126,7 @@
                                         </button>
                                     @endif
                                     <form action="{{ route('configuracion.usuarios.destroy', $u->idusuario) }}" method="POST"
-                                          onsubmit="return confirmarEliminacion(event)" class="inline">
+                                          data-confirmar-eliminar class="inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit"
@@ -155,7 +146,7 @@
                     <h3 class="mt-2 text-sm font-medium text-gray-900">No hay usuarios</h3>
                     <p class="mt-1 text-sm text-gray-500">Comienza creando un nuevo usuario.</p>
                     <div class="mt-6">
-                        <x-navbar.button-create onclick="abrirModalCrearUsuario()" title="Crear primer usuario"/>
+                        <x-navbar.button-create data-usuarios-crear title="Crear primer usuario"/>
                     </div>
                 </div>
             @endforelse
@@ -175,12 +166,13 @@
                     <i class="fas fa-user-plus text-blue-600 mr-2"></i>
                     Crear Nuevo Usuario
                 </h3>
-                <button onclick="cerrarModalCrearUsuario()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <button type="button" data-usuarios-cerrar-crear aria-label="Cerrar" class="text-gray-400 hover:text-gray-600 transition-colors">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
 
-            <form id="formCrearUsuario" class="p-6">
+            <form id="formCrearUsuario" class="p-6" method="POST" action="{{ route('configuracion.usuarios.store') }}"
+                  data-url-areas="{{ route('configuracion.usuarios.create') }}">
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Número de Empleado -->
@@ -284,7 +276,7 @@
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
-                    <button type="button" onclick="cerrarModalCrearUsuario()"
+                    <button type="button" data-usuarios-cerrar-crear
                         class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                         Cancelar
                     </button>
@@ -368,271 +360,5 @@
         @vite('resources/js/modulos/usuarios/duplicar/index.ts')
     @endif
 
-    {{-- Confirmación de eliminación (SweetAlert si está disponible; fallback a confirm) --}}
-    <script>
-        function confirmarEliminacion(e) {
-            if (window.notify) {
-                e.preventDefault();
-                const form = e.target;
-                notify.confirm({
-                    title: '¿Eliminar usuario?',
-                    icon: 'warning',
-                    confirmColor: '#dc2626',
-                    confirmText: 'Sí, eliminar',
-                    cancelText: 'Cancelar'
-                }).then((ok) => {
-                    if (ok) form.submit();
-                });
-                return false;
-            } else {
-                return confirm('¿Eliminar usuario? ');
-            }
-        }
-
-        // Modal crear usuario
-        function abrirModalCrearUsuario() {
-            cargarDepartamentos();
-            document.getElementById('modalCrearUsuario').classList.remove('hidden');
-        }
-
-        function cerrarModalCrearUsuario() {
-            document.getElementById('modalCrearUsuario').classList.add('hidden');
-            document.getElementById('formCrearUsuario').reset();
-        }
-
-        // Cargar departamentos desde el servidor
-        function cargarDepartamentos() {
-            fetch('{{ route("configuracion.usuarios.create") }}')
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const selectOriginal = doc.querySelector('select[name="area"]');
-                    const selectModal = document.getElementById('area_modal');
-
-                    if (selectOriginal && selectModal) {
-                        selectModal.innerHTML = selectOriginal.innerHTML;
-                    }
-                })
-                .catch(error => console.error('Error cargando departamentos:', error));
-        }
-
-        // Submit del formulario
-        document.getElementById('formCrearUsuario').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(this);
-
-            fetch('{{ route("configuracion.usuarios.store") }}', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            })
-            .then(response => {
-                if (response.redirected) {
-                    window.location.href = response.url;
-                    return;
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.success) {
-                    notify.alert('Usuario creado correctamente', '¡Éxito!', 'success').then(() => {
-                        window.location.reload();
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                notify.alert('No se pudo crear el usuario', 'Error', 'error');
-            });
-        });
-
-        // Variables globales para filtros
-        let filtrosActivos = {
-            numero_empleado: '',
-            area: '',
-            turno: ''
-        };
-
-        // Obtener áreas únicas de los usuarios cargados
-        function obtenerAreasDisponibles() {
-            const areas = new Set();
-            document.querySelectorAll('.usuario-item').forEach(item => {
-                const area = item.getAttribute('data-area');
-                if (area && area.trim() !== '') {
-                    areas.add(area);
-                }
-            });
-            return Array.from(areas).sort();
-        }
-
-        // Función para aplicar filtros en el frontend
-        function aplicarFiltros(filtros) {
-            filtrosActivos = filtros;
-            const usuarios = document.querySelectorAll('.usuario-item');
-            let usuariosVisibles = 0;
-
-            usuarios.forEach(usuario => {
-                let mostrar = true;
-
-                // Filtrar por número de empleado
-                if (filtros.numero_empleado && filtros.numero_empleado.trim() !== '') {
-                    const numeroEmpleado = usuario.getAttribute('data-numero-empleado') || '';
-                    if (!numeroEmpleado.includes(filtros.numero_empleado.trim())) {
-                        mostrar = false;
-                    }
-                }
-
-                // Filtrar por área
-                if (filtros.area && filtros.area !== '') {
-                    const area = usuario.getAttribute('data-area') || '';
-                    if (area !== filtros.area) {
-                        mostrar = false;
-                    }
-                }
-
-                // Filtrar por turno
-                if (filtros.turno && filtros.turno !== '') {
-                    const turno = usuario.getAttribute('data-turno') || '';
-                    if (turno !== filtros.turno) {
-                        mostrar = false;
-                    }
-                }
-
-                // Mostrar u ocultar usuario
-                if (mostrar) {
-                    usuario.style.display = '';
-                    usuariosVisibles++;
-                } else {
-                    usuario.style.display = 'none';
-                }
-            });
-
-            // Actualizar badge del botón de filtros
-            actualizarBadgeFiltros();
-
-            // Mostrar mensaje si no hay resultados
-            const container = document.getElementById('usuarios-container');
-            let mensajeNoResultados = container.querySelector('.mensaje-no-resultados');
-            
-            if (usuariosVisibles === 0) {
-                if (!mensajeNoResultados) {
-                    mensajeNoResultados = document.createElement('div');
-                    mensajeNoResultados.className = 'mensaje-no-resultados px-4 py-12 text-center';
-                    mensajeNoResultados.innerHTML = `
-                        <i class="fas fa-search text-gray-400 text-4xl mb-4"></i>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">No se encontraron usuarios</h3>
-                        <p class="mt-1 text-sm text-gray-500">Intenta con otros filtros.</p>
-                    `;
-                    container.appendChild(mensajeNoResultados);
-                }
-            } else {
-                if (mensajeNoResultados) {
-                    mensajeNoResultados.remove();
-                }
-            }
-        }
-
-        // Actualizar badge del botón de filtros
-        function actualizarBadgeFiltros() {
-            const botonFiltros = document.querySelector('button[onclick="abrirModalFiltros()"]');
-            if (!botonFiltros) return;
-
-            const tieneFiltros = filtrosActivos.numero_empleado || filtrosActivos.area || filtrosActivos.turno;
-            let badge = botonFiltros.querySelector('.badge-filtros');
-
-            if (tieneFiltros) {
-                if (!badge) {
-                    badge = document.createElement('span');
-                    badge.className = 'badge-filtros ml-2 px-2 py-0.5 text-xs font-bold bg-red-500 rounded-full text-white';
-                    badge.textContent = '!';
-                    botonFiltros.appendChild(badge);
-                }
-            } else {
-                if (badge) {
-                    badge.remove();
-                }
-            }
-        }
-
-        // Función para abrir modal de filtros
-        async function abrirModalFiltros() {
-            try {
-                // Obtener áreas disponibles de los usuarios cargados
-                const areas = obtenerAreasDisponibles();
-                let opcionesAreas = '<option value="">Todas las áreas</option>';
-                areas.forEach(area => {
-                    opcionesAreas += `<option value="${area}" ${filtrosActivos.area === area ? 'selected' : ''}>${area}</option>`;
-                });
-
-                let filtros = null;
-                notify.dialog({
-                    titulo: 'Filtrar Usuarios',
-                    html: `
-                        <div class="text-left">
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Número de Empleado</label>
-                                <input 
-                                    type="text" 
-                                    id="filtro_numero_empleado" 
-                                    placeholder="Ej: 2045"
-                                    value="${filtrosActivos.numero_empleado}"
-                                    pattern="[0-9]*"
-                                >
-                            </div>
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Área</label>
-                                <select id="filtro_area" style="display: block; width: 100%; padding: 0.5rem;">
-                                    ${opcionesAreas}
-                                </select>
-                            </div>
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
-                                <select id="filtro_turno" style="display: block; width: 100%; padding: 0.5rem;">
-                                    <option value="">Todos los turnos</option>
-                                    <option value="1" ${filtrosActivos.turno === '1' ? 'selected' : ''}>Turno 1</option>
-                                    <option value="2" ${filtrosActivos.turno === '2' ? 'selected' : ''}>Turno 2</option>
-                                    <option value="3" ${filtrosActivos.turno === '3' ? 'selected' : ''}>Turno 3</option>
-                                    <option value="4" ${filtrosActivos.turno === '4' ? 'selected' : ''}>Turno 4</option>
-                                </select>
-                            </div>
-                        </div>
-                    `,
-                    tono: null,
-                    formulario: true,
-                    ancho: 'md',
-                    botones: [
-                        { texto: 'Limpiar', valor: 'limpiar', variante: 'secundario' },
-                        { texto: 'Aplicar Filtros', valor: 'aplicar', variante: 'primario', valida: true }
-                    ],
-                    validar: () => {
-                        return {
-                            numero_empleado: document.getElementById('filtro_numero_empleado').value.trim(),
-                            area: document.getElementById('filtro_area').value,
-                            turno: document.getElementById('filtro_turno').value
-                        };
-                    },
-                    alValidar: (datos) => { filtros = datos; }
-                }).then((valor) => {
-                    if (valor === 'aplicar') {
-                        aplicarFiltros(filtros);
-                    } else if (valor === 'limpiar') {
-                        // Limpiar filtros
-                        aplicarFiltros({ numero_empleado: '', area: '', turno: '' });
-                    }
-                });
-            } catch (error) {
-                console.error('Error al abrir modal de filtros:', error);
-                notify.alert('No se pudo cargar el modal de filtros', 'Error', 'error');
-            }
-        }
-
-        // Inicializar badge al cargar la página
-        document.addEventListener('DOMContentLoaded', function() {
-            actualizarBadgeFiltros();
-        });
-    </script>
+    @vite('resources/js/modulos/usuarios/lista/index.ts')
 @endsection

@@ -124,7 +124,7 @@ function guardarMarbetesEnviar(): void {
         .finally(() => { if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; } });
 }
 
-// PUENTE PT-TS 1: index.js (menú contextual de la fila) abre el modal.
+// PUENTE PT-TS 1: index.ts (menú contextual de la fila) abre el modal.
 window.abrirModalMarbetes = abrirModalMarbetes;
 // PUENTE PT-TS 1: x-ui.modal-base (onclose del botón × y Esc) en modal/marbetes.blade.php.
 window.cerrarModalMarbetes = cerrarModalMarbetes;

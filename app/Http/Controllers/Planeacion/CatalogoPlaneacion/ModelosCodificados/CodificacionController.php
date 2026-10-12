@@ -320,7 +320,7 @@ class CodificacionController extends Controller
             return null;
         }
 
-        $registro = CatCodificados::where('OrdenTejido', $orden)->orderByDesc('Id')->first();
+        $registro = CatCodificados::query()->ordenesTejido([$orden])->orderByDesc('Id')->first();
         if ($registro) {
             return $registro;
         }

@@ -63,8 +63,8 @@ class KarlMayerCrearOrdenQueriesTest extends TestCase
 
         $respuesta->assertOk()->assertJson(['success' => true, 'data' => ['folio' => 'UE00021', 'folio_consumo' => 'CH00011']]);
         // Antes 42: 25 inserts de consumo + 7 de julios, más permisos, folios, urdido y auditoría.
-        // Ahora 12: consumo y julios en un insert cada uno.
-        $this->assertSame(12, $queries);
+        // Ahora 11: consumo y julios en un insert cada uno, y el mapa de columnas de folios se lee una vez.
+        $this->assertSame(11, $queries);
 
         $consumos = $this->filasDe('UrdConsumoHilo');
         $this->assertCount(self::MATERIALES, $consumos);

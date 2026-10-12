@@ -217,7 +217,7 @@ class CatCodificacionController extends Controller
         }
 
         $registro = CatCodificados::query()
-            ->where('OrdenTejido', $ordenTejido)
+            ->ordenesTejido([$ordenTejido])
             ->orderByDesc('Id')
             ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'AlturaRizo', 'BomId', 'BomName']);
 
@@ -300,15 +300,17 @@ class CatCodificacionController extends Controller
                 ? trim((string) $validated['bomId'])
                 : null;
 
+            // Sin desempate, un numero de orden reutilizado entre telares elegia renglon
+            // al azar --y aqui ademas se escribe. Mismo criterio que CodificacionController.
+            // Una sola lectura: da ItemId/InventSizeId para el BomName y es el renglón que se actualiza.
+            $catCod = CatCodificados::query()
+                ->ordenesTejido([$ordenTejido])
+                ->orderByDesc('Id')
+                ->first();
+
             // Obtener BomName desde sqlsrv_ti si tenemos BomId
             $bomName = null;
             if ($bomId !== null && $bomId !== '') {
-                // Necesitamos ItemId e InventSizeId para buscar BomName
-                $catCod = CatCodificados::query()
-                    ->where('OrdenTejido', $ordenTejido)
-                    ->orderByDesc('Id')
-                    ->first(['ItemId', 'InventSizeId']);
-
                 $bomVigente = false;
                 if ($catCod && $catCod->ItemId) {
                     $invSize = $catCod->InventSizeId !== null ? trim((string) $catCod->InventSizeId) : null;
@@ -337,12 +339,6 @@ class CatCodificacionController extends Controller
             $actualizados = [];
 
             // 1. Actualizar CatCodificados
-            // Sin desempate, un numero de orden reutilizado entre telares elegia renglon
-            // al azar --y aqui ademas se escribe. Mismo criterio que CodificacionController.
-            $catCod = CatCodificados::query()
-                ->where('OrdenTejido', $ordenTejido)
-                ->orderByDesc('Id')
-                ->first();
             if ($catCod) {
                 $catCod->PesoMuestra = $pesoMuestra;
                 $catCod->AlturaRizo = $alturaRizo;

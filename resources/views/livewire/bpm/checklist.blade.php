@@ -9,7 +9,7 @@
             @endif
             @if ($supervisa)
                 <flux:button variant="primary" color="green" icon="check-badge" class="min-h-touch" wire:click="autorizar">Autorizar</flux:button>
-                <flux:button variant="danger" icon="arrow-uturn-left" class="min-h-touch"
+                <flux:button variant="danger" icon="arrow-uturn-left" class="min-h-touch" :loading="true" wire:target="rechazar"
                              x-on:click="notify.confirm({ title: '¿Rechazar el folio?', text: 'Regresa a Creado para que lo corrijan.', confirmText: 'Sí, rechazar' }).then(ok => ok && $wire.rechazar())">
                     Rechazar
                 </flux:button>

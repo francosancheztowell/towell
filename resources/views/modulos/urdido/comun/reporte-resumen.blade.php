@@ -35,10 +35,7 @@
 @section('page-title', $v['titulo'])
 
 @section('navbar-right')
-    <button type="button" data-accion-resumen="abrir" aria-haspopup="dialog"
-        class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
-        <i class="fas fa-search"></i> Consultar
-    </button>
+    <x-ui.button variant="create" size="nav" icon="fa-search" data-accion-resumen="abrir" aria-haspopup="dialog">Consultar</x-ui.button>
     @if (!empty($fechaIni) && !empty($fechaFin))
         <a href="{{ route($v['rutaExcel'], ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
             class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
@@ -148,14 +145,8 @@
                 </div>
 
                 <div class="flex gap-3 mt-6">
-                    <button type="button" data-accion-resumen="cerrar"
-                        class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors">
-                        Cancelar
-                    </button>
-                    <button type="submit"
-                        class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                        Consultar
-                    </button>
+                    <x-ui.button variant="neutral" data-accion-resumen="cerrar" class="flex-1">Cancelar</x-ui.button>
+                    <x-ui.button variant="create" type="submit" class="flex-1">Consultar</x-ui.button>
                 </div>
             </form>
         </div>

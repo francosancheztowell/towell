@@ -212,7 +212,8 @@ final class ProgramaTejidoReadService
         // SQL Server rechaza COUNT(*) con ORDER BY: el total va sin orden.
         $total = (clone $base)->reorder()->count();
 
-        $filas = $base->select($columnas)->forPage($pagina, $porPagina)->get();
+        // forPage() emite OFFSET/FETCH, que SQL Server 2008 R2 no tiene: TOP y recorte en PHP (como PaginacionCompat).
+        $filas = $base->select($columnas)->take($pagina * $porPagina)->get()->slice(($pagina - 1) * $porPagina)->values(); // @phpstan-ignore larastan.noUnnecessaryCollectionCall (la alternativa SQL es OFFSET)
 
         return [
             'data' => $filas->map(fn ($fila) => $this->fila((array) $fila))->all(),
@@ -230,26 +231,6 @@ final class ProgramaTejidoReadService
                 'paginas' => (int) ceil($total / $porPagina),
             ],
         ];
-    }
-
-    /**
-     * Mismas filas que la grilla legacy para esos Id (lo usa la comparación shadow).
-     *
-     * @param  list<int>  $ids
-     * @param  list<string>  $columnas
-     * @return array<int, array<string, mixed>> por Id, en el orden de la grilla
-     */
-    public function filasPorIds(ProgramaTejidoSurface $superficie, array $ids, array $columnas): array
-    {
-        $columnas = array_values(array_unique(['Id', ...array_intersect($columnas, $this->columnasPermitidas($superficie))]));
-        $resultado = [];
-        foreach (array_chunk($ids, 1000) as $lote) {
-            foreach ($this->consulta($superficie)->whereIn('Id', $lote)->select($columnas)->get() as $fila) {
-                $resultado[(int) $fila->Id] = $this->fila((array) $fila);
-            }
-        }
-
-        return $resultado;
     }
 
     /**

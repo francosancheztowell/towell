@@ -549,6 +549,6 @@
     </script>
 
     @include('catcodificacion.partials.redbooth')
-    @vite('resources/js/catcodificacion/index.js')
+    @vite('resources/js/catcodificacion/index.ts')
     @include('catcodificacion.partials.excel-upload')
 @endsection

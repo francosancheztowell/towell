@@ -10,23 +10,11 @@ import type { AxiosStatic } from 'axios';
 import type { Http } from '../utils/http.ts';
 import type { Notify } from '../utils/notifications.ts';
 import type { Combobox, OpcionesCombobox } from '../utils/combobox.ts';
-import type { Librerias } from '../utils/librerias.ts';
 
 interface LivewireClient {
     dispatch(event: string, params?: Record<string, unknown>): void;
     on(event: string, callback: (...args: any[]) => void): () => void;
     hook(name: string, callback: (...args: any[]) => void): void;
-}
-
-/** Adaptador temporal window.toastr → notify (bootstrap.js); se retira en la fase 21. */
-type ToastrMethod = (message: string, title?: string, options?: Record<string, unknown>) => unknown;
-interface ToastrClient {
-    success: ToastrMethod;
-    error: ToastrMethod;
-    warning: ToastrMethod;
-    info: ToastrMethod;
-    clear(): void;
-    options: Record<string, unknown>;
 }
 
 // `var` (no `interface Window`): así sirven tanto `window.http` como `http` a secas,
@@ -36,9 +24,7 @@ declare global {
     var http: Http;
     var notify: Notify;
     var showToast: (message: unknown, type?: string) => void;
-    var toastr: ToastrClient;
     var combobox: (select: HTMLSelectElement, opciones?: OpcionesCombobox) => Promise<Combobox>;
-    var librerias: Librerias;
     var Livewire: LivewireClient | undefined;
 }
 

@@ -36,43 +36,30 @@ class IdentificarDispositivoTest extends TestCase
         $this->assertSame(0, $this->mon('SYSMonDispositivo')->count());
     }
 
-    public function test_con_cookie_no_la_vuelve_a_poner_ni_duplica_el_dispositivo(): void
+    public function test_con_cookie_no_la_vuelve_a_poner(): void
     {
-        $usuario = $this->crearUsuario();
-        $uuid = (string) Str::uuid();
-
-        $this->actingAs($usuario)->withCookie(DispositivoService::COOKIE, $uuid)->get('/_prueba/monitoreo')
+        $this->actingAs($this->crearUsuario())
+            ->withCookie(DispositivoService::COOKIE, (string) Str::uuid())
+            ->get('/_prueba/monitoreo')
             ->assertOk()->assertCookieMissing(DispositivoService::COOKIE);
-
-        $this->travel(31)->seconds();
-        $this->withCookie(DispositivoService::COOKIE, $uuid)->get('/_prueba/monitoreo')->assertOk();
-
-        $this->assertSame(1, $this->mon('SYSMonDispositivo')->count());
-        $fila = $this->mon('SYSMonDispositivo')->first();
-        $this->assertSame($uuid, $fila->Uuid);
-        $this->assertSame((int) $usuario->idusuario, (int) $fila->UltimoUsuarioId);
-        $this->assertSame('prueba.monitoreo', $fila->UltimaRuta);
     }
 
-    public function test_diez_requests_en_menos_de_30_segundos_hacen_un_solo_update(): void
+    public function test_una_pagina_no_escribe_en_las_tablas_de_monitoreo(): void
     {
-        $usuario = $this->crearUsuario();
-        $uuid = (string) Str::uuid();
-        $updates = 0;
-        Event::listen(QueryExecuted::class, function (QueryExecuted $q) use (&$updates) {
-            if (str_starts_with(strtolower($q->sql), 'update "sysmondispositivo"')) {
-                $updates++;
+        // La actividad la registra el latido; con mod_php una escritura aquí la espera el usuario.
+        $escrituras = 0;
+        Event::listen(QueryExecuted::class, function (QueryExecuted $q) use (&$escrituras) {
+            if (preg_match('/^(update|insert).*"sysmon/i', $q->sql)) {
+                $escrituras++;
             }
         });
 
-        $this->actingAs($usuario);
-        for ($i = 0; $i < 10; $i++) {
-            $this->withCookie(DispositivoService::COOKIE, $uuid)->get('/_prueba/monitoreo')->assertOk();
+        $this->actingAs($this->crearUsuario());
+        for ($i = 0; $i < 3; $i++) {
+            $this->withCookie(DispositivoService::COOKIE, (string) Str::uuid())->get('/_prueba/monitoreo')->assertOk();
         }
 
-        // Primer touch: UPDATE (0 filas) + alta + UPDATE. Los 9 siguientes caen en el candado.
-        $this->assertSame(2, $updates);
-        $this->assertSame(1, $this->mon('SYSMonDispositivo')->count());
+        $this->assertSame(0, $escrituras);
     }
 
     public function test_si_la_bd_de_monitoreo_falla_la_request_sigue_bien(): void

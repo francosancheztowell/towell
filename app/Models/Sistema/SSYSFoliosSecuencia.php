@@ -21,7 +21,9 @@ class SSYSFoliosSecuencia extends Model
 
     // PK (asumimos identidad int)
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     // Sin timestamps
@@ -35,9 +37,9 @@ class SSYSFoliosSecuencia extends Model
     ];
 
     protected $casts = [
-        'Id'          => 'integer',
-        'modulo'      => 'string',
-        'prefijo'     => 'string',
+        'Id' => 'integer',
+        'modulo' => 'string',
+        'prefijo' => 'string',
         'consecutivo' => 'integer',
     ];
 
@@ -47,24 +49,39 @@ class SSYSFoliosSecuencia extends Model
 
     /**
      * Detecta nombres reales de columnas en BD para tolerar variantes como
-     * 'moulo'/'modulo' y 'conseutivo'/'consecutivo'.
+     * 'moulo'/'modulo' y 'conseutivo'/'consecutivo'. Memoizado por proceso: el esquema
+     * no cambia y INFORMATION_SCHEMA es una ida a SQL Server en cada folio (Liberar lo pide por renglón).
      */
     protected static function getColumnMap(): array
     {
-        $table = (new static())->getTable();
+        return self::$columnMap ??= self::leerColumnMap();
+    }
+
+    /** @var array<string, string>|null */
+    private static ?array $columnMap = null;
+
+    /** Para la suite: el memo es static y PHPUnit corre todo en un proceso. */
+    public static function flushColumnMap(): void
+    {
+        self::$columnMap = null;
+    }
+
+    private static function leerColumnMap(): array
+    {
+        $table = (new static)->getTable();
         // Suponemos esquema dbo por el nombre $table = 'dbo.SSYSFoliosSecuencias'
         $parts = explode('.', $table);
         $schema = count($parts) === 2 ? $parts[0] : 'dbo';
-        $name   = count($parts) === 2 ? $parts[1] : $table;
+        $name = count($parts) === 2 ? $parts[1] : $table;
 
         $cols = collect(DB::select(
-            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?",
+            'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
             [$schema, $name]
-        ))->pluck('COLUMN_NAME')->map(fn($c)=>strtolower($c))->all();
+        ))->pluck('COLUMN_NAME')->map(fn ($c) => strtolower($c))->all();
 
         $colModulo = in_array('modulo', $cols, true) ? 'modulo' : (in_array('moulo', $cols, true) ? 'moulo' : 'modulo');
         $colConsec = in_array('consecutivo', $cols, true) ? 'consecutivo' : (in_array('conseutivo', $cols, true) ? 'conseutivo' : 'consecutivo');
-        $colPref   = in_array('prefijo', $cols, true) ? 'prefijo' : 'prefijo';
+        $colPref = in_array('prefijo', $cols, true) ? 'prefijo' : 'prefijo';
 
         return [
             'table' => $table,
@@ -95,28 +112,28 @@ class SSYSFoliosSecuencia extends Model
             // Bloquear y obtener fila por modulo con alias consistentes
             $row = DB::table($table)
                 ->select([
-                    DB::raw($c['mod']  . ' as mod'),
-                    DB::raw($c['pref'] . ' as pref'),
-                    DB::raw($c['con']  . ' as con'),
+                    DB::raw($c['mod'].' as mod'),
+                    DB::raw($c['pref'].' as pref'),
+                    DB::raw($c['con'].' as con'),
                 ])
                 ->where($c['mod'], $modulo)
                 ->lockForUpdate()
                 ->first();
-            if (!$row) {
+            if (! $row) {
                 throw new \RuntimeException("No existe configuración de folio para modulo='{$modulo}'");
             }
 
-            $current = (int)($row->con ?? 0);
+            $current = (int) ($row->con ?? 0);
             $next = $current + 1;
             DB::table($table)->where($c['mod'], $modulo)->update([$c['con'] => $next]);
 
-            $pref = (string)($row->pref ?? '');
-            $num  = str_pad((string)$next, $pad, '0', STR_PAD_LEFT);
-            $folio = $pref . $num;
+            $pref = (string) ($row->pref ?? '');
+            $num = str_pad((string) $next, $pad, '0', STR_PAD_LEFT);
+            $folio = $pref.$num;
 
             return [
-                'folio'       => $folio,
-                'prefijo'     => $pref,
+                'folio' => $folio,
+                'prefijo' => $pref,
                 'consecutivo' => $next,
             ];
         }, 3);
@@ -134,14 +151,14 @@ class SSYSFoliosSecuencia extends Model
             // Bloquear y tratar de obtener por prefijo con alias consistentes
             $row = DB::table($table)
                 ->select([
-                    DB::raw($c['mod']  . ' as mod'),
-                    DB::raw($c['pref'] . ' as pref'),
-                    DB::raw($c['con']  . ' as con'),
+                    DB::raw($c['mod'].' as mod'),
+                    DB::raw($c['pref'].' as pref'),
+                    DB::raw($c['con'].' as con'),
                 ])
                 ->where($c['pref'], $prefijo)
                 ->lockForUpdate()
                 ->first();
-            if (!$row) {
+            if (! $row) {
                 // Crear configuración por defecto si no existe.
                 // Inicializa el consecutivo con el máximo existente en TelBPM para el prefijo dado.
                 $maxFolio = DB::table('TelBPM')
@@ -156,29 +173,29 @@ class SSYSFoliosSecuencia extends Model
                 DB::table($table)->insert([$c['mod'] => 'TelBPM', $c['pref'] => $prefijo, $c['con'] => $start]);
                 $row = DB::table($table)
                     ->select([
-                        DB::raw($c['mod']  . ' as mod'),
-                        DB::raw($c['pref'] . ' as pref'),
-                        DB::raw($c['con']  . ' as con'),
+                        DB::raw($c['mod'].' as mod'),
+                        DB::raw($c['pref'].' as pref'),
+                        DB::raw($c['con'].' as con'),
                     ])
                     ->where($c['pref'], $prefijo)
                     ->lockForUpdate()
                     ->first();
-                if (!$row) {
+                if (! $row) {
                     throw new \RuntimeException("No fue posible crear/obtener la configuración de folio para prefijo='{$prefijo}'");
                 }
             }
 
-            $current = (int)($row->con ?? 0);
+            $current = (int) ($row->con ?? 0);
             $next = $current + 1;
             DB::table($table)->where($c['pref'], $prefijo)->update([$c['con'] => $next]);
 
-            $pref = (string)($row->pref ?? $prefijo);
-            $num  = str_pad((string)$next, $pad, '0', STR_PAD_LEFT);
-            $folio = $pref . $num;
+            $pref = (string) ($row->pref ?? $prefijo);
+            $num = str_pad((string) $next, $pad, '0', STR_PAD_LEFT);
+            $folio = $pref.$num;
 
             return [
-                'folio'       => $folio,
-                'prefijo'     => $pref,
+                'folio' => $folio,
+                'prefijo' => $pref,
                 'consecutivo' => $next,
             ];
         }, 3);
@@ -198,28 +215,28 @@ class SSYSFoliosSecuencia extends Model
             // Bloquear y obtener fila por ID con alias consistentes
             $row = DB::table($table)
                 ->select([
-                    DB::raw($c['mod']  . ' as mod'),
-                    DB::raw($c['pref'] . ' as pref'),
-                    DB::raw($c['con']  . ' as con'),
+                    DB::raw($c['mod'].' as mod'),
+                    DB::raw($c['pref'].' as pref'),
+                    DB::raw($c['con'].' as con'),
                 ])
                 ->where('Id', $id)
                 ->lockForUpdate()
                 ->first();
-            if (!$row) {
+            if (! $row) {
                 throw new \RuntimeException("No existe configuración de folio para Id={$id}");
             }
 
-            $current = (int)($row->con ?? 0);
+            $current = (int) ($row->con ?? 0);
             $next = $current + 1;
             DB::table($table)->where('Id', $id)->update([$c['con'] => $next]);
 
-            $pref = (string)($row->pref ?? '');
-            $num  = str_pad((string)$next, $pad, '0', STR_PAD_LEFT);
-            $folio = $pref . $num;
+            $pref = (string) ($row->pref ?? '');
+            $num = str_pad((string) $next, $pad, '0', STR_PAD_LEFT);
+            $folio = $pref.$num;
 
             return [
-                'folio'       => $folio,
-                'prefijo'     => $pref,
+                'folio' => $folio,
+                'prefijo' => $pref,
                 'consecutivo' => $next,
             ];
         }, 3);

@@ -9,7 +9,7 @@ export const initializeResponsiveBoard = (): void => {
 
   const controls = document.getElementById('program-board-navbar-controls')
     ?? document.querySelector<HTMLElement>('[data-edicion-ordenes-actions]')
-  const header = controls?.closest('nav')
+  const header = controls?.closest<HTMLElement>('[data-navbar]')
   const main = document.querySelector<HTMLElement>('main.app-main')
   if (!header || !main) return
 

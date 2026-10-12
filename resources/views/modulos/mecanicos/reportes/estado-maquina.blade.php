@@ -4,15 +4,15 @@
 
 @section('navbar-right')
     @if ($reporte)
-        <button type="button" onclick="descargarEstadoMaquina('excel')"
+        <button type="button" data-em-descargar="excel"
             class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
             <i class="fas fa-file-excel"></i> Excel
         </button>
-        <button type="button" onclick="descargarEstadoMaquina('pdf')"
+        <button type="button" data-em-descargar="pdf"
             class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
             <i class="fas fa-file-pdf"></i> PDF
         </button>
-        <button type="button" onclick="descargarImagenEstadoMaquina()"
+        <button type="button" data-em-imagen
             class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">
             <i class="fas fa-image"></i> Imagen
         </button>
@@ -20,7 +20,14 @@
 @endsection
 
 @section('content')
-    <div class="w-full p-4">
+    <div class="w-full p-4" id="reporte-estado-maquina"
+         data-semanas-url="{{ route('mecanicos.reportes.estado-maquina.semanas') }}"
+         data-excel-url="{{ route('mecanicos.reportes.estado-maquina.excel') }}"
+         data-pdf-url="{{ route('mecanicos.reportes.estado-maquina.pdf') }}"
+         data-imagen-url="{{ route('mecanicos.reportes.estado-maquina.telegram-imagen') }}"
+         data-mes="{{ $mes }}"
+         data-semana="{{ $semana }}"
+         data-nombre-imagen="{{ $reporte ? 'hoja-verificacion-estado-maquina_'.$reporte['desde'].'_'.$reporte['hasta'].'.png' : 'hoja-verificacion-estado-maquina.png' }}">
         @if ($error)
             <div class="mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">{{ $error }}</div>
         @endif
@@ -168,131 +175,5 @@
         @endif
     </div>
 
-    <script>
-        const semanasUrl = @json(route('mecanicos.reportes.estado-maquina.semanas'));
-        const excelUrl = @json(route('mecanicos.reportes.estado-maquina.excel'));
-        const pdfUrl = @json(route('mecanicos.reportes.estado-maquina.pdf'));
-        const imagenTelegramUrl = @json(route('mecanicos.reportes.estado-maquina.telegram-imagen'));
-        const mesActual = @json($mes);
-        const semanaActual = @json($semana);
-        const hayReporte = @json((bool) $reporte);
-        const nombreImagen = @json($reporte ? 'hoja-verificacion-estado-maquina_'.$reporte['desde'].'_'.$reporte['hasta'].'.png' : 'hoja-verificacion-estado-maquina.png');
-
-        const mesInput = document.getElementById('mes');
-        const semanaSelect = document.getElementById('semana');
-        const btnConsultar = document.getElementById('btn-consultar');
-
-        function actualizarConsultar() {
-            btnConsultar.disabled = !mesInput.value || !semanaSelect.value;
-        }
-
-        async function cargarSemanas(mes, seleccionar) {
-            semanaSelect.innerHTML = '<option value="">Seleccione una semana</option>';
-            semanaSelect.disabled = true;
-            actualizarConsultar();
-            if (!mes) return;
-
-            try {
-                const data = await window.http.get(semanasUrl, { params: { mes } });
-                (data.semanas || []).forEach((semana) => {
-                    const option = document.createElement('option');
-                    option.value = semana.lunes;
-                    option.textContent = semana.etiqueta;
-                    if (seleccionar && seleccionar === semana.lunes) option.selected = true;
-                    semanaSelect.appendChild(option);
-                });
-                semanaSelect.disabled = false;
-            } catch (err) {
-                window.notify.error(err.message || 'No se pudieron cargar las semanas');
-            }
-            actualizarConsultar();
-        }
-
-        mesInput.addEventListener('change', () => {
-            cargarSemanas(mesInput.value, null);
-        });
-        semanaSelect.addEventListener('change', actualizarConsultar);
-        actualizarConsultar();
-
-        if (mesActual && semanaSelect.options.length <= 1) {
-            cargarSemanas(mesActual, semanaActual);
-        }
-
-        function prioridadesPayload() {
-            const prioridades = {};
-            document.querySelectorAll('.js-prioridad').forEach((input) => {
-                const valor = String(input.value || '').trim();
-                if (valor === '1' || valor === '2' || valor === '3') {
-                    prioridades[input.dataset.actividadId] = valor;
-                }
-            });
-            return prioridades;
-        }
-
-        function descargarEstadoMaquina(tipo) {
-            const form = document.getElementById('form-export-estado-maquina');
-            const holder = document.getElementById('prioridades-export');
-            holder.innerHTML = '';
-            Object.entries(prioridadesPayload()).forEach(([id, valor]) => {
-                const hidden = document.createElement('input');
-                hidden.type = 'hidden';
-                hidden.name = `prioridades[${id}]`;
-                hidden.value = valor;
-                holder.appendChild(hidden);
-            });
-            form.action = tipo === 'pdf' ? pdfUrl : excelUrl;
-            form.submit();
-        }
-
-        async function descargarImagenEstadoMaquina() {
-            if (!hayReporte) {
-                window.notify.error('No se puede generar la imagen todavía.');
-                return;
-            }
-
-            const hoja = document.getElementById('hoja-verificacion');
-            window.notify.loading('Generando imagen...');
-            try {
-                const html2canvas = await window.librerias.html2canvas();
-                const canvas = await html2canvas(hoja, {
-                    backgroundColor: '#ffffff',
-                    scale: 2,
-                    useCORS: true,
-                    width: hoja.scrollWidth,
-                    windowWidth: Math.max(hoja.scrollWidth, hoja.clientWidth),
-                });
-                const blob = await new Promise((resolve, reject) => {
-                    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo crear la imagen.'))), 'image/png');
-                });
-                const file = new File([blob], nombreImagen, { type: 'image/png' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = nombreImagen;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                URL.revokeObjectURL(url);
-
-                const formData = new FormData();
-                formData.append('imagen', file, file.name);
-                formData.append('mes', mesActual);
-                formData.append('semana', semanaActual);
-                try {
-                    await window.http.upload(imagenTelegramUrl, formData);
-                } catch (err) {
-                    window.notify.warning('La imagen se descargó, pero no se pudo enviar por Telegram.');
-                    return;
-                }
-                window.notify.success('Imagen descargada y enviada por Telegram.');
-            } catch (err) {
-                window.notify.error(err.message || 'No se pudo generar la imagen.');
-            } finally {
-                window.notify.close();
-            }
-        }
-
-        window.descargarEstadoMaquina = descargarEstadoMaquina;
-        window.descargarImagenEstadoMaquina = descargarImagenEstadoMaquina;
-    </script>
+    @vite('resources/js/modulos/mecanicos/reportes/estado-maquina/index.ts')
 @endsection

@@ -37,8 +37,8 @@ export function pintarConexion(doc: Document = document): void {
     const el = banner(doc);
     if (!el) return;
     el.hidden = enLinea;
-    // Justo debajo del navbar real (72 px en tablet; --pt-navbar-height solo existe en PT).
-    const nav = doc.querySelector('nav');
+    // Justo debajo del navbar real (en móvil con acciones mide dos filas).
+    const nav = doc.querySelector('[data-navbar]');
     if (!enLinea && nav && typeof nav.getBoundingClientRect === 'function') {
         el.style.top = `${Math.round(nav.getBoundingClientRect().bottom)}px`;
     }

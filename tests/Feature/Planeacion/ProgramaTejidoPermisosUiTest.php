@@ -76,6 +76,16 @@ class ProgramaTejidoPermisosUiTest extends TestCase
             ->assertDontSee('title="Descargar programa"', false);
     }
 
+    /** Arrastrar llama a prioridad/mover y cambiar-telar, que exigen modificar: el botón sigue a ese permiso, no a crear. */
+    public function test_arrastrar_filas_sigue_al_permiso_modificar(): void
+    {
+        $this->ver('catalogos.req-programa-tejido', [2 => ['acceso', 'modificar']])
+            ->assertSee('id="btnDragDrop"', false);
+
+        $this->ver('catalogos.req-programa-tejido', [2 => ['acceso', 'crear']])
+            ->assertDontSee('id="btnDragDrop"', false);
+    }
+
     public function test_descargar_no_se_emite_en_muestras(): void
     {
         // B1: capacidad B, sale del HTML en el servidor (antes lo ocultaba index.js).

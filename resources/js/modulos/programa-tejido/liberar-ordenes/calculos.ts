@@ -3,6 +3,7 @@
  * total de rollos, No. marbetes y total de piezas. Nada se guarda hasta "Liberar".
  */
 import { calcularRollo, esInventSizeFel, parseNumeroGrid, totalRollos } from './logica.ts';
+import { formatNumber } from '../../../utils/format.ts';
 
 let pesoKarlMayer = '';
 
@@ -28,7 +29,7 @@ function actualizarSpanNumerico(row: Element, columnName: string, value: number 
     const allow = value !== null && Number.isFinite(value) && (includeZero ? value >= 0 : value > 0);
     if (allow) {
         const rounded = decimals > 0 ? Number(value.toFixed(decimals)) : Math.round(value);
-        span.textContent = rounded.toLocaleString('es-MX', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        span.textContent = formatNumber(rounded, decimals);
         span.setAttribute('data-calculated-value', String(rounded));
     } else {
         span.textContent = '';

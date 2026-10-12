@@ -58,6 +58,7 @@ test('todos los tipos duran lo mismo (UX-13) y el puntero encima pausa el cierre
   notify.warning('w')
   t.mock.timers.tick(4999)
   assert.equal(container().children.length, 2, 'ninguno se va antes de tiempo')
+  assert.ok(container().children[0].classList.contains('towell-toast--saliendo'), 'se desvanece antes de quitarse')
   t.mock.timers.tick(1)
   assert.equal(container().children.length, 0, 'éxito y advertencia se van a la vez')
 

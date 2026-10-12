@@ -7,13 +7,13 @@ use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Services\Planeacion\ProgramaTejido\EstandaresTelar;
+use App\Support\ColumnasDeTabla;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -262,7 +262,7 @@ trait ArmaDatosDesarrollador
         // Esta no: CodificacionModelo no aparece en el modelo, y asignarla sin que
         // exista la columna revienta el INSERT. La guarda se queda hasta confirmarlo
         // contra el esquema real.
-        if (in_array('CodificacionModelo', Schema::getColumnListing($nuevoModelo->getTable()), true)) {
+        if (in_array('CodificacionModelo', ColumnasDeTabla::de($nuevoModelo->getTable()), true)) {
             $nuevoModelo->CodificacionModelo = null;
         }
 
@@ -339,7 +339,7 @@ trait ArmaDatosDesarrollador
             return $programas;
         }
 
-        $columnasPrograma = Schema::getColumnListing($programas->first()->getTable());
+        $columnasPrograma = ColumnasDeTabla::de($programas->first()->getTable());
 
         // Karl Mayer: se propagan sus barras y nada mas. Con el payload estandar, que
         // nombra 35 columnas de trama y combinaciones, cada guardado de KM escribia

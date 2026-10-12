@@ -5,13 +5,14 @@ namespace App\Services\Tejedores\Desarrolladores;
 use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Services\Planeacion\ProgramaTejido\SecuenciaFechasTelar;
+use App\Support\ColumnasDeTabla;
 use Carbon\Carbon;
 use DomainException;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class MovimientoDesarrolladorService
 {
@@ -76,12 +77,14 @@ class MovimientoDesarrolladorService
                                     ->first();
 
                                 if (! $lider || $lider->Id === $registroEnProceso->Id) {
-                                    $lider = ReqProgramaTejido::query()
+                                    // Mismo criterio que Dividir/Duplicar/Vincular/Eliminar: el más antiguo con NoProduccion.
+                                    $restantes = ReqProgramaTejido::query()
                                         ->where('OrdCompartida', $ordCompartida)
                                         ->where('Id', '!=', $registroEnProceso->Id)
                                         ->orderBy('FechaInicio', 'asc')
                                         ->lockForUpdate()
-                                        ->first();
+                                        ->get();
+                                    $lider = OrdCompartida::seleccionarLider($restantes) ?? $restantes->first();
                                     if ($lider) {
                                         $lider->OrdCompartidaLider = 1;
                                     }
@@ -187,10 +190,12 @@ class MovimientoDesarrolladorService
                             ->get();
 
                         if ($registrosCompartidos->isNotEmpty()) {
-                            $nuevoLider = $registrosCompartidos->first();
+                            // Regla del owner: el más antiguo con NoProduccion (antes, el más antiguo a secas).
+                            $nuevoLider = OrdCompartida::seleccionarLider($registrosCompartidos) ?? $registrosCompartidos->first();
                             ReqProgramaTejido::query()->where('OrdCompartida', $ordCompartida)->update(['OrdCompartidaLider' => null]);
-                            $nuevoLider->OrdCompartidaLider = 1;
-                            $nuevoLider->saveQuietly();
+                            // Directo a BD: si ya era líder, el modelo cargado tiene 1 y saveQuietly() no
+                            // escribía nada tras el update(null) de arriba → el grupo quedaba sin líder.
+                            ReqProgramaTejido::query()->whereKey($nuevoLider->Id)->update(['OrdCompartidaLider' => 1]);
                             ActualizarOrdPrincipal::ejecutar($ordCompartida);
                         }
                     }
@@ -582,7 +587,7 @@ class MovimientoDesarrolladorService
 
         $modelo = new CatCodificados;
         $table = $modelo->getTable();
-        $columns = Schema::getColumnListing($table);
+        $columns = ColumnasDeTabla::de($table);
 
         if (! in_array('FechaArranque', $columns, true) || ! in_array('FechaFinaliza', $columns, true)) {
             return $programaActualizado;
@@ -634,7 +639,7 @@ class MovimientoDesarrolladorService
         }
 
         $modelo = new CatCodificados;
-        $columns = Schema::getColumnListing($modelo->getTable());
+        $columns = ColumnasDeTabla::de($modelo->getTable());
         $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion, $noTelarId);
 
         if (! $registroCodificado) {

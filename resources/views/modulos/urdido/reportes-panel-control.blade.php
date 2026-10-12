@@ -185,9 +185,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr>
-                                    <td colspan="11" class="px-2 py-6 text-center text-gray-500">Sin datos para el periodo seleccionado</td>
-                                </tr>
+                                <x-ui.table-empty :colspan="11" message="Sin datos para el periodo seleccionado" icon="fa-calendar-xmark" />
                             @endforelse
                         </tbody>
                     </table>
@@ -222,9 +220,7 @@
                                 <td class="px-3 py-1 text-right text-gray-500">{{ $n1($pct) }}%</td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="3" class="px-2 py-6 text-center text-gray-500">Sin observaciones en el periodo</td>
-                            </tr>
+                            <x-ui.table-empty :colspan="3" message="Sin observaciones en el periodo" icon="fa-comment-slash" />
                         @endforelse
                     </tbody>
                 </table>

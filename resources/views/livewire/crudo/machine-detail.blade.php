@@ -533,13 +533,13 @@
                                             <button
                                                 type="button"
                                                 class="crudo-paro-abrir"
-                                                onclick="this.nextElementSibling.showModal()"
+                                                x-on:click="$el.nextElementSibling.showModal()"
                                             >
                                                 <span class="sr-only">Ver detalle del paro {{ $paro['folio'] ?: '' }}</span>
                                             </button>
                                             <dialog
                                                 class="crudo-paro-dialog"
-                                                onclick="if (event.target === this) this.close()"
+                                                x-on:click="if ($event.target === $el) $el.close()"
                                             >
                                                 <header class="crudo-paro-dialog-head">
                                                     <h4>
@@ -551,7 +551,7 @@
                                                     <span class="crudo-paro-badge {{ $paro['activo'] ? 'is-activo' : '' }}">
                                                         {{ $paro['activo'] ? 'Activo' : 'Terminado' }}
                                                     </span>
-                                                    <button type="button" class="crudo-paro-dialog-close" onclick="this.closest('dialog').close()" aria-label="Cerrar">
+                                                    <button type="button" class="crudo-paro-dialog-close" x-on:click="$el.closest('dialog').close()" aria-label="Cerrar">
                                                         <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                                     </button>
                                                 </header>

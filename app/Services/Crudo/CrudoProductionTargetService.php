@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Crudo;
 
+use App\Support\Crudo\CrudoProductionDay;
 use DateInterval;
 use DateTimeImmutable;
 
@@ -97,7 +98,7 @@ final readonly class CrudoProductionTargetService
         // El día de producción corre de 06:30 a 06:30, así que lo transcurrido
         // del día en curso se mide desde ese arranque, no desde medianoche. Con
         // el corte anterior la meta se inflaba 6.5 h y marcaba "bajos kg" de más.
-        $startMinutes = (int) config('crudo.production_day_start_minutes', 390);
+        $startMinutes = CrudoProductionDay::startMinutes();
         $currentDay = $now->modify('-'.$startMinutes.' minutes')->setTime(0, 0);
 
         $seconds = 0;

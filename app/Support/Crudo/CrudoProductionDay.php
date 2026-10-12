@@ -16,11 +16,15 @@ final class CrudoProductionDay
 {
     public static function forInstant(DateTimeInterface $instant): string
     {
-        $start = (int) config('crudo.production_day_start_minutes', 390);
-
         return (new DateTimeImmutable('@'.$instant->getTimestamp()))
             ->setTimezone($instant->getTimezone())
-            ->modify('-'.$start.' minutes')
+            ->modify('-'.self::startMinutes().' minutes')
             ->format('Y-m-d');
+    }
+
+    /** Minutos desde medianoche en que arranca el día de producción (390 = 06:30). */
+    public static function startMinutes(): int
+    {
+        return (int) config('crudo.production_day_start_minutes', 390);
     }
 }

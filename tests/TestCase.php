@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Observers\ReqProgramaTejidoObserver;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ abstract class TestCase extends BaseTestCase
         // 'CatCodificados' con menos columnas dejaba a otro sin sincronizar 'Pedido',
         // en silencio y solo dentro de la suite completa.
         ReqProgramaTejidoObserver::flushCaches();
+        SSYSFoliosSecuencia::flushColumnMap();
 
         // Ningun test abre un SQL Server real (Towell, TI_PRO, TOW_PRO): sin red cada intento se
         // come 15s+ de TCP timeout, y con red escribe en produccion sin rollback. El objeto

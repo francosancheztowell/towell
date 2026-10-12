@@ -67,6 +67,8 @@ class RepasoController extends Controller
             $registro = $this->resolverRegistroRepasoTrasCommit($nuevo, $salon, $noTelarId);
 
             if ($registro) {
+                // Recién insertado: sin la marca, shouldRegenerateLines() da false y no genera líneas diarias.
+                $registro->wasRecentlyCreated = true;
                 try {
                     app(ReqProgramaTejidoObserver::class)->saved($registro);
                 } catch (\Throwable $e) {
@@ -114,7 +116,7 @@ class RepasoController extends Controller
 
             return response()->json([
                 'ok' => false,
-                'message' => 'Error al crear repaso: '.$e->getMessage(),
+                'message' => 'Error al crear repaso. Intente de nuevo.',
             ], 500);
         }
     }

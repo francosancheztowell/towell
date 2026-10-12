@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Actions\Planeacion\ProgramaTejido\MutacionRechazada;
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -46,11 +47,15 @@ class DragAndDropTejido
                 'registro_id' => $registro->Id,
                 'deseleccionar' => true,
             ]);
+        } catch (MutacionRechazada $e) {
+            return response()->json($e->cuerpo, $e->status);
         } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], $e instanceof \RuntimeException ? 422 : 500);
+                'message' => 'No se pudo mover el registro. Intente de nuevo.',
+            ], 500);
         }
     }
 
@@ -79,7 +84,7 @@ class DragAndDropTejido
                 self::validarRangoPosicion($registros, $nuevaPosicion);
 
                 if ($idxActual === $nuevaPosicion) {
-                    throw new \RuntimeException('El registro ya está en esa posición.');
+                    throw MutacionRechazada::con(['success' => false, 'message' => 'El registro ya está en esa posición.']);
                 }
 
                 // 3) Reordenar colección en memoria
@@ -198,7 +203,7 @@ class DragAndDropTejido
     private static function validarCantidadRegistros(Collection $registros): void
     {
         if ($registros->count() < 2) {
-            throw new \RuntimeException('Se requieren al menos dos registros para reordenar la prioridad.');
+            throw MutacionRechazada::con(['success' => false, 'message' => 'Se requieren al menos dos registros para reordenar la prioridad.']);
         }
     }
 
@@ -211,7 +216,7 @@ class DragAndDropTejido
             : null;
 
         if (! $inicioOriginal) {
-            throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
+            throw MutacionRechazada::con(['success' => false, 'message' => 'El primer registro debe tener una fecha de inicio válida.']);
         }
 
         return $inicioOriginal;
@@ -222,7 +227,7 @@ class DragAndDropTejido
         $idxActual = $registros->search(fn ($r) => $r->Id === $registro->Id);
 
         if ($idxActual === false) {
-            throw new \RuntimeException('No se encontró el registro a reordenar dentro del telar.');
+            throw MutacionRechazada::con(['success' => false, 'message' => 'No se encontró el registro a reordenar dentro del telar.']);
         }
 
         return (int) $idxActual;
@@ -245,16 +250,14 @@ class DragAndDropTejido
         $posicionMinima = $ultimoEnProcesoIndex + 1;
 
         if ($nuevaPosicion < $posicionMinima) {
-            throw new \RuntimeException(
-                'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es '.($posicionMinima + 1).'.'
-            );
+            throw MutacionRechazada::con(['success' => false, 'message' => 'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es '.($posicionMinima + 1).'.']);
         }
     }
 
     private static function validarRangoPosicion(Collection $registros, int $nuevaPosicion): void
     {
         if ($nuevaPosicion < 0 || $nuevaPosicion >= $registros->count()) {
-            throw new \RuntimeException('La nueva posición está fuera del rango válido.');
+            throw MutacionRechazada::con(['success' => false, 'message' => 'La nueva posición está fuera del rango válido.']);
         }
     }
 

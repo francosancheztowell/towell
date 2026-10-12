@@ -7,13 +7,13 @@ use App\Services\Monitoreo\EstadoRequest;
 use App\Services\Monitoreo\Monitoreo;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Da a cada navegador una identidad estable (cookie towell_disp) y registra su
- * actividad. El touch se hace en terminate(), ya con la respuesta enviada, y
- * como máximo una vez cada touch_cache_seg por dispositivo.
+ * Da a cada navegador una identidad estable (cookie towell_disp). No escribe en BD:
+ * la actividad la registra el latido de telemetría. El touch que había en
+ * terminate() se quitó porque con Apache + mod_php terminate() corre antes de
+ * liberar al navegador y cada UPDATE pagaba la conexión a SQL Server (~600 ms).
  */
 class IdentificarDispositivo
 {
@@ -46,25 +46,5 @@ class IdentificarDispositivo
         }
 
         return $response;
-    }
-
-    public function terminate(Request $request, Response $response): void
-    {
-        if (! Monitoreo::activo()) {
-            return;
-        }
-
-        Monitoreo::seguro('terminate IdentificarDispositivo', function () use ($request): void {
-            $usuarioId = Auth::id();
-            $ruta = $request->route();
-
-            // El latido de telemetría ya actualiza el dispositivo con más detalle.
-            if ($usuarioId === null || $request->routeIs('telemetria.*')) {
-                return;
-            }
-
-            $nombre = is_object($ruta) ? ($ruta->getName() ?? $ruta->uri()) : null;
-            $this->dispositivos->touch($request, (int) $usuarioId, $nombre);
-        });
     }
 }

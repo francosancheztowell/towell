@@ -2,6 +2,7 @@
 // req-programa-tejido.blade.php; la URL de la superficie llega en PT_BOOT.routes.
 import { PT_BOOT } from './boot.ts';
 import { datosDelError } from './respuesta.ts';
+import { recargarConservando } from './vista.ts';
 
 interface RespuestaRecalcular {
     ok?: boolean;
@@ -15,16 +16,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = PT_BOOT.routes?.recalcularFechas ?? '';
     const icono = () => btn.querySelector('i');
 
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+        // Recalcula las fechas de TODOS los telares: un clic suelto no debe dispararlo.
+        const seguir = await notify.confirm({
+            title: '¿Recalcular fechas de producción?',
+            text: 'Se recalculan las fechas de inicio y fin de todos los telares. La página se recarga al terminar.',
+            confirmText: 'Recalcular',
+        });
+        if (!seguir) return;
+
         btn.disabled = true;
         icono()?.classList.add('fa-spin');
 
         http.post<RespuestaRecalcular>(url)
             .then((data) => {
                 if (data.ok) {
-                    // Aviso con cierre solo y recarga a los 2 s, como antes.
+                    // Cambian las fechas de todos los telares: se recarga, pero conservando scroll, fila y filtros.
                     notify.success(data.message ?? 'Listo');
-                    setTimeout(() => window.location.reload(), 2000);
+                    setTimeout(() => recargarConservando(), 2000);
                 } else {
                     void notify.alert(data.message ?? '', 'Error', 'error');
                 }

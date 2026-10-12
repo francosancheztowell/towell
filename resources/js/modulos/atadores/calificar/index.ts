@@ -4,6 +4,7 @@
  * Antes eran 1 620 líneas inline en la vista (19-03). Todo guarda en POST /atadores/save con `action`.
  */
 import { delegate } from '../../../utils/dom.ts';
+import { debounce } from '../../../utils/format.ts';
 import { http } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
 import { pedirFormulario } from '../comun/modal-formulario.ts';
@@ -46,7 +47,6 @@ function iniciar(raiz: HTMLElement, cfg: ConfigCalificar): void {
 
     // ----- Observaciones: autoguardado a los 2 s -----
     const observaciones = $<HTMLTextAreaElement>('observaciones');
-    let tObs: ReturnType<typeof setTimeout> | undefined;
     const guardarObservaciones = async (): Promise<void> => {
         const guardando = $('autoSaveIndicator');
         try {
@@ -57,11 +57,11 @@ function iniciar(raiz: HTMLElement, cfg: ConfigCalificar): void {
             guardando?.classList.add('hidden');
         }
     };
+    const guardarObservacionesLuego = debounce(() => void guardarObservaciones(), 2000);
     observaciones?.addEventListener('input', () => {
         $('autoSaveIndicator')?.classList.remove('hidden');
         $('savedIndicator')?.classList.add('hidden');
-        clearTimeout(tObs);
-        tObs = setTimeout(() => void guardarObservaciones(), 2000);
+        guardarObservacionesLuego();
     });
     $<HTMLFormElement>('formObservaciones')?.addEventListener('submit', (ev) => {
         ev.preventDefault();
@@ -76,7 +76,6 @@ function iniciar(raiz: HTMLElement, cfg: ConfigCalificar): void {
 
     // ----- Merma Kg: autoguardado a los 1.5 s, tope de 5 kg -----
     const merma = $<HTMLInputElement>('mergaKg');
-    let tMerma: ReturnType<typeof setTimeout> | undefined;
     const guardarMerma = async (textoValor: string): Promise<void> => {
         if (atado.soloLectura) return;
         const r = mermaParaGuardar(textoValor);
@@ -96,16 +95,17 @@ function iniciar(raiz: HTMLElement, cfg: ConfigCalificar): void {
             error(err, 'No se pudo conectar con el servidor. Verifica tu conexión.', 'Error al guardar');
         }
     };
+    const guardarMermaLuego = debounce(() => void guardarMerma(merma?.value ?? ''), 1500);
     merma?.addEventListener('input', () => {
         $('mergaSavedIndicator')?.classList.add('hidden');
-        clearTimeout(tMerma);
+        guardarMermaLuego.cancel();
         const accion = evaluarMermaTecleada(merma.value);
         if (accion === 'excede') {
             merma.value = String(MERMA_MAX);
             avisar(AVISO_MERMA_RANGO);
             void guardarMerma(String(MERMA_MAX));
         } else if (accion === 'programar') {
-            tMerma = setTimeout(() => void guardarMerma(merma.value), 1500);
+            guardarMermaLuego();
         }
     });
     merma?.addEventListener('blur', () => {
@@ -115,21 +115,20 @@ function iniciar(raiz: HTMLElement, cfg: ConfigCalificar): void {
 
     // ----- Folio Paro: autoguardado a los 1.2 s -----
     const folio = $<HTMLInputElement>('folioParo');
-    let tFolio: ReturnType<typeof setTimeout> | undefined;
+    const guardarFolioLuego = debounce(async () => {
+        if (!folio || atado.soloLectura) return;
+        const valor = folio.value.trim();
+        try {
+            const res = await guardar('folio_paro', { folio_paro: valor }, 'No se pudo guardar Folio Paro');
+            folio.value = typeof res.folio_paro === 'string' ? res.folio_paro : valor;
+            mostrarUnRato($('folioParoSavedIndicator'));
+        } catch (err) {
+            error(err, 'No se pudo guardar Folio Paro');
+        }
+    }, 1200);
     folio?.addEventListener('input', () => {
         $('folioParoSavedIndicator')?.classList.add('hidden');
-        clearTimeout(tFolio);
-        tFolio = setTimeout(async () => {
-            if (atado.soloLectura) return;
-            const valor = folio.value.trim();
-            try {
-                const res = await guardar('folio_paro', { folio_paro: valor }, 'No se pudo guardar Folio Paro');
-                folio.value = typeof res.folio_paro === 'string' ? res.folio_paro : valor;
-                mostrarUnRato($('folioParoSavedIndicator'));
-            } catch (err) {
-                error(err, 'No se pudo guardar Folio Paro');
-            }
-        }, 1200);
+        guardarFolioLuego();
     });
 
     // ----- Checklist (Jacquard / SMIT) -----

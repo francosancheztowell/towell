@@ -21,11 +21,6 @@
 
 @section('content')
     <div class="w-full p-4" data-reporte-inv-telas data-ruta-indice="{{ route('tejido.reportes.index') }}">
-        @if (session('error'))
-            <div class="mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                {{ session('error') }}
-            </div>
-        @endif
         <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
                 <h2 class="text-xl font-bold text-white">Reporte Inv Telas</h2>

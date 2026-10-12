@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $TamanoClave
  * @property mixed $NoProduccion
  * @property mixed $TotalPedido
+ * @property mixed $PorcentajeSegundos
  * @property mixed $SaldoPedido
  * @property mixed $AplicacionId
  * @property mixed $AnchoToalla

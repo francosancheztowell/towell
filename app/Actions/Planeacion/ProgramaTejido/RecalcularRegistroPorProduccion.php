@@ -62,12 +62,22 @@ final class RecalcularRegistroPorProduccion
         }
 
         // recalcularFormulasProduccion solo toca campos de marbete, no fechas:
-        // la instancia refetcheada sigue siendo válida para la cascada.
-        if (! $registro->esUltimo() && $registroRefreshed) {
+        // la instancia refetcheada sigue siendo válida para la cascada. Se decide por si hay
+        // posteriores reales en el telar, no por el flag Ultimo (puede estar mal puesto).
+        if ($registroRefreshed && self::tienePosteriores($registroRefreshed)) {
             SecuenciaFechasTelar::cascade($registroRefreshed);
         }
 
         return true;
+    }
+
+    private static function tienePosteriores(ReqProgramaTejido $r): bool
+    {
+        return ReqProgramaTejido::query()
+            ->salon($r->SalonTejidoId)
+            ->telar($r->NoTelarId)
+            ->where('Posicion', '>', (int) $r->Posicion)
+            ->exists();
     }
 
     /**
@@ -122,6 +132,10 @@ final class RecalcularRegistroPorProduccion
         }
 
         $horasNecesarias = HorasProduccion::calcularHorasProd($r);
+        if ($horasNecesarias <= 0) {
+            // Sin horas calculables (sin TamanoClave/parámetros): usar HorasProd guardado, igual que la cascada.
+            $horasNecesarias = max(0.0, (float) ($r->HorasProd ?? 0));
+        }
 
         if ($horasNecesarias <= 0) {
             $fin = CalendarioProduccion::esRepaso($r)

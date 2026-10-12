@@ -86,8 +86,9 @@ class CrearOrdenesQueriesTest extends TestCase
 
         // Antes 57: 30 inserts de consumo + 9 de julios + 3 selects de telar para la fecha + 3 selects
         // y 2 updates para marcarlos + urdido, engomado, 2 auditorías y 6 de folios. Ahora 14: consumo
-        // y julios en un insert cada uno, un select de telares y un update.
-        $this->assertSame(14, $queries);
+        // y julios en un insert cada uno, un select de telares y un update. 13: el mapa de columnas de
+        // folios se lee una vez y no por folio.
+        $this->assertSame(13, $queries);
         $this->assertSame(['folio' => 'UE00021', 'folioConsumo' => 'CH00011', 'telares_actualizados' => 2], $resultado);
 
         $consumos = $this->filasDe('UrdConsumoHilo');
@@ -131,7 +132,7 @@ class CrearOrdenesQueriesTest extends TestCase
         $queries = $this->contarQueries(fn () => app(CrearOrdenesService::class)->crear($payload, '100', 'Usuario prueba'));
 
         // Antes 277. 20 columnas por fila → bloques de 104 (2 080 parámetros): 250 filas = 3 inserts.
-        $this->assertSame(14 + 2, $queries);
+        $this->assertSame(13 + 2, $queries);
         $this->assertCount(250, $this->filasDe('UrdConsumoHilo'));
     }
 }

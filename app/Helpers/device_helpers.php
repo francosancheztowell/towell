@@ -1,48 +1,5 @@
 <?php
 
-if (! function_exists('getClientIpv4')) {
-    /**
-     * Obtiene la dirección IPv4 del cliente cuando esté disponible.
-     */
-    function getClientIpv4(): string
-    {
-        $ip = request()->ip() ?? '';
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return $ip;
-        }
-        $forwarded = request()->header('X-Forwarded-For');
-        if ($forwarded) {
-            $ips = array_map('trim', explode(',', $forwarded));
-            foreach ($ips as $candidate) {
-                if (filter_var($candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                    return $candidate;
-                }
-            }
-        }
-
-        return $ip ?: '0.0.0.0';
-    }
-}
-
-if (! function_exists('getDeviceInfo')) {
-    /**
-     * Obtiene información del dispositivo basándose en el User Agent
-     */
-    function getDeviceInfo(): array
-    {
-        $userAgent = request()->userAgent() ?? '';
-        $ip = getClientIpv4();
-
-        return [
-            'tipo' => detectDeviceType($userAgent),
-            'navegador' => detectBrowser($userAgent),
-            'sistema' => detectOS($userAgent),
-            'ip' => $ip,
-            'user_agent' => $userAgent,
-        ];
-    }
-}
-
 if (! function_exists('detectDeviceType')) {
     /**
      * Detecta el tipo de dispositivo con modelo específico cuando es posible
@@ -687,24 +644,5 @@ if (! function_exists('getLenovoModelName')) {
         ];
 
         return $models[$modelCode] ?? '';
-    }
-}
-
-if (! function_exists('getDeviceIdentifier')) {
-    /**
-     * Genera un identificador único para el dispositivo basado en características
-     * Nota: Este identificador puede cambiar si el usuario actualiza el navegador
-     */
-    function getDeviceIdentifier(): string
-    {
-        $userAgent = request()->userAgent() ?? '';
-        $ip = request()->ip();
-        $acceptLanguage = request()->header('Accept-Language', '');
-
-        // Crear un hash basado en características del dispositivo
-        $fingerprint = md5($userAgent.$ip.$acceptLanguage);
-
-        // Retornar versión corta (8 caracteres)
-        return strtoupper(substr($fingerprint, 0, 8));
     }
 }

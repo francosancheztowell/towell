@@ -67,7 +67,7 @@ class UpdateTejido
 
             return response()->json([
                 'success' => false,
-                'message' => 'No se pudo actualizar el programa de tejido (cascada de fechas o regeneración de líneas falló): '.$e->getMessage(),
+                'message' => 'No se pudo actualizar el programa de tejido. Los cambios se revirtieron.',
             ], 500);
         }
 

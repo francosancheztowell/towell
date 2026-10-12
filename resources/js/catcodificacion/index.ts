@@ -5,14 +5,49 @@
  * interacción de tabla, filtros y acciones permanece fuera de la plantilla.
  */
 
-import { openLMatModal } from './lmat-modal';
+import { openLMatModal, type LMatGuardada, type RegistroCat } from './lmat-modal.ts';
+import { http, HttpError } from '../utils/http.ts';
+import { escapeHtml } from '../utils/format.ts';
+import { delegate, onReady, qs, qsa } from '../utils/dom.ts';
+import { notify, showToast } from '../utils/notifications.ts';
+
+interface ConfigPagina {
+    apiUrl: string;
+    columnas: string[];
+    columnLabels: Record<string, string>;
+    columnSegmentClass: Record<string, string>;
+    totalRegistros: number;
+}
+
+/** Respuesta corta de los endpoints de Codificación: s = éxito, d = datos, e = error. */
+interface RespuestaCod<T> { s?: boolean; d?: T; e?: string; message?: string }
+
+interface OpcionLmat { bomId?: unknown; bomName?: unknown }
+interface OrdenEnProceso { noProduccion?: string; noTelarId?: unknown; itemId?: unknown; nombreProducto?: string }
+/** GET catcodificados-por-orden (modal Peso Muestra). */
+interface DatosOrden {
+    pesoMuestra?: unknown;
+    alturaRizo?: unknown;
+    actualizaLmat?: unknown;
+    listaLmat?: OpcionLmat[];
+    bomId?: unknown;
+    telarId?: unknown;
+    itemId?: unknown;
+    nombre?: unknown;
+}
+
+/** El mensaje que manda el servidor ({ e } de Codificación o { message }), o el del error. */
+function mensajeError(error: unknown, defecto: string): string {
+    const datos = error instanceof HttpError ? error.data as RespuestaCod<unknown> | null : null;
+    return datos?.e || (error instanceof Error && error.message) || defecto;
+}
 
 (function () {
     // =========================
     //   CONFIG / ESTADO
     // =========================
     const configElement = document.getElementById('catcodificacion-config');
-    let pageConfig = {};
+    let pageConfig = {} as ConfigPagina;
 
     try {
         pageConfig = JSON.parse(configElement?.textContent || '{}');
@@ -37,31 +72,22 @@ import { openLMatModal } from './lmat-modal';
     };
 
     const state = {
-        data: [],
-        filtered: [],
-        filtros: [],       // { columna: index, valor: string }
-        filtrosPorColumna: [], // { column: string, value: string } para filtros desde menú contextual
-        pinnedColumns: [],
+        data: [] as RegistroCat[],
+        filtered: [] as RegistroCat[],
+        filtros: [] as { columna: number; valor: string }[],
+        filtrosPorColumna: [] as { column: string; value: string }[], // desde menú contextual
+        pinnedColumns: [] as number[],
         page: 1,
-        perPage: 500,
+        perPage: 100, // reflow lineal en celdas: 500 filas × 160 cols ≈ 5 s, 100 ≈ 1 s
         total: CONFIG.totalRegistros || 0,
         loading: false,
         fullLoaded: false, // el GET inicial trae solo 6 meses; al filtrar se carga todo
         lmatFilterActive: false, // agrupar LMat: solo órdenes con lista de materiales
 
-        selectedRowIndex: null, // Índice global de la fila seleccionada
+        selectedRowIndex: null as number | null, // Índice global de la fila seleccionada
     };
 
-    // =========================
-    //   HELPERS DOM
-    // =========================
-    const $  = (sel, ctx = document) => ctx.querySelector(sel);
-    const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
-
-    const getCsrf = () =>
-        document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-
-    function formatDateOnly(val, columnName) {
+    function formatDateOnly(val: unknown, columnName: string): string {
         if (val == null || val === '') return '';
         const s = String(val).trim();
         if (!s) return '';
@@ -73,7 +99,7 @@ import { openLMatModal } from './lmat-modal';
 
         if (CONFIG.timeColumns.includes(columnName)) {
             const mT = s.match(/^(\d{1,2}):(\d{2})/);
-            if (mT) return mT[1].padStart(2, '0') + ':' + mT[2];
+            if (mT) return String(mT[1]).padStart(2, '0') + ':' + mT[2];
         }
 
         if (CONFIG.dateTimeColumns && CONFIG.dateTimeColumns.includes(columnName)) {
@@ -108,11 +134,11 @@ import { openLMatModal } from './lmat-modal';
         return s;
     }
 
-    function setLoading(isLoading, message = 'Cargando datos...', count = '') {
+    function setLoading(isLoading: boolean, message = 'Cargando datos...', count = ''): void {
         state.loading = isLoading;
-        const overlay  = $('#loading-overlay');
-        const messageEl = $('#loading-message');
-        const countEl   = $('#loading-count');
+        const overlay  = qs('#loading-overlay');
+        const messageEl = qs('#loading-message');
+        const countEl   = qs('#loading-count');
 
         if (!overlay) return;
 
@@ -128,10 +154,6 @@ import { openLMatModal } from './lmat-modal';
         }
     }
 
-    // showToast global de bootstrap.js (siempre definido: app.js corre antes que este @vite).
-    const showToast = window.showToast;
-    const notify = window.notify;
-
     /**
      * Muestra el modal de formulario de codificación al hacer clic en el botón de la navbar.
      */
@@ -142,14 +164,13 @@ import { openLMatModal } from './lmat-modal';
             : null;
 
         // Valores iniciales desde el registro seleccionado o vacíos
-        const ordenTejido = registroSeleccionado?.OrdenTejido || '';
+        const ordenTejido = String(registroSeleccionado?.OrdenTejido || '');
         const ordenDesdeFila = String(ordenTejido || '').trim();
         const telar = registroSeleccionado?.TelarId || '';
         const articulo = registroSeleccionado?.ItemId || registroSeleccionado?.ClaveModelo || '';
         const pesoMuestra = registroSeleccionado?.PesoMuestra || '';
         const alturaRizo = registroSeleccionado?.AlturaRizo ?? '';
         const actLmat = registroSeleccionado?.ActualizaLmat === true || registroSeleccionado?.ActualizaLmat === 1 || registroSeleccionado?.ActualizaLmat === '1';
-        const bomId = registroSeleccionado?.BomId || '';
 
         notify.form({
             title: 'Peso Muestra',
@@ -260,17 +281,17 @@ import { openLMatModal } from './lmat-modal';
             cancelText: 'Cancelar',
             didOpen: (root) => {
                 // Habilitar/bloquear campo Lista Mat según checkbox Act Lmat (siempre visible)
-                const actLmatCheckbox = document.getElementById('swal-act-lmat');
-                const listaMatInputRef = document.getElementById('swal-lista-mat');
-                const selectOrden = document.getElementById('swal-orden-tejido');
-                const telarInput = document.getElementById('swal-telar');
-                const articuloInput = document.getElementById('swal-articulo');
-                const pesoMuestraInput = document.getElementById('swal-peso-muestra');
-                const alturaRizoInput = document.getElementById('swal-altura-rizo');
-                const listaMatMessage = document.getElementById('swal-lista-mat-message');
+                const actLmatCheckbox = qs<HTMLInputElement>('#swal-act-lmat');
+                const listaMatInputRef = qs<HTMLSelectElement>('#swal-lista-mat');
+                const selectOrden = qs<HTMLSelectElement>('#swal-orden-tejido');
+                const telarInput = qs<HTMLInputElement>('#swal-telar');
+                const articuloInput = qs<HTMLInputElement>('#swal-articulo');
+                const pesoMuestraInput = qs<HTMLInputElement>('#swal-peso-muestra');
+                const alturaRizoInput = qs<HTMLInputElement>('#swal-altura-rizo');
+                const listaMatMessage = qs('#swal-lista-mat-message');
 
-                function actualizarEstadoListaMat() {
-                    const sel = document.getElementById('swal-lista-mat');
+                function actualizarEstadoListaMat(): void {
+                    const sel = listaMatInputRef;
                     const reqSpan = document.getElementById('swal-lista-mat-req');
                     if (!sel) return;
                     const activo = actLmatCheckbox && actLmatCheckbox.checked;
@@ -283,11 +304,11 @@ import { openLMatModal } from './lmat-modal';
                 }
 
                 function actualizarBotonGuardar() {
-                    const confirmBtn = root.closest('dialog')?.querySelector('button[type="submit"]');
+                    const confirmBtn = root.closest('dialog')?.querySelector<HTMLButtonElement>('button[type="submit"]');
                     if (!confirmBtn) return;
                     const actLmatChecked = actLmatCheckbox && actLmatCheckbox.checked;
                     const bomIdVal = listaMatInputRef && listaMatInputRef.value ? listaMatInputRef.value.trim() : '';
-                    const debeBloquear = actLmatChecked && (!bomIdVal || bomIdVal === '');
+                    const debeBloquear = Boolean(actLmatChecked && !bomIdVal);
                     confirmBtn.disabled = debeBloquear;
                     if (debeBloquear) {
                         confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -302,7 +323,7 @@ import { openLMatModal } from './lmat-modal';
                     actualizarEstadoListaMat();
                 }
 
-                function poblarSelectLmat(opciones, bomIdSeleccionado) {
+                function poblarSelectLmat(opciones: OpcionLmat[], bomIdSeleccionado?: unknown): void {
                     if (!listaMatInputRef) return;
                     const valorPrevio = bomIdSeleccionado != null ? String(bomIdSeleccionado) : listaMatInputRef.value;
                     listaMatInputRef.innerHTML = '';
@@ -312,7 +333,7 @@ import { openLMatModal } from './lmat-modal';
                     listaMatInputRef.appendChild(optVacia);
 
                     if (opciones && Array.isArray(opciones) && opciones.length > 0) {
-                        opciones.forEach(function(item) {
+                        opciones.forEach((item) => {
                             const bomId = (item.bomId != null) ? String(item.bomId) : '';
                             if (!bomId) return;
                             const opt = document.createElement('option');
@@ -334,7 +355,7 @@ import { openLMatModal } from './lmat-modal';
                     actualizarBotonGuardar();
                 }
 
-                function cargarCatCodificadosPorOrden(orden) {
+                function cargarCatCodificadosPorOrden(orden: string): void {
                     const ord = (orden || '').toString().trim();
                     if (!ord) {
                         if (pesoMuestraInput) pesoMuestraInput.value = '';
@@ -344,8 +365,7 @@ import { openLMatModal } from './lmat-modal';
                         poblarSelectLmat([]);
                         return;
                     }
-                    fetch('/planeacion/codificacion/api/catcodificados-por-orden/' + encodeURIComponent(ord), { headers: { 'Accept': 'application/json' } })
-                        .then(resp => resp.json())
+                    http.get<RespuestaCod<DatosOrden | null>>('/planeacion/codificacion/api/catcodificados-por-orden/' + encodeURIComponent(ord))
                         .then(json => {
                             if (!json.s) return;
                             const d = json.d;
@@ -357,8 +377,8 @@ import { openLMatModal } from './lmat-modal';
                                 poblarSelectLmat([]);
                                 return;
                             }
-                            if (pesoMuestraInput) pesoMuestraInput.value = (d.pesoMuestra != null && d.pesoMuestra !== '') ? Number(d.pesoMuestra) : '';
-                            if (alturaRizoInput) alturaRizoInput.value = (d.alturaRizo != null && d.alturaRizo !== '') ? d.alturaRizo : '';
+                            if (pesoMuestraInput) pesoMuestraInput.value = (d.pesoMuestra != null && d.pesoMuestra !== '') ? String(Number(d.pesoMuestra)) : '';
+                            if (alturaRizoInput) alturaRizoInput.value = (d.alturaRizo != null && d.alturaRizo !== '') ? String(d.alturaRizo) : '';
                             if (actLmatCheckbox) actLmatCheckbox.checked = d.actualizaLmat === true || d.actualizaLmat === 1;
                             poblarSelectLmat(d.listaLmat || [], d.bomId);
                             if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
@@ -368,9 +388,9 @@ import { openLMatModal } from './lmat-modal';
                         .catch(() => {});
                 }
 
-                const chkUsarFila = document.getElementById('swal-usar-fila-seleccionada');
+                const chkUsarFila = qs<HTMLInputElement>('#swal-usar-fila-seleccionada');
 
-                function onOrdenTejidoSelectChange() {
+                function onOrdenTejidoSelectChange(): void {
                     if (!selectOrden) return;
                     const opt = selectOrden.options[selectOrden.selectedIndex];
                     if (opt && opt.value) {
@@ -384,13 +404,12 @@ import { openLMatModal } from './lmat-modal';
                     }
                 }
 
-                function poblarSelectOrdenesEnProceso() {
+                function poblarSelectOrdenesEnProceso(): void {
                     if (!selectOrden) return;
                     selectOrden.disabled = false;
                     selectOrden.classList.remove('bg-gray-100', 'cursor-not-allowed');
                     selectOrden.innerHTML = '<option value="">Seleccione una orden en proceso...</option>';
-                    fetch('/planeacion/codificacion/api/ordenes-en-proceso', { headers: { 'Accept': 'application/json' } })
-                        .then(resp => resp.json())
+                    http.get<RespuestaCod<OrdenEnProceso[]>>('/planeacion/codificacion/api/ordenes-en-proceso')
                         .then(json => {
                             if (json.s && Array.isArray(json.d)) {
                                 json.d.forEach(item => {
@@ -403,13 +422,13 @@ import { openLMatModal } from './lmat-modal';
                                     selectOrden.appendChild(opt);
                                 });
                                 if (ordenTejido) selectOrden.value = ordenTejido;
-                                if (selectOrden.value && selectOrden.dispatchEvent) selectOrden.dispatchEvent(new Event('change'));
+                                if (selectOrden.value) selectOrden.dispatchEvent(new Event('change'));
                             }
                         })
                         .catch(() => {});
                 }
 
-                function aplicarModoOrdenTejido(usarFila) {
+                function aplicarModoOrdenTejido(usarFila: boolean): void {
                     if (!selectOrden) return;
                     if (usarFila) {
                         if (!ordenDesdeFila) {
@@ -450,19 +469,19 @@ import { openLMatModal } from './lmat-modal';
                 }
             },
             preConfirm: (ctx) => {
-                const ordenTejido = document.getElementById('swal-orden-tejido')?.value.trim() || '';
-                const pesoMuestraRaw = document.getElementById('swal-peso-muestra')?.value?.trim();
+                const ordenTejido = qs<HTMLSelectElement>('#swal-orden-tejido')?.value.trim() || '';
+                const pesoMuestraRaw = qs<HTMLInputElement>('#swal-peso-muestra')?.value?.trim();
                 const pesoMuestra = pesoMuestraRaw === '' || pesoMuestraRaw === undefined
                     ? null
                     : parseFloat(pesoMuestraRaw);
-                const alturaRizoRaw = document.getElementById('swal-altura-rizo')?.value?.trim() || '';
-                const actLmat = document.getElementById('swal-act-lmat')?.checked || false;
-                const bomIdRaw = document.getElementById('swal-lista-mat')?.value.trim() || '';
+                const alturaRizoRaw = qs<HTMLInputElement>('#swal-altura-rizo')?.value?.trim() || '';
+                const actLmat = qs<HTMLInputElement>('#swal-act-lmat')?.checked || false;
+                const bomIdRaw = qs<HTMLSelectElement>('#swal-lista-mat')?.value.trim() || '';
                 const bomId = actLmat ? bomIdRaw : null;
 
                 // Validaciones básicas
                 if (!ordenTejido) {
-                    const usarFila = document.getElementById('swal-usar-fila-seleccionada')?.checked;
+                    const usarFila = qs<HTMLInputElement>('#swal-usar-fila-seleccionada')?.checked;
                     ctx.error(
                         usarFila
                             ? 'La fila seleccionada no tiene Orden Tejido o el catálogo no devolvió datos.'
@@ -502,23 +521,13 @@ import { openLMatModal } from './lmat-modal';
                 try {
                     notify.loading('Guardando...');
 
-                    const resp = await fetch('/planeacion/codificacion/api/actualizar-peso-muestra-lmat', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': getCsrf(),
-                        },
-                        body: JSON.stringify({
-                            ordenTejido: datos.ordenTejido,
-                            pesoMuestra: datos.pesoMuestra,
-                            alturaRizo: datos.alturaRizo,
-                            actualizaLmat: datos.actLmat,
-                            bomId: datos.bomId || null,
-                        }),
+                    const json = await http.post<RespuestaCod<unknown> & { actualizados?: unknown[] }>('/planeacion/codificacion/api/actualizar-peso-muestra-lmat', {
+                        ordenTejido: datos.ordenTejido,
+                        pesoMuestra: datos.pesoMuestra,
+                        alturaRizo: datos.alturaRizo,
+                        actualizaLmat: datos.actLmat,
+                        bomId: datos.bomId || null,
                     });
-
-                    const json = await resp.json();
 
                     notify.close();
 
@@ -535,7 +544,7 @@ import { openLMatModal } from './lmat-modal';
                     await loadData(true);
                 } catch (error) {
                     notify.close();
-                    showToast('Error al guardar: ' + (error.message || 'Error desconocido'), 'error');
+                    showToast(mensajeError(error, 'Error al guardar los datos'), 'error');
                     console.error('Error al guardar:', error);
                 }
             }
@@ -543,7 +552,7 @@ import { openLMatModal } from './lmat-modal';
     }
 
     // El módulo L.Mat recibe únicamente el contexto necesario de esta pantalla.
-    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {}, fibras = {}, combinacionesVacias = [], luchaje = null }) {
+    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas, formula, fibras, combinacionesVacias, luchaje }: LMatGuardada): void {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) return;
         const registro = state.filtered[state.selectedRowIndex];
         if (!registro) return;
@@ -575,7 +584,7 @@ import { openLMatModal } from './lmat-modal';
                 registro[campo] = valor;
             }
         });
-        const camposFibraActualizados = Object.entries(fibras)
+        const camposFibraActualizados: [string, string][] = Object.entries(fibras)
             .filter(([campo]) => /^FibraComb[1-5]$/.test(campo));
         // Una combinacion vaciada limpia todas sus columnas, no solo la fibra.
         combinacionesVacias.forEach((n) => {
@@ -586,7 +595,7 @@ import { openLMatModal } from './lmat-modal';
             registro[campo] = valor;
         });
 
-        const tbody = $('#catcodificacion-body');
+        const tbody = qs('#catcodificacion-body');
         const fila = tbody?.querySelector(`tr[data-index="${state.selectedRowIndex}"]`);
         if (!fila) return;
 
@@ -614,21 +623,19 @@ import { openLMatModal } from './lmat-modal';
 
     function mostrarModalLMat() {
         return openLMatModal({
-            fallbackToast: showToast,
             getSelectedRecord: () => (
                 state.selectedRowIndex !== null && state.selectedRowIndex !== undefined
                     ? state.filtered[state.selectedRowIndex]
                     : null
             ),
             onSaved: actualizarFilaTrasGuardarLMat,
-            showToast,
         });
     }
 
     // =========================
     //   CARGA DE DATOS
     // =========================
-    async function loadData(forceRefresh) {
+    async function loadData(forceRefresh?: boolean): Promise<void> {
         if (!CONFIG.apiUrl || state.loading) return;
 
         setLoading(true, 'Cargando datos...', '');
@@ -641,16 +648,7 @@ import { openLMatModal } from './lmat-modal';
             : CONFIG.apiUrl;
 
         try {
-            const resp = await fetch(url, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' },
-            });
-
-            if (!resp.ok) {
-                throw new Error('HTTP ' + resp.status);
-            }
-
-            const json = await resp.json();
+            const json = await http.get<RespuestaCod<unknown[][]> & { c?: string[]; t?: number }>(url);
 
             if (!json.s) {
                 throw new Error(json.e || 'Error al cargar datos');
@@ -663,7 +661,7 @@ import { openLMatModal } from './lmat-modal';
             setLoading(true, 'Procesando registros...', totalRows.toLocaleString() + ' registros');
 
             state.data = raw.map(rowArr => {
-                const obj = {};
+                const obj: RegistroCat = {};
                 const rowLen = Array.isArray(rowArr) ? rowArr.length : 0;
                 const colLen = columnas.length;
                 for (let j = 0; j < colLen; j++) {
@@ -677,8 +675,8 @@ import { openLMatModal } from './lmat-modal';
             const idIndex = columnas.indexOf('Id');
             if (idIndex !== -1) {
                 state.data.sort((a, b) => {
-                    const idA = parseInt(a.Id) || 0;
-                    const idB = parseInt(b.Id) || 0;
+                    const idA = parseInt(String(a.Id)) || 0;
+                    const idB = parseInt(String(b.Id)) || 0;
                     return idB - idA; // Descendente: mayor Id primero
                 });
             }
@@ -686,17 +684,20 @@ import { openLMatModal } from './lmat-modal';
             state.filtered = [...state.data];
             state.total    = json.t || state.data.length;
 
+            // aplicarFiltrosAND() ya pinta y actualiza contador y botones; repetirlo costaba ~5 s por carga.
             aplicarFiltrosAND();
-
-            renderPage();
-            updateFilterCount();
-            actualizarEstadoBotonReimprimir();
-            actualizarEstadoBotonRevivir();
+            if (!state.data.length) {
+                renderPage();
+                updateFilterCount();
+                actualizarEstadoBotonReimprimir();
+                actualizarEstadoBotonRevivir();
+            }
 
             setLoading(false);
         } catch (error) {
             console.error('loadData error:', error);
-            const tbody = $('#catcodificacion-body');
+            const mensaje = mensajeError(error, 'Error desconocido');
+            const tbody = qs('#catcodificacion-body');
             const colCount = (CONFIG.columnas && CONFIG.columnas.length) ? CONFIG.columnas.length : 1;
             if (tbody) {
                 tbody.innerHTML =
@@ -705,15 +706,16 @@ import { openLMatModal } from './lmat-modal';
                             '<div class="flex flex-col items-center gap-2">' +
                                 '<i class="fas fa-exclamation-triangle text-red-500 text-3xl"></i>' +
                                 '<p class="text-red-600 font-medium">Error al cargar datos</p>' +
-                                '<p class="text-sm text-gray-500">' + (error.message || 'Error desconocido') + '</p>' +
-                                '<button type="button" class="mt-2 px-3 py-1.5 text-sm rounded bg-blue-500 text-white hover:bg-blue-600" onclick="loadData()">' +
+                                '<p class="text-sm text-gray-500">' + escapeHtml(mensaje) + '</p>' +
+                                '<button type="button" class="mt-2 px-3 py-1.5 text-sm rounded bg-blue-500 text-white hover:bg-blue-600" data-reintentar>' +
                                     'Reintentar' +
                                 '</button>' +
                             '</div>' +
                         '</td>' +
                     '</tr>';
+                tbody.querySelector('[data-reintentar]')?.addEventListener('click', () => loadData());
             }
-            showToast('Error al cargar datos: ' + (error.message || 'Error desconocido'), 'error');
+            showToast('Error al cargar datos: ' + mensaje, 'error');
             setLoading(false);
         }
     }
@@ -722,7 +724,7 @@ import { openLMatModal } from './lmat-modal';
      * Garantiza que los filtros operen sobre el catálogo completo:
      * la primera vez que se filtra, recarga con ?todo=1 (histórico incluido).
      */
-    async function ensureFullData() {
+    async function ensureFullData(): Promise<void> {
         if (state.fullLoaded || state.loading) return;
         state.fullLoaded = true;
         await loadData(false);
@@ -731,8 +733,8 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   RENDER / PAGINACIÓN
     // =========================
-    function renderPage() {
-        const tbody = $('#catcodificacion-body');
+    function renderPage(): void {
+        const tbody = qs('#catcodificacion-body');
         if (!tbody) return;
 
         const totalCols = CONFIG.columnas.length;
@@ -762,8 +764,8 @@ import { openLMatModal } from './lmat-modal';
             const globalIndex = startIndex + rowIndex;
             const tr = document.createElement('tr');
             tr.className = 'cursor-pointer transition-colors';
-            tr.dataset.index = globalIndex;
-            tr.dataset.catId = row.Id || '';
+            tr.dataset.index = String(globalIndex);
+            tr.dataset.catId = String(row.Id || '');
 
             // Verificar si esta fila está seleccionada
             const isSelected = state.selectedRowIndex === globalIndex;
@@ -791,9 +793,9 @@ import { openLMatModal } from './lmat-modal';
                     actualizarEstadoBotonRevivir();
                 } else {
                     // Deseleccionar fila anterior si existe
-                    const prevSelected = tbody.querySelector('tr.codificacion-row-selected');
+                    const prevSelected = tbody.querySelector<HTMLTableRowElement>('tr.codificacion-row-selected');
                     if (prevSelected) {
-                        const prevIdx = parseInt(prevSelected.dataset.index, 10);
+                        const prevIdx = parseInt(prevSelected.dataset.index ?? '', 10);
                         const prevRowIdx = prevIdx - startIndex;
                         prevSelected.classList.remove('codificacion-row-selected', 'bg-white', 'bg-gray-100', 'hover:bg-gray-100', 'hover:bg-gray-200');
                         prevSelected.classList.add(...(prevRowIdx % 2 === 0 ? ['bg-white', 'hover:bg-gray-100'] : ['bg-gray-100', 'hover:bg-gray-200']));
@@ -817,12 +819,12 @@ import { openLMatModal } from './lmat-modal';
             });
 
             CONFIG.columnas.forEach((col, colIdx) => {
-                const segmentClass = (CONFIG.columnSegmentClass && CONFIG.columnSegmentClass[col]) ? CONFIG.columnSegmentClass[col] : '';
+                const segmentClass = CONFIG.columnSegmentClass?.[col] ?? '';
                 const td = document.createElement('td');
                 td.className = 'px-3 py-1.5 border-b border-gray-100 whitespace-nowrap text-[11px] column-' + colIdx + ' ' + segmentClass + ' ' +
                     (isSelected ? 'text-white' : 'text-gray-700');
                 td.setAttribute('data-column', col);
-                td.setAttribute('data-index', colIdx);
+                td.setAttribute('data-index', String(colIdx));
                 const value = row[col] ?? '';
                 td.textContent = formatDateOnly(value, col);
                 if (col === 'OrdenTejido' && (row.TieneLMat === 1 || row.TieneLMat === '1')) {
@@ -851,20 +853,20 @@ import { openLMatModal } from './lmat-modal';
         actualizarEstadoBotonRevivir();
     }
 
-    function updatePagination() {
+    function updatePagination(): void {
         const total      = state.filtered.length;
         const totalPages = Math.max(1, Math.ceil(total / state.perPage));
 
         state.page = Math.min(state.page, totalPages);
 
-        const currentEl    = $('#pagination-current');
-        const totalPagesEl = $('#pagination-total-pages');
+        const currentEl    = qs('#pagination-current');
+        const totalPagesEl = qs('#pagination-total-pages');
 
-        if (currentEl)    currentEl.textContent    = state.page;
-        if (totalPagesEl) totalPagesEl.textContent = totalPages;
+        if (currentEl)    currentEl.textContent    = String(state.page);
+        if (totalPagesEl) totalPagesEl.textContent = String(totalPages);
 
-        const prev = $('#pagination-prev');
-        const next = $('#pagination-next');
+        const prev = qs<HTMLButtonElement>('#pagination-prev');
+        const next = qs<HTMLButtonElement>('#pagination-next');
 
         if (prev) prev.disabled = state.page <= 1;
         // En la última página del set reciente, "Siguiente" sigue activo: carga el histórico
@@ -874,14 +876,19 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   COLUMNAS FIJADAS
     // =========================
-    function getColumnElements(index) {
-        return $$('#mainTable .column-' + index);
+    function getColumnElements(index: number): HTMLElement[] {
+        return qsa('#mainTable .column-' + index);
     }
 
-    function updatePinnedPositions() {
-        const table = $('#mainTable');
+    // Sin columnas fijadas las celdas recién pintadas no traen estilos: limpiar solo si antes hubo.
+    let habiaFijadas = false;
+
+    function updatePinnedPositions(): void {
+        const table = qs('#mainTable');
         if (!table || !state.pinnedColumns || !state.pinnedColumns.length) {
-            $$('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
+            if (!habiaFijadas) return;
+            habiaFijadas = false;
+            qsa('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
                 el.classList.remove('codificacion-pinned');
                 el.style.left = '';
                 el.style.zIndex = '';
@@ -890,6 +897,7 @@ import { openLMatModal } from './lmat-modal';
             });
             return;
         }
+        habiaFijadas = true;
         let left = 0;
         state.pinnedColumns.forEach(idx => {
             const els = getColumnElements(idx);
@@ -909,7 +917,7 @@ import { openLMatModal } from './lmat-modal';
             });
             left += w;
         });
-        $$('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
+        qsa('#mainTable th[data-index], #mainTable td[data-index]').forEach(el => {
             const dataIndex = el.getAttribute('data-index');
             const idx = dataIndex !== null && dataIndex !== '' ? parseInt(dataIndex, 10) : NaN;
             if (Number.isNaN(idx) || !state.pinnedColumns.includes(idx)) {
@@ -922,7 +930,7 @@ import { openLMatModal } from './lmat-modal';
         });
     }
 
-    function updateColumnHeaderIcons() {
+    function updateColumnHeaderIcons(): void {
         if (!CONFIG.columnas || !CONFIG.columnas.length) return;
         CONFIG.columnas.forEach((col, idx) => {
             const th = document.querySelector('#mainTable thead th.column-' + idx);
@@ -945,16 +953,10 @@ import { openLMatModal } from './lmat-modal';
         });
     }
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
     // =========================
     //   FILTROS
     // =========================
-    function aplicarFiltrosAND() {
+    function aplicarFiltrosAND(): void {
         if (!state.data.length) {
             state.filtered = [];
             return;
@@ -978,10 +980,9 @@ import { openLMatModal } from './lmat-modal';
 
         // Aplicar filtros por columna (desde menú contextual)
         if (state.filtrosPorColumna && state.filtrosPorColumna.length) {
-            const byColumn = {};
+            const byColumn: Record<string, string[]> = {};
             state.filtrosPorColumna.forEach(f => {
-                if (!byColumn[f.column]) byColumn[f.column] = [];
-                byColumn[f.column].push(String(f.value || '').toLowerCase().trim());
+                (byColumn[f.column] ??= []).push(String(f.value || '').toLowerCase().trim());
             });
             filtered = filtered.filter(row => {
                 return Object.entries(byColumn).every(([col, values]) => {
@@ -1001,8 +1002,8 @@ import { openLMatModal } from './lmat-modal';
 
         // Mantener ordenamiento por Id descendente (más nuevos primero)
         state.filtered.sort((a, b) => {
-            const idA = parseInt(a.Id) || 0;
-            const idB = parseInt(b.Id) || 0;
+            const idA = parseInt(String(a.Id)) || 0;
+            const idB = parseInt(String(b.Id)) || 0;
             return idB - idA; // Descendente: mayor Id primero
         });
 
@@ -1014,13 +1015,13 @@ import { openLMatModal } from './lmat-modal';
         actualizarEstadoBotonRevivir();
     }
 
-    function updateFilterCount() {
-        const counter = document.getElementById('filter-count');
+    function updateFilterCount(): void {
+        const counter = qs('#filter-count');
         if (!counter) return;
 
         const count = state.filtros.length + (state.filtrosPorColumna?.length || 0) + (state.lmatFilterActive ? 1 : 0);
         if (count > 0) {
-            counter.textContent = count;
+            counter.textContent = String(count);
             counter.classList.remove('hidden');
         } else {
             counter.classList.add('hidden');
@@ -1030,7 +1031,7 @@ import { openLMatModal } from './lmat-modal';
     /**
      * Acción rápida: filtrar solo registros con OrdCompartida y OrdCompartidaLider llenos.
      */
-    async function aplicarAccionRapidaOrdCompartida() {
+    async function aplicarAccionRapidaOrdCompartida(): Promise<void> {
         await ensureFullData();
         if (!state.data.length) {
             showToast('Espera a que carguen los datos', 'warning');
@@ -1064,7 +1065,7 @@ import { openLMatModal } from './lmat-modal';
     /**
      * Agrupar LMat: mostrar solo las órdenes que ya tienen lista de materiales en CatLMat.
      */
-    async function aplicarFiltroLMat() {
+    async function aplicarFiltroLMat(): Promise<void> {
         await ensureFullData();
         if (!state.data.length) {
             showToast('Espera a que carguen los datos', 'warning');
@@ -1082,13 +1083,13 @@ import { openLMatModal } from './lmat-modal';
         );
     }
 
-    function quitarFiltroLMat() {
+    function quitarFiltroLMat(): void {
         state.lmatFilterActive = false;
         aplicarFiltrosAND();
         showToast('Agrupado LMat quitado', 'info');
     }
 
-    async function filtrarCodificacion() {
+    async function filtrarCodificacion(): Promise<void> {
         await ensureFullData();
         notify.dialog({
             titulo: 'Filtrar datos',
@@ -1160,11 +1161,11 @@ import { openLMatModal } from './lmat-modal';
                 }
 
                 // Poblar select columnas
-                const colSelect = document.getElementById('filtro-columna');
+                const colSelect = qs<HTMLSelectElement>('#filtro-columna');
                 if (colSelect) {
                     CONFIG.columnas.forEach((col, idx) => {
                         const option = document.createElement('option');
-                        option.value = idx;
+                        option.value = String(idx);
                         option.textContent = col;
                         colSelect.appendChild(option);
                     });
@@ -1191,7 +1192,7 @@ import { openLMatModal } from './lmat-modal';
                     notify.close();
                 });
 
-                const valorInput = document.getElementById('filtro-valor');
+                const valorInput = qs<HTMLInputElement>('#filtro-valor');
                 valorInput?.addEventListener('keydown', e => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1199,14 +1200,23 @@ import { openLMatModal } from './lmat-modal';
                     }
                 });
 
+                const lista = qs('#modal-filters-list');
+                if (lista) {
+                    delegate(lista, 'click', '[data-quitar-filtro]', (_e, boton) => {
+                        const index = Number(boton.dataset.quitarFiltro);
+                        if (boton.dataset.tipo === 'columna') removeFilterPorColumna(index);
+                        else removeFilterFromModal(index);
+                    });
+                }
+
                 renderModalFilters();
             }
         });
     }
 
-    function addFilterFromModal() {
-        const colSelect  = document.getElementById('filtro-columna');
-        const valueInput = document.getElementById('filtro-valor');
+    function addFilterFromModal(): void {
+        const colSelect  = qs<HTMLSelectElement>('#filtro-columna');
+        const valueInput = qs<HTMLInputElement>('#filtro-valor');
         if (!colSelect || !valueInput) return;
 
         const columna = parseInt(colSelect.value, 10);
@@ -1243,7 +1253,7 @@ import { openLMatModal } from './lmat-modal';
         }
     }
 
-    function renderModalFilters() {
+    function renderModalFilters(): void {
         const container = document.getElementById('modal-active-filters');
         const list      = document.getElementById('modal-filters-list');
         const clearBox  = document.getElementById('btn-clear-container');
@@ -1267,7 +1277,7 @@ import { openLMatModal } from './lmat-modal';
             html += '<span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-[10px]">' +
                 '<span class="font-semibold">' + escapeHtml(colName) + ':</span>' +
                 '<span>"' + escapeHtml(filtro.valor) + '"</span>' +
-                '<button type="button" class="ml-1 hover:text-red-600 font-bold" onclick="removeFilterFromModal(' + index + ')">' +
+                '<button type="button" class="ml-1 hover:text-red-600 font-bold" data-quitar-filtro="' + index + '">' +
                     '&times;' +
                 '</button>' +
             '</span>';
@@ -1280,7 +1290,7 @@ import { openLMatModal } from './lmat-modal';
                     '<i class="fas fa-filter text-yellow-600"></i>' +
                     '<span class="font-semibold">' + escapeHtml(colLabel) + ':</span>' +
                     '<span>"' + escapeHtml(filtro.value) + '"</span>' +
-                    '<button type="button" class="ml-1 hover:text-red-600 font-bold" onclick="removeFilterPorColumna(' + index + ')">' +
+                    '<button type="button" class="ml-1 hover:text-red-600 font-bold" data-quitar-filtro="' + index + '" data-tipo="columna">' +
                         '&times;' +
                     '</button>' +
                 '</span>';
@@ -1289,7 +1299,7 @@ import { openLMatModal } from './lmat-modal';
         list.innerHTML = html;
     }
 
-    function removeFilterPorColumna(index) {
+    function removeFilterPorColumna(index: number): void {
         state.filtrosPorColumna.splice(index, 1);
         aplicarFiltrosAND();
         state.page = 1;
@@ -1300,14 +1310,14 @@ import { openLMatModal } from './lmat-modal';
         showToast('Filtro eliminado', 'info');
     }
 
-    function removeFilterFromModal(index) {
+    function removeFilterFromModal(index: number): void {
         state.filtros.splice(index, 1);
         aplicarFiltrosAND();
         renderModalFilters();
         showToast('Filtro eliminado', 'info');
     }
 
-    function limpiarFiltrosCodificacion() {
+    function limpiarFiltrosCodificacion(): void {
         state.filtros = [];
         state.filtrosPorColumna = [];
         state.lmatFilterActive = false;
@@ -1323,11 +1333,11 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   MENÚ CONTEXTUAL EN ENCABEZADOS
     // =========================
-    const menu = $('#codificacionContextMenuHeader');
-    let menuColumnIndex = null;
-    let menuColumnField = null;
+    const menu = qs('#codificacionContextMenuHeader');
+    let menuColumnIndex: number | null = null;
+    let menuColumnField: string | null = null;
 
-    function hideContextMenu() {
+    function hideContextMenu(): void {
         if (menu) {
             menu.classList.add('hidden');
             menu.style.display = 'none';
@@ -1336,11 +1346,11 @@ import { openLMatModal } from './lmat-modal';
         menuColumnField = null;
     }
 
-    function showContextMenu(e, columnIndex, columnField) {
+    function showContextMenu(e: MouseEvent, columnIndex: number, columnField: string): void {
         menuColumnIndex = columnIndex;
         menuColumnField = columnField;
         if (!menu) return;
-        const fijarLabel = $('#codificacionCtxFijarLabel');
+        const fijarLabel = qs('#codificacionCtxFijarLabel');
         if (fijarLabel) fijarLabel.textContent = state.pinnedColumns.includes(columnIndex) ? 'Desfijar' : 'Fijar';
         menu.style.left = e.clientX + 'px';
         menu.style.top = e.clientY + 'px';
@@ -1351,15 +1361,14 @@ import { openLMatModal } from './lmat-modal';
         menu.classList.remove('hidden');
     }
 
-    async function openFilterModal(columnIndex, columnField) {
+    async function openFilterModal(columnField: string): Promise<void> {
         await ensureFullData();
         const columnLabel = CONFIG.columnLabels[columnField] || columnField;
-        const valueCounts = new Map();
+        const valueCounts = new Map<string, number>();
         state.filtered.forEach(row => {
             const v = row[columnField];
             const str = (v != null ? String(v) : '').trim();
-            if (!valueCounts.has(str)) valueCounts.set(str, { raw: str, count: 0 });
-            valueCounts.get(str).count++;
+            valueCounts.set(str, (valueCounts.get(str) ?? 0) + 1);
         });
         const uniqueValues = Array.from(valueCounts.keys()).filter(Boolean).sort();
         if (uniqueValues.length === 0) {
@@ -1373,8 +1382,7 @@ import { openLMatModal } from './lmat-modal';
         html += '<div class="mb-2 pb-2 border-b border-gray-200"><input type="text" id="codificacionFilterSearch" placeholder="Buscar..." class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"></div>';
         html += '<div id="codificacionFilterCheckboxes" class="space-y-1">';
         uniqueValues.forEach(value => {
-            const entry = valueCounts.get(value);
-            const count = entry ? entry.count : 0;
+            const count = valueCounts.get(value) ?? 0;
             const checked = currentForColumn.includes(value) ? ' checked' : '';
             html += '<label class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"><div class="flex items-center gap-2">';
             html += '<input type="checkbox" class="codificacion-filter-cb w-4 h-4 text-blue-600" value="' + escapeHtml(value) + '"' + checked + '>';
@@ -1389,8 +1397,8 @@ import { openLMatModal } from './lmat-modal';
             cancelText: 'Cancelar',
             width: 'lg',
             didOpen: () => {
-                const search = document.getElementById('codificacionFilterSearch');
-                const container = document.getElementById('codificacionFilterCheckboxes');
+                const search = qs<HTMLInputElement>('#codificacionFilterSearch');
+                const container = qs('#codificacionFilterCheckboxes');
                 if (search && container) {
                     search.addEventListener('input', () => {
                         const term = search.value.toLowerCase();
@@ -1402,7 +1410,7 @@ import { openLMatModal } from './lmat-modal';
                 }
             },
             preConfirm: () => {
-                const checked = $$('.codificacion-filter-cb:checked').map(cb => cb.value);
+                const checked = qsa<HTMLInputElement>('.codificacion-filter-cb:checked').map(cb => cb.value);
                 return checked;
             }
         }).then(seleccion => {
@@ -1421,9 +1429,9 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   INIT
     // =========================
-    function initPaginationEvents() {
-        const prev = $('#pagination-prev');
-        const next = $('#pagination-next');
+    function initPaginationEvents(): void {
+        const prev = qs<HTMLButtonElement>('#pagination-prev');
+        const next = qs<HTMLButtonElement>('#pagination-next');
 
         if (prev) {
             prev.addEventListener('click', () => {
@@ -1453,20 +1461,18 @@ import { openLMatModal } from './lmat-modal';
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    onReady(() => {
         initPaginationEvents();
         loadData();
         window.addEventListener('resize', () => updatePinnedPositions());
 
         // Eventos del menú contextual en encabezados
-        const thead = $('#mainTable thead');
+        const thead = qs('#mainTable thead');
         if (thead) {
-            thead.addEventListener('contextmenu', (e) => {
-                const th = e.target.closest('th');
-                if (!th) return;
+            delegate<HTMLTableCellElement, MouseEvent>(thead, 'contextmenu', 'th', (e, th) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const columnIndex = parseInt(th.getAttribute('data-index'), 10);
+                const columnIndex = parseInt(th.getAttribute('data-index') ?? '', 10);
                 const columnField = th.getAttribute('data-column');
                 if (Number.isNaN(columnIndex) || !columnField) return;
                 showContextMenu(e, columnIndex, columnField);
@@ -1474,18 +1480,16 @@ import { openLMatModal } from './lmat-modal';
         }
 
         document.addEventListener('click', (e) => {
-            if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target)) hideContextMenu();
+            if (menu && !menu.classList.contains('hidden') && !(e.target instanceof Node && menu.contains(e.target))) hideContextMenu();
         });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') hideContextMenu();
         });
 
         // Clic en iconos del encabezado: quitar filtro o desfijar
-        const mainTable = $('#mainTable');
+        const mainTable = qs('#mainTable');
         if (mainTable) {
-            mainTable.addEventListener('click', (e) => {
-                const btn = e.target.closest('.codificacion-header-icon');
-                if (!btn) return;
+            delegate(mainTable, 'click', '.codificacion-header-icon', (e, btn) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const action = btn.getAttribute('data-action');
@@ -1501,7 +1505,7 @@ import { openLMatModal } from './lmat-modal';
                 } else if (action === 'clear-lmat') {
                     quitarFiltroLMat();
                 } else if (action === 'unpin') {
-                    const idx = parseInt(btn.getAttribute('data-index'), 10);
+                    const idx = parseInt(btn.getAttribute('data-index') ?? '', 10);
                     if (!Number.isNaN(idx)) {
                         const i = state.pinnedColumns.indexOf(idx);
                         if (i >= 0) {
@@ -1512,24 +1516,22 @@ import { openLMatModal } from './lmat-modal';
                     }
                 }
             });
-            mainTable.addEventListener('contextmenu', (e) => {
-                if (e.target.closest('.codificacion-header-icon')) e.stopPropagation();
-            });
+            delegate(mainTable, 'contextmenu', '.codificacion-header-icon', (e) => e.stopPropagation());
         }
 
-        $('#codificacionCtxFiltrar')?.addEventListener('click', () => {
+        qs('#codificacionCtxFiltrar')?.addEventListener('click', () => {
             const idx = menuColumnIndex;
             const field = menuColumnField;
             hideContextMenu();
-            if (idx != null && field) openFilterModal(idx, field);
+            if (idx != null && field) openFilterModal(field);
         });
 
-        $('#codificacionCtxLmat')?.addEventListener('click', () => {
+        qs('#codificacionCtxLmat')?.addEventListener('click', () => {
             hideContextMenu();
             aplicarFiltroLMat();
         });
 
-        $('#codificacionCtxFijar')?.addEventListener('click', () => {
+        qs('#codificacionCtxFijar')?.addEventListener('click', () => {
             const idx = menuColumnIndex;
             hideContextMenu();
             if (idx == null) return;
@@ -1548,8 +1550,8 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   ACTUALIZAR ESTADO BOTÓN REIMPRIMIR Y BALANCEAR
     // =========================
-    function actualizarEstadoBotonLMat() {
-        const btnLMat = document.getElementById('btn-lmat');
+    function actualizarEstadoBotonLMat(): void {
+        const btnLMat = qs<HTMLButtonElement>('#btn-lmat');
         if (!btnLMat) return;
 
         const registroSeleccionado = state.selectedRowIndex !== null
@@ -1569,8 +1571,8 @@ import { openLMatModal } from './lmat-modal';
                 : 'Lista de materiales');
     }
 
-    function actualizarEstadoBotonReimprimir() {
-        const btnReimprimir = document.getElementById('btn-reimprimir-seleccionado');
+    function actualizarEstadoBotonReimprimir(): void {
+        const btnReimprimir = qs<HTMLButtonElement>('#btn-reimprimir-seleccionado');
         actualizarEstadoBotonLMat();
         if (!btnReimprimir) return;
 
@@ -1595,8 +1597,8 @@ import { openLMatModal } from './lmat-modal';
         actualizarEstadoBotonBalancear();
     }
 
-    function actualizarEstadoBotonBalancear() {
-        const btnBalancear = document.getElementById('btn-balancear');
+    function actualizarEstadoBotonBalancear(): void {
+        const btnBalancear = qs<HTMLButtonElement>('#btn-balancear');
         if (!btnBalancear) return;
 
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
@@ -1616,8 +1618,8 @@ import { openLMatModal } from './lmat-modal';
         btnBalancear.disabled = !tieneOrdCompartida;
     }
 
-    function actualizarEstadoBotonRevivir() {
-        const btn = document.getElementById('btn-revivir-programa');
+    function actualizarEstadoBotonRevivir(): void {
+        const btn = qs<HTMLButtonElement>('#btn-revivir-programa');
         if (!btn) return;
 
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
@@ -1641,7 +1643,7 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   REVIVIR ORDEN A PROGRAMA DE TEJIDO
     // =========================
-    async function revivirOrdenAlPrograma() {
+    async function revivirOrdenAlPrograma(): Promise<void> {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
             showToast('Selecciona un registro primero', 'warning');
             return;
@@ -1679,42 +1681,29 @@ import { openLMatModal } from './lmat-modal';
         try {
             notify.loading('Procesando...');
 
-            const resp = await fetch('/planeacion/codificacion/api/revivir-programa', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': getCsrf(),
-                },
-                body: JSON.stringify({
-                    cat_id: parseInt(r.Id, 10),
-                    en_proceso: enProceso,
-                }),
+            const json = await http.post<RespuestaCod<{ programa_id?: number }>>('/planeacion/codificacion/api/revivir-programa', {
+                cat_id: parseInt(String(r.Id), 10),
+                en_proceso: enProceso,
             });
-
-            const json = await resp.json().catch(() => ({}));
             notify.close();
 
             if (!json.s) {
-                const msg = json.e || json.message || 'Error al revivir la orden';
-                const errDetail = json.errors && typeof json.errors === 'object'
-                    ? Object.values(json.errors).flat().join(' ')
-                    : '';
-                showToast(errDetail || msg, 'error');
+                showToast(json.e || json.message || 'Error al revivir la orden', 'error');
                 return;
             }
 
-            showToast('Orden creada en programa (Id ' + (json.d && json.d.programa_id ? json.d.programa_id : '') + ')', 'success');
+            showToast('Orden creada en programa (Id ' + (json.d?.programa_id ?? '') + ')', 'success');
         } catch (e) {
             notify.close();
-            showToast(e.message || 'Error de red', 'error');
+            const errDetail = e instanceof HttpError && e.errors ? Object.values(e.errors).flat().join(' ') : '';
+            showToast(errDetail || mensajeError(e, 'Error de red'), 'error');
         }
     }
 
     // =========================
     //   BALANCEAR - VER REGISTROS COMPARTIDOS
     // =========================
-    async function abrirModalBalancear() {
+    async function abrirModalBalancear(): Promise<void> {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
             showToast('Selecciona un registro primero', 'warning');
             return;
@@ -1737,10 +1726,9 @@ import { openLMatModal } from './lmat-modal';
         try {
             notify.loading('Cargando registros compartidos...');
 
-            const resp = await fetch(`/planeacion/codificacion/api/registros-ord-compartida/${encodeURIComponent(ordCompartida)}`, {
-                headers: { 'Accept': 'application/json' }
-            });
-            const data = await resp.json();
+            const data = await http.get<{ success?: boolean; message?: string; registros?: RegistroCat[]; tieneLideres?: boolean }>(
+                `/planeacion/codificacion/api/registros-ord-compartida/${encodeURIComponent(String(ordCompartida))}`,
+            );
 
             notify.close();
 
@@ -1752,12 +1740,6 @@ import { openLMatModal } from './lmat-modal';
             const registros = data.registros;
             const cantidad = registros.length;
             const tieneLideres = data.tieneLideres === true;
-
-            const escapeHtml = (t) => {
-                const d = document.createElement('div');
-                d.textContent = t;
-                return d.innerHTML;
-            };
 
             let html = '<div class="text-left">';
             html += '<p class="text-sm text-gray-600 mb-3">OrdCompartida: <strong>' + escapeHtml(String(ordCompartida)) + '</strong> · ' + cantidad + ' registro(s)</p>';
@@ -1798,14 +1780,14 @@ import { openLMatModal } from './lmat-modal';
             notify.html(html, 'Registros compartidos', 'info');
         } catch (error) {
             notify.close();
-            showToast(error.message || 'Error al cargar registros compartidos', 'error');
+            showToast(mensajeError(error, 'Error al cargar registros compartidos'), 'error');
         }
     }
 
     // =========================
     //   REIMPRIMIR ORDEN SELECCIONADA
     // =========================
-    function reimprimirOrdenSeleccionada() {
+    function reimprimirOrdenSeleccionada(): void {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) {
             showToast('Debes seleccionar un registro primero', 'warning');
             return;
@@ -1832,7 +1814,7 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   REIMPRIMIR ORDEN POR ID
     // =========================
-    async function reimprimirOrden(id) {
+    async function reimprimirOrden(id: unknown): Promise<void> {
         if (!id) {
             showToast('ID de orden no válido', 'error');
             return;
@@ -1845,20 +1827,10 @@ import { openLMatModal } from './lmat-modal';
             // Llamar a la ruta de reimpresión
             const url = `/planeacion/programa-tejido/reimprimir-ordenes/${id}`;
 
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                }
+            const blob = await http.get<Blob>(url, {
+                responseType: 'blob',
+                headers: { Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
             });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
-            }
-
-            // Obtener el blob del Excel
-            const blob = await response.blob();
 
             // Crear URL temporal y descargar
             const downloadUrl = window.URL.createObjectURL(blob);
@@ -1874,7 +1846,11 @@ import { openLMatModal } from './lmat-modal';
             showToast('Orden reimpresa correctamente', 'success');
         } catch (error) {
             notify.close();
-            showToast(error.message || 'Error al reimprimir la orden', 'error');
+            // Con responseType blob el JSON de error del servidor llega como Blob.
+            const cuerpo = error instanceof HttpError && error.data instanceof Blob
+                ? await error.data.text().then((t): { message?: string } => JSON.parse(t)).catch(() => null)
+                : null;
+            showToast(cuerpo?.message || mensajeError(error, 'Error al reimprimir la orden'), 'error');
             console.error('Error al reimprimir orden:', error);
         }
     }
@@ -1882,19 +1858,21 @@ import { openLMatModal } from './lmat-modal';
     // =========================
     //   EXPOSE GLOBAL
     // =========================
-    window.mostrarAlertaNavbar         = mostrarAlertaNavbar;
-    window.mostrarModalLMat            = mostrarModalLMat;
-    window.filtrarCodificacion         = filtrarCodificacion;
-    window.limpiarFiltrosCodificacion  = limpiarFiltrosCodificacion;
-    window.removeFilterFromModal       = removeFilterFromModal;
-    window.removeFilterPorColumna      = removeFilterPorColumna;
-    window.loadData                    = loadData;
-    window.reimprimirOrden              = reimprimirOrden;
-    window.revivirOrdenAlPrograma       = revivirOrdenAlPrograma;
-    window.reimprimirOrdenSeleccionada  = reimprimirOrdenSeleccionada;
-    window.abrirModalBalancear          = abrirModalBalancear;
+    // Los usan los botones del Blade y excel-upload (window.loadData).
+    Object.assign(window, {
+        mostrarAlertaNavbar,
+        mostrarModalLMat,
+        filtrarCodificacion,
+        limpiarFiltrosCodificacion,
+        loadData,
+        reimprimirOrden,
+        revivirOrdenAlPrograma,
+        reimprimirOrdenSeleccionada,
+        abrirModalBalancear,
+    });
 
-    window.addEventListener('redbooth:updated', (event) => {
+    window.addEventListener('redbooth:updated', (evento) => {
+        const event = evento as CustomEvent<{ source?: string; registroId?: unknown; idRedbooth?: unknown; nombreRedbooth?: unknown }>;
         if (event.detail?.source !== 'catcodificados') return;
         const registroId = String(event.detail.registroId || '');
         [...state.data, ...state.filtered].forEach((registro) => {
