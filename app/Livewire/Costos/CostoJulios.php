@@ -148,7 +148,7 @@ class CostoJulios extends Component
      */
     public static function totales(Collection $julios, array $conceptos): array
     {
-        $t = ['julios' => $julios->count(), 'kg' => (float) $julios->sum('kg'), 'mp' => (float) $julios->sum('mp')];
+        $t = ['julios' => $julios->count(), 'minutos' => (float) $julios->sum('minutos'), 'kg' => (float) $julios->sum('kg'), 'mp' => (float) $julios->sum('mp')];
         foreach (array_keys($conceptos) as $col) {
             $t[$col] = (float) $julios->sum($col);
         }

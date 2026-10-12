@@ -22,8 +22,8 @@ class CostoJuliosExport implements FromArray, ShouldAutoSize, WithHeadings, With
 
     public function headings(): array
     {
-        return ['Fecha', 'Folio', 'No. julio', 'Máquina', 'Artículo', 'Rizo/Pie', 'Horario', 'Minutos', 'Kg neto',
-            'Materia prima', ...array_values($this->conceptos), 'Conversión', 'Costo total', 'MP $/kg', 'Conversión $/kg', 'Total $/kg'];
+        return ['Fecha', 'Folio', 'No. julio', 'Máquina', 'Artículo', 'Rizo/Pie', 'Horario', 'T. prod (min)', 'Cantidad (kg)',
+            'MP', ...array_values($this->conceptos), 'Conversión', 'Costo total', 'MP $/kg', 'Conversión $/kg', 'Total $/kg'];
     }
 
     public function array(): array
