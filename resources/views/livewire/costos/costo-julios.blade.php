@@ -11,16 +11,8 @@
 {{-- Raíz sin scroll: el spinner queda al centro de lo visible, no del contenido desplazado. --}}
 <div class="relative flex min-h-0 flex-1 flex-col">
 <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-2">
-    @php
-        $diferencia = $cuadre === null ? null : array_sum(array_map(fn ($c) => $c['julios'] - $c['sab'], $cuadre));
-        [$cuadreTono, $cuadreTexto] = match (true) {
-            $cuadre === null => ['bg-slate-100 text-slate-600', 'Sin cuota real'],
-            abs($diferencia) < 1 => ['bg-emerald-100 text-emerald-800', 'Cuadra con AX'],
-            default => ['bg-amber-100 text-amber-800', 'Diferencia con AX: '.$pesos($diferencia, 0)],
-        };
-    @endphp
-    {{-- Periodo y estado del mes en una sola barra. Solo los meses con costo; cada uno dice cuántos julios tiene. --}}
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+    {{-- Periodo en una sola barra. Solo los meses con costo; cada uno dice cuántos julios tiene. --}}
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-800 bg-slate-900 p-2 shadow-md">
         <div class="w-24 shrink-0">
             <flux:select wire:model.live="anio" aria-label="Año">
                 @foreach ($anios as $a)
@@ -37,12 +29,6 @@
                 @endforelse
             </flux:select>
         </div>
-
-        @if ($mesTotal['julios'] > 0)
-            <span class="text-sm text-slate-500">{{ number_format($folios->count()) }} folios</span>
-            <span class="rounded-full px-2.5 py-0.5 text-sm font-semibold {{ $cuadreTono }}"
-                  title="Suma del costo de los julios contra la sábana de gastos de AX">{{ $cuadreTexto }}</span>
-        @endif
 
         <flux:button icon="arrow-down-tray" class="ms-auto min-h-touch shrink-0" wire:click="abrirExportar" :disabled="$meses === []">Exportar</flux:button>
     </div>
@@ -135,10 +121,10 @@
             </section>
         </div>
 
-        {{-- MP de los julios contra el consumo del kardex de AX, por máquina. Kg en ámbar fuera de 90–110 %. --}}
+        {{-- MP de fórmula de los julios contra el consumo del kardex de AX, por máquina: la diferencia es la merma. Kg en ámbar fuera de 90–110 %. --}}
         @if ($kardex !== null)
             @php
-                $filasMp = collect($kardex)->map(fn ($k, $m) => ['kardex' => $k, 'julios' => $porMaquina[$m] ?? ['kg' => 0.0, 'mp' => 0.0]]);
+                $filasMp = collect($kardex)->map(fn ($k, $m) => ['kardex' => $k, 'julios' => ['kg' => $porMaquina[$m]['kg'] ?? 0.0, 'mp' => $mpFormula[$m] ?? 0.0]]);
                 $totalMp = ['kardex' => ['kg' => $filasMp->sum('kardex.kg'), 'imp' => $filasMp->sum('kardex.imp')], 'julios' => ['kg' => $filasMp->sum('julios.kg'), 'mp' => $filasMp->sum('julios.mp')]];
             @endphp
             <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="cj-kardex">
@@ -152,9 +138,9 @@
                                 <th class="pb-1 text-end font-normal">Kg julios</th>
                                 <th class="pb-1 text-end font-normal">Kg kardex</th>
                                 <th class="pb-1 text-end font-normal">%</th>
-                                <th class="pb-1 text-end font-normal">MP julios</th>
+                                <th class="pb-1 text-end font-normal">MP fórmula</th>
                                 <th class="pb-1 text-end font-normal">MP kardex</th>
-                                <th class="pb-1 text-end font-normal">$/kg julios</th>
+                                <th class="pb-1 text-end font-normal">$/kg fórmula</th>
                                 <th class="pb-1 text-end font-normal">$/kg kardex</th>
                             </tr>
                         </thead>
@@ -328,7 +314,7 @@
 @endif
 
 {{-- Spinner al centro mientras se leen los julios de otro mes, la búsqueda o la máquina. --}}
-<div wire:loading.delay.flex wire:target="anio,mes,costeo,buscar,filtrarMaquina"
+<div wire:loading.delay.flex wire:target="anio,mes,mp,costeo,buscar,filtrarMaquina"
      class="absolute inset-0 z-30 hidden items-center justify-center rounded-xl bg-white/60">
     <x-ui.spinner size="lg" :inline="true" />
 </div>

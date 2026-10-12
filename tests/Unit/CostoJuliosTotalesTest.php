@@ -27,4 +27,20 @@ class CostoJuliosTotalesTest extends TestCase
 
         $this->assertNull(CostoJulios::totales(collect(), [])['totalKg']);
     }
+
+    public function test_mp_kardex_reparte_el_importe_del_kardex_y_suma_igual(): void
+    {
+        $julios = collect([
+            ['mes' => 9, 'maquina' => 'Mc Coy 1', 'mp' => 1000.0],
+            ['mes' => 9, 'maquina' => 'Mc Coy 1', 'mp' => 3000.0],
+            ['mes' => 9, 'maquina' => 'Karl Mayer', 'mp' => 500.0],  // su máquina no viene en el kardex: se queda
+            ['mes' => 10, 'maquina' => 'Mc Coy 1', 'mp' => 700.0],   // mes sin kardex: se queda
+        ]);
+
+        $ajustados = CostoJulios::ajustarAlKardex($julios, [9 => ['Mc Coy 1' => ['kg' => 0.0, 'imp' => 4400.0]], 10 => null]);
+
+        $this->assertEqualsWithDelta([1100.0, 3300.0, 500.0, 700.0], $ajustados->pluck('mp')->all(), 0.0001);
+        $this->assertEqualsWithDelta([1000.0, 3000.0, 500.0, 700.0], $ajustados->pluck('mpFormula')->all(), 0.0001);
+        $this->assertEqualsWithDelta(4400.0, $ajustados->where('mes', 9)->where('maquina', 'Mc Coy 1')->sum('mp'), 0.0001);
+    }
 }

@@ -59,6 +59,9 @@ class CostoJulios extends Component
     #[Url(as: 'julios_maquina', except: '')]
     public string $maquina = '';
 
+    /** @var array<int, array<string, array{kg: float, imp: float}>|null> kardex por mes, leído una vez por petición */
+    private array $kardexMes = [];
+
     /** @var array{desde?: string, hasta?: string}|null diálogo "Exportar" abierto; null = cerrado */
     public ?array $rangoExcel = null;
 
@@ -104,12 +107,42 @@ class CostoJulios extends Component
 
         $paros = $this->parosPorJulio($desdeMes ?? $this->mes, $hastaMes ?? $desdeMes ?? $this->mes);
 
-        return UrdProduccionUrdido::query()
+        $filas = UrdProduccionUrdido::query()
             ->with('programa:Folio,MaquinaId,Cuenta,Calibre,Fibra,RizoPie')
             ->whereBetween('Fecha', [$desde, $hasta])
             ->orderBy('Fecha')->orderBy('Folio')->orderBy('HoraInicial')
             ->get(['Id', 'Folio', 'Fecha', 'NoJulio', 'Hilos', 'KgNeto', 'HoraInicial', 'HoraFinal', 'ImporteMP', ...array_keys(self::CONCEPTOS)])
             ->map(fn (UrdProduccionUrdido $j): array => $this->renglon($j, $paros[(int) $j->Id] ?? 0.0));
+
+        // MP real: la de fórmula (guardada) se reescala al importe del kardex de AX, que incluye la merma.
+        $meses = range($desdeMes ?? $this->mes, $hastaMes ?? $desdeMes ?? $this->mes);
+
+        return self::ajustarAlKardex($filas, array_combine($meses, array_map(fn ($m) => $this->kardex($m), $meses)));
+    }
+
+    /**
+     * MP según kardex: por mes y máquina, factor = importe del kardex ÷ Σ MP de fórmula de sus julios, y cada
+     * julio queda con su MP × factor. Mes o máquina sin kardex (o sin MP de fórmula) se quedan como estaban.
+     * 'mpFormula' conserva la MP original para comparar contra el kardex (la merma).
+     *
+     * @param  Collection<int, array<string, mixed>>  $julios  con 'mes', 'maquina' y 'mp'
+     * @param  array<int, array<string, array{kg: float, imp: float}>|null>  $kardexPorMes
+     * @return Collection<int, array<string, mixed>>
+     */
+    public static function ajustarAlKardex(Collection $julios, array $kardexPorMes): Collection
+    {
+        $formula = $julios->groupBy(fn ($j) => $j['mes'].'|'.$j['maquina'])->map(fn ($l) => (float) $l->sum('mp'));
+
+        return $julios->map(function (array $j) use ($formula, $kardexPorMes): array {
+            $j['mpFormula'] = $j['mp'];
+            $kardex = $kardexPorMes[$j['mes']][$j['maquina']]['imp'] ?? null;
+            $base = $formula[$j['mes'].'|'.$j['maquina']] ?? 0.0;
+            if ($kardex !== null && $base > 0 && $j['mp'] !== null) {
+                $j['mp'] = $j['mp'] * $kardex / $base;
+            }
+
+            return $j;
+        });
     }
 
     /**
@@ -140,6 +173,7 @@ class CostoJulios extends Component
             'id' => (int) $j->Id,
             'folio' => trim((string) $j->Folio),
             'fecha' => $j->Fecha ? date('d/m/Y', (int) strtotime((string) $j->Fecha)) : '',
+            'mes' => $j->Fecha ? (int) date('n', (int) strtotime((string) $j->Fecha)) : $this->mes,
             'julio' => trim((string) $j->NoJulio),
             'hilos' => $j->Hilos,
             'horario' => $j->HoraInicial ? substr((string) $j->HoraInicial, 0, 5).'–'.substr((string) $j->HoraFinal, 0, 5) : '',
@@ -256,11 +290,19 @@ class CostoJulios extends Component
      *
      * @return array<string, array{kg: float, imp: float}>|null máquina => kg e importe consumidos
      */
-    private function kardex(): ?array
+    private function kardex(?int $mes = null): ?array
+    {
+        $mes ??= $this->mes;
+
+        return array_key_exists($mes, $this->kardexMes) ? $this->kardexMes[$mes] : $this->kardexMes[$mes] = $this->leerKardex($mes);
+    }
+
+    /** @return array<string, array{kg: float, imp: float}>|null */
+    private function leerKardex(int $mes): ?array
     {
         // Una suma por columna de máquina: el builder no la expresa sin raw. Prefijos fijos, sin datos del usuario.
         $fila = rescue(fn () => InvKardexMPConsol::query()
-            ->where('YEARDATE', $this->anio)->where('MONTHDATE', $this->mes)
+            ->where('YEARDATE', $this->anio)->where('MONTHDATE', $mes)
             ->selectRaw(implode(', ', array_map(fn ($p) => "SUM({$p}KG) AS {$p}KG, SUM({$p}IMP) AS {$p}IMP", self::KARDEX)))
             ->toBase()->first());
         if ($fila === null || $fila->MC1KG === null) {
@@ -313,6 +355,7 @@ class CostoJulios extends Component
             'nombreMes' => CosCuota::MESES[$this->mes] ?? '',
             'mesTotal' => self::totales($julios, $conceptos),
             'porMaquina' => $julios->groupBy('maquina')->sortKeys()->map(fn ($l) => self::totales($l, $conceptos)),
+            'mpFormula' => $julios->groupBy('maquina')->map(fn ($l) => (float) $l->sum('mpFormula')),
             'folios' => $filtrados->groupBy('folio')->map(fn ($l) => ['julios' => $l] + self::totales($l, $conceptos) + $l->first()),
             'filtroTotal' => self::totales($filtrados, $conceptos),
             'cuadre' => $this->cuadre($julios),
