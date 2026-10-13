@@ -1,8 +1,8 @@
 @unless ($hayFiltro)
     <flux:card class="flex flex-col items-center gap-2 border-dashed px-6 py-14 text-center">
         <flux:icon.magnifying-glass class="size-8 text-blue-500" />
-        <flux:heading size="lg" level="2">Elige un Flog, artículo o tamaño</flux:heading>
-        <flux:text class="max-w-md">Con cualquiera de los tres filtros ves el pedido, el programa de tejido y su recorrido por las áreas.</flux:text>
+        <flux:heading size="lg" level="2">Elige al menos un filtro</flux:heading>
+        <flux:text class="max-w-md">Con cualquier filtro ves el pedido, el programa de tejido y su recorrido por las áreas. En Flog, Artículo y Tamaño puedes escribir como en AX: 7166,7167 · 7160..7170 · 71*</flux:text>
     </flux:card>
 @else
     @php $resumen = $resumenFlog ?? []; @endphp

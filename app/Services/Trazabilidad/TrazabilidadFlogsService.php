@@ -2,6 +2,7 @@
 
 namespace App\Services\Trazabilidad;
 
+use App\Support\FiltroAx;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -166,8 +167,9 @@ class TrazabilidadFlogsService
                             SUM(CASE WHEN ESTADOLINEA = 2 AND INVENTQTY > FACTURADO THEN INVENTQTY - FACTURADO ELSE 0 END) AS cancelado,
                             SUM(CASE WHEN ESTADOLINEA = 2 THEN 1 ELSE 0 END) AS lineas_canceladas')
                         ->whereIn('IDFLOG', $lote)
-                        ->when($articulo !== '', fn ($query) => $query->where('ITEMID', $articulo))
-                        ->when($tamano !== '', fn ($query) => $query->where('INVENTSIZEID', $tamano))
+                        // Sintaxis de AX (lista, rango, comodín): la misma que el filtro de la pantalla.
+                        ->tap(fn ($query) => FiltroAx::texto($query, 'ITEMID', $articulo))
+                        ->tap(fn ($query) => FiltroAx::texto($query, 'INVENTSIZEID', $tamano))
                         ->groupBy('IDFLOG', 'ITEMID', 'INVENTSIZEID', 'INVENTCOLORID');
 
                     $fila = DB::connection('sqlsrv_ti')->query()->fromSub($porProducto, 'p')

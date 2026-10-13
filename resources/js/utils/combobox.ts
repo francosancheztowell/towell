@@ -43,6 +43,11 @@ export interface OpcionesCombobox {
     permitirVacio?: boolean;
     /** Varias opciones; por defecto, lo que diga `select.multiple`. */
     multiple?: boolean;
+    /**
+     * Agregar lo que se escribe aunque no esté en la lista (múltiple). La coma separa:
+     * escribir o pegar `a,b,c` agrega tres valores.
+     */
+    crear?: boolean;
     /** Cargar las opciones del servidor al buscar (y al abrir). */
     remoto?: RemotoCombobox;
     textos?: Partial<TextosCombobox>;
@@ -75,8 +80,20 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
         maxOptions: null,
         placeholder: opciones.placeholder ?? select.dataset.placeholder ?? '',
         allowEmptyOption: false,
+        // Múltiple: con algo elegido, el "Todos" junto a los chips confunde.
+        hidePlaceholder: multiple,
         render: plantillas(textos, cargar?.fallo),
     };
+
+    if (opciones.crear) {
+        Object.assign(ajustes, {
+            create: true,
+            createOnBlur: true,
+            persist: false,
+            delimiter: ',',
+            splitOn: /\s*,\s*/,
+        });
+    }
 
     if (cargar) {
         Object.assign(ajustes, {

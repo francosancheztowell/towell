@@ -17,9 +17,16 @@ final class TrazabilidadDetailRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'flog' => ['nullable', 'string', 'max:100'],
-            'articulo' => ['nullable', 'string', 'max:100'],
-            'tamano' => ['nullable', 'string', 'max:100'],
+            // Sintaxis de AX: lista con comas, rangos y comodines (ver FiltroAx).
+            'flog' => ['nullable', 'string', 'max:2000'],
+            'articulo' => ['nullable', 'string', 'max:2000'],
+            'tamano' => ['nullable', 'string', 'max:2000'],
+            'cliente' => ['nullable', 'array', 'max:100'],
+            'cliente.*' => ['string', 'max:100'],
+            'anio' => ['nullable', 'digits:4'],
+            'mes' => ['nullable', 'integer', 'between:1,12'],
+            // Detalle Flog con varios Flogs: cuál mostrar.
+            'ver' => ['nullable', 'string', 'max:25'],
         ];
     }
 

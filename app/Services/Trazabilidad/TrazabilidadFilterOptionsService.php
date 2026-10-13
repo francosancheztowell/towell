@@ -15,12 +15,19 @@ class TrazabilidadFilterOptionsService
      * @return array{
      *     flog: Collection<int, mixed>,
      *     articulo: Collection<int, array{codigo:mixed,label:string}>,
-     *     tamano: Collection<int, mixed>
+     *     tamano: Collection<int, mixed>,
+     *     cliente: Collection<int, mixed>,
+     *     anio: Collection<int, mixed>
      * }
      */
-    public function build(TrazabilidadFilters $filters): array
+    public function build(TrazabilidadFilters $filters, bool $sinExcepcion = false): array
     {
-        $facet = fn (string $column, string $except): Collection => TrazaProduccion::query()
+        // $sinExcepcion: cada faceta con TODOS los filtros, incluido el suyo. Es lo que el
+        // resumen necesita para saber qué Flogs/artículos/tamaños quedaron de verdad
+        // (con rangos y comodines no basta con buscar el valor en la lista).
+        $except = static fn (string $campo): ?string => $sinExcepcion ? null : $campo;
+
+        $facet = fn (string $column, ?string $except): Collection => TrazaProduccion::query()
             ->filtrados($filters->toArray(), $except)
             ->whereNotNull($column)
             ->where($column, '<>', '')
@@ -31,7 +38,7 @@ class TrazabilidadFilterOptionsService
         $combo = function (
             string $codeColumn,
             string $nameColumn,
-            string $except
+            ?string $except
         ) use ($filters): Collection {
             return TrazaProduccion::query()->filtrados($filters->toArray(), $except)
                 ->whereNotNull($codeColumn)
@@ -59,20 +66,37 @@ class TrazabilidadFilterOptionsService
         // La clave son solo los filtros que acotan la faceta (todos menos el suyo): con un
         // Flog elegido, la lista de Flogs es la misma que sin filtros y no se vuelve a
         // consultar en cada render de Livewire (medido 240 ms; artículos 359 ms).
-        $remember = static fn (string $key, string $except, callable $callback): mixed => Cache::remember(
-            'traza_opt_'.$key.':'.md5((string) json_encode(array_diff_key($filters->toArray(), [$except => true]))),
+        $remember = static fn (string $key, ?string $except, callable $callback): mixed => Cache::remember(
+            'traza_opt_v2_'.$key.':'.md5((string) json_encode(array_diff_key(
+                $filters->toArray(),
+                // Año acota también al mes: su faceta ignora los dos.
+                $except === 'anio' ? ['anio' => true, 'mes' => true] : [(string) $except => true]
+            ))),
             now()->addMinutes(15),
             $callback
         );
 
         return [
-            'flog' => $remember('flog', 'flog', fn (): Collection => $facet('Flogs', 'flog')),
+            'flog' => $remember('flog', $except('flog'), fn (): Collection => $facet('Flogs', $except('flog'))),
             'articulo' => $remember(
                 'articulo_combo',
-                'articulo',
-                fn (): Collection => $combo('Articulo', 'NombreArticulo', 'articulo')
+                $except('articulo'),
+                fn (): Collection => $combo('Articulo', 'NombreArticulo', $except('articulo'))
             ),
-            'tamano' => $remember('tamano', 'tamano', fn (): Collection => $facet('Tamano', 'tamano')),
+            'tamano' => $remember('tamano', $except('tamano'), fn (): Collection => $facet('Tamano', $except('tamano'))),
+            'cliente' => $sinExcepcion ? collect() : $remember('cliente', $except('cliente'), fn (): Collection => $facet('Cliente', $except('cliente'))),
+            // Años entre la primera y la última fecha: un MIN/MAX en vez de agrupar 266k filas por YEAR().
+            'anio' => $sinExcepcion ? collect() : $remember('anio', 'anio', fn (): Collection => TrazaProduccion::query()
+                ->filtrados($filters->toArray(), 'anio')
+                ->whereNotNull('Fecha')
+                ->selectRaw('MIN(Fecha) AS desde, MAX(Fecha) AS hasta')
+                ->toBase()
+                ->get()
+                ->flatMap(static fn (object $fila): array => $fila->desde === null ? [] : range(
+                    (int) substr((string) $fila->hasta, 0, 4),
+                    (int) substr((string) $fila->desde, 0, 4),
+                ))
+                ->values()),
         ];
     }
 
@@ -113,52 +137,34 @@ class TrazabilidadFilterOptionsService
     }
 
     /**
-     * Reutiliza las opciones facetadas para los textos del resumen.
+     * Valores que de verdad quedaron con los filtros, para los textos del resumen y para
+     * AX/Ventas. Con un campo vacío, su faceta ya es eso; con valor (lista, rango o
+     * comodín) se consulta con todos los filtros. La clave de caché coincide con la de la
+     * faceta cuando el campo está vacío, así que no se consulta dos veces.
      *
-     * Si una faceta está seleccionada, el resumen muestra únicamente esa
-     * selección. Si no lo está, su catálogo ya representa el alcance actual.
-     *
-     * @param  array{
-     *     flog: Collection<int, mixed>,
-     *     articulo: Collection<int, array{codigo:mixed,label:string}>,
-     *     tamano: Collection<int, mixed>
-     * }  $options
+     * @param  array<string, Collection<int, mixed>>|null  $resueltas  build($filters, true); null = consultar.
      * @return array{
      *     flogs: Collection<int, string>,
      *     articulos: Collection<int, string>,
      *     tamanos: Collection<int, string>
      * }
      */
-    public function summaryValues(TrazabilidadFilters $filters, array $options): array
+    public function summaryValues(TrazabilidadFilters $filters, ?array $resueltas = null): array
     {
-        $flogs = $this->selectedOrAll($filters->flog, $options['flog']);
-        $sizes = $this->selectedOrAll($filters->tamano, $options['tamano']);
+        $resueltas ??= $this->build($filters, true);
 
-        $articles = collect($options['articulo'])
-            ->map(static function (array $option): array {
-                $code = trim((string) ($option['codigo'] ?? ''));
-                $label = trim((string) ($option['label'] ?? $code));
-
-                return [
-                    'codigo' => $code,
-                    'resumen' => preg_replace('/\s+\/\s+/', ' · ', $label, 1) ?: $code,
-                ];
-            })
-            ->filter(static fn (array $option): bool => $option['codigo'] !== '');
-
-        if ($filters->articulo !== '') {
-            $selected = $articles->first(
-                static fn (array $option): bool => strcasecmp($option['codigo'], $filters->articulo) === 0
-            );
-            $articleValues = $selected ? collect([$selected['resumen']]) : collect();
-        } else {
-            $articleValues = $articles->pluck('resumen')->values();
-        }
+        /** @var Collection<int, string> $articulos */
+        $articulos = collect($resueltas['articulo'])
+            ->map(static fn (array $option): string => preg_replace(
+                '/\s+\/\s+/', ' · ', trim((string) ($option['label'] ?? $option['codigo'] ?? '')), 1
+            ) ?: trim((string) ($option['codigo'] ?? '')))
+            ->filter()
+            ->values();
 
         return [
-            'flogs' => $flogs,
-            'articulos' => $articleValues,
-            'tamanos' => $sizes,
+            'flogs' => $this->cleanValues($resueltas['flog']),
+            'articulos' => $articulos,
+            'tamanos' => $this->cleanValues($resueltas['tamano']),
         ];
     }
 
@@ -172,23 +178,5 @@ class TrazabilidadFilterOptionsService
             ->map(static fn (mixed $value): string => trim((string) $value))
             ->filter()
             ->values();
-    }
-
-    /**
-     * @param  Collection<int, mixed>  $values
-     * @return Collection<int, string>
-     */
-    private function selectedOrAll(string $selected, Collection $values): Collection
-    {
-        $clean = $this->cleanValues($values);
-        if ($selected === '') {
-            return $clean;
-        }
-
-        $match = $clean->first(
-            static fn (string $value): bool => strcasecmp($value, $selected) === 0
-        );
-
-        return $match !== null ? collect([$match]) : collect();
     }
 }

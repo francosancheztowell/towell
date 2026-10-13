@@ -12,10 +12,12 @@
     $porcentajePendiente = $porcentaje($pendiente);
     $porcentajeCancelado = $porcentaje($cancelado);
     $campos = [
-        ['etiqueta' => 'No. Flog', 'valor' => data_get($resumen, 'flogs.texto', '—'), 'resumen' => $resumen['flogs'] ?? []],
-        ['etiqueta' => 'Artículo', 'valor' => data_get($resumen, 'articulos.texto', '—'), 'resumen' => $resumen['articulos'] ?? []],
-        ['etiqueta' => 'Tamaño', 'valor' => data_get($resumen, 'tamanos.texto', '—'), 'resumen' => $resumen['tamanos'] ?? []],
+        ['etiqueta' => 'No. Flog', 'filtro' => 'flog', 'valor' => data_get($resumen, 'flogs.texto', '—'), 'resumen' => $resumen['flogs'] ?? []],
+        ['etiqueta' => 'Artículo', 'filtro' => 'articulo', 'valor' => data_get($resumen, 'articulos.texto', '—'), 'resumen' => $resumen['articulos'] ?? []],
+        ['etiqueta' => 'Tamaño', 'filtro' => 'tamano', 'valor' => data_get($resumen, 'tamanos.texto', '—'), 'resumen' => $resumen['tamanos'] ?? []],
     ];
+    // Artículo llega como "7163 CB · NOMBRE": el filtro necesita solo el código.
+    $codigo = static fn (string $valor): string => trim(explode(' · ', $valor, 2)[0]);
     $cifras = [
         ['Pedido', $pedido, 'bg-blue-500'],
         ['Facturado', $facturado, 'bg-emerald-500'],
@@ -29,21 +31,37 @@
             <div @class(['min-w-0 px-4 py-3', 'sm:border-r sm:border-zinc-100' => ! $loop->last])>
                 <dt class="text-xs font-medium text-zinc-500">{{ $campo['etiqueta'] }}</dt>
                 @php $todos = $campo['resumen']['todos'] ?? []; @endphp
-                @if (count($todos) > 3)
-                    {{-- <details> nativo: el "+N más" se abre con dedo o teclado y muestra la lista completa. --}}
-                    <dd class="mt-1 text-sm font-semibold text-zinc-800">
-                        <details class="group">
-                            <summary class="cursor-pointer list-none break-words [&::-webkit-details-marker]:hidden">
-                                {{ $campo['resumen']['visibles'] }}
-                                <span class="ms-1 inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-xs font-semibold text-blue-700 group-open:hidden">+{{ count($todos) - 3 }} más</span>
-                                <span class="ms-1 hidden items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold text-zinc-600 group-open:inline-flex">Ocultar</span>
-                            </summary>
-                            <ul class="traza-scroll mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
-                                @foreach ($todos as $valor)
-                                    <li class="rounded-md bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">{{ $valor }}</li>
-                                @endforeach
-                            </ul>
-                        </details>
+                @if (count($todos) > 1)
+                    {{-- Con varios valores, cada uno es un botón: al pulsarlo el filtro queda solo con ese. --}}
+                    @php
+                        $chip = 'inline-flex min-h-touch items-center rounded-md bg-zinc-100 px-2 text-left text-xs font-medium text-zinc-700 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-500';
+                    @endphp
+                    <dd class="mt-1">
+                        <ul class="flex flex-wrap gap-1.5">
+                            @foreach (array_slice($todos, 0, 3) as $valor)
+                                <li>
+                                    <button type="button" class="{{ $chip }}" title="Filtrar solo {{ $valor }}"
+                                            wire:click="actualizarFiltro('{{ $campo['filtro'] }}', @js($codigo($valor)))">{{ $valor }}</button>
+                                </li>
+                            @endforeach
+                        </ul>
+                        @if (count($todos) > 3)
+                            {{-- <details> nativo: el "+N más" se abre con dedo o teclado y muestra el resto. --}}
+                            <details class="group mt-1.5">
+                                <summary class="inline-flex min-h-touch cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden">
+                                    <span class="rounded-md bg-blue-50 px-1.5 py-0.5 text-xs font-semibold text-blue-700 group-open:hidden">+{{ count($todos) - 3 }} más</span>
+                                    <span class="hidden rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-semibold text-zinc-600 group-open:inline">Ocultar</span>
+                                </summary>
+                                <ul class="traza-scroll mt-1 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+                                    @foreach (array_slice($todos, 3) as $valor)
+                                        <li>
+                                            <button type="button" class="{{ $chip }}" title="Filtrar solo {{ $valor }}"
+                                                    wire:click="actualizarFiltro('{{ $campo['filtro'] }}', @js($codigo($valor)))">{{ $valor }}</button>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </details>
+                        @endif
                     </dd>
                 @else
                     <dd class="mt-1 break-words text-sm font-semibold text-zinc-800">{{ $campo['valor'] }}</dd>

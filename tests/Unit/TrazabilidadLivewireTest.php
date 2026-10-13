@@ -27,8 +27,8 @@ class TrazabilidadLivewireTest extends TestCase
                         ['codigo' => 'ART-1', 'label' => 'ART-1 / Toalla'],
                     ]),
                     'tamano' => collect(['GRANDE']),
-                    'color' => collect(),
-                    'meses' => collect(),
+                    'cliente' => collect(['WALMART, S.A.']),
+                    'anio' => collect([2026]),
                 ]);
                 $mock->shouldReceive('summaryValues')->andReturn([
                     'flogs' => collect(['F-100']),
@@ -88,7 +88,7 @@ class TrazabilidadLivewireTest extends TestCase
             ->assertSet('flog', '')
             ->assertSet('articulo', '')
             ->assertDispatched('trazabilidad-filtros-actualizados')
-            ->assertSee('Elige un Flog, artículo o tamaño');
+            ->assertSee('Elige al menos un filtro');
     }
 
     public function test_it_rejects_unknown_filter_names(): void

@@ -14,59 +14,62 @@ class TrazabilidadFiltersTest extends TestCase
     {
         $filters = TrazabilidadFilters::fromArray([
             'flog' => ' F-100 ',
-            'articulo' => ' ART-1 ',
-            'tamano' => ' GRANDE ',
+            'articulo' => ' ART-1 , art-1,ART-2 ',
+            'tamano' => ['GRANDE', ' CH* '],
+            'cliente' => [' WALMART, S.A. ', 'WALMART, S.A.', ''],
             'color' => ' AZUL ',
-            'mes' => '12',
+            'anio' => '2026',
+            'mes' => '03',
         ]);
 
-        $this->assertSame('F-100', $filters->flog);
-        $this->assertSame('ART-1', $filters->articulo);
-        $this->assertSame('GRANDE', $filters->tamano);
-        $this->assertSame(['flog' => 'F-100', 'articulo' => 'ART-1', 'tamano' => 'GRANDE'], $filters->toArray());
+        $this->assertSame([
+            'flog' => 'F-100',
+            'articulo' => 'ART-1,ART-2',
+            'tamano' => 'GRANDE,CH*',
+            'cliente' => ['WALMART, S.A.'],
+            'anio' => '2026',
+            'mes' => '3',
+        ], $filters->toArray());
         $this->assertTrue($filters->hasAny());
-        $this->assertTrue($filters->hasFlog());
+        $this->assertSame('F-100', $filters->flogUnico());
     }
 
-    public function test_it_uses_safe_defaults_for_non_scalar_values(): void
+    public function test_it_uses_safe_defaults_for_invalid_values(): void
     {
         $filters = TrazabilidadFilters::fromArray([
-            'flog' => ['invalid'],
+            'flog' => [['invalid']],
             'articulo' => null,
+            'anio' => '26',
+            'mes' => '13',
         ]);
 
         $this->assertSame('', $filters->flog);
         $this->assertSame('', $filters->articulo);
+        $this->assertSame('', $filters->anio);
         $this->assertFalse($filters->hasAny());
-        $this->assertFalse($filters->hasFlog());
+        $this->assertNull($filters->flogUnico());
+
+        // Mes sin año no aplica.
+        $this->assertSame('', TrazabilidadFilters::fromArray(['mes' => '5'])->mes);
+        // Lista, rango o comodín: no hay un Flog único.
+        foreach (['F-1,F-2', 'F-1..F-9', 'F-*'] as $flog) {
+            $this->assertNull(TrazabilidadFilters::fromArray(['flog' => $flog])->flogUnico(), $flog);
+        }
     }
 
-    public function test_summary_values_reuse_the_current_filter_options(): void
+    public function test_summary_values_use_the_resolved_facets(): void
     {
-        $filters = TrazabilidadFilters::fromArray([
-            'flog' => 'F-100',
-            'articulo' => 'ART-1',
-        ]);
-        $options = [
-            'flog' => collect(['F-100', 'F-200']),
+        $summary = (new TrazabilidadFilterOptionsService)->summaryValues(new TrazabilidadFilters(flog: 'F-1..F-2'), [
+            'flog' => collect(['F-100', ' F-200 ', '']),
             'articulo' => collect([
                 ['codigo' => 'ART-1', 'label' => 'ART-1 / Toalla'],
-                ['codigo' => 'ART-2', 'label' => 'ART-2 / Sábana'],
+                ['codigo' => 'ART-2', 'label' => 'ART-2'],
             ]),
-            'tamano' => collect(['CHICO', 'GRANDE']),
-        ];
+            'tamano' => collect(['CHICO']),
+        ]);
 
-        $summary = (new TrazabilidadFilterOptionsService)->summaryValues($filters, $options);
-
-        $this->assertSame(['F-100'], $summary['flogs']->all());
-        $this->assertSame(['ART-1 · Toalla'], $summary['articulos']->all());
-        $this->assertSame(['CHICO', 'GRANDE'], $summary['tamanos']->all());
-
-        $invalid = (new TrazabilidadFilterOptionsService)->summaryValues(
-            TrazabilidadFilters::fromArray(['flog' => 'NO-EXISTE']),
-            $options
-        );
-
-        $this->assertSame([], $invalid['flogs']->all());
+        $this->assertSame(['F-100', 'F-200'], $summary['flogs']->all());
+        $this->assertSame(['ART-1 · Toalla', 'ART-2'], $summary['articulos']->all());
+        $this->assertSame(['CHICO'], $summary['tamanos']->all());
     }
 }

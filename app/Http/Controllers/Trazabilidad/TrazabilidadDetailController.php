@@ -129,10 +129,18 @@ final class TrazabilidadDetailController extends Controller
     {
         $startedAt = hrtime(true);
         $filters = $request->filters();
-        $data = $this->flogs->build($filters->flog);
+        // Con varios Flogs (lista, rango, cliente, año…) el detalle muestra uno y un selector.
+        $lista = $filters->hasAny()
+            ? $this->filterOptions->summaryValues($filters)['flogs']->values()->all()
+            : [];
+        $ver = (string) $request->validated('ver', '');
+        $flog = collect($lista)->first(static fn (string $f): bool => strcasecmp($f, $ver) === 0) ?? ($lista[0] ?? null);
+
+        $data = $this->flogs->build($flog);
         $html = view('modulos.trazabilidad._flogs', [
             'flogs' => $data,
-            'filtros' => $filters->toArray(),
+            'flogsLista' => $lista,
+            'flogVer' => $flog,
         ])->render();
 
         return $this->detailResponse('flog', $html, [
@@ -148,8 +156,8 @@ final class TrazabilidadDetailController extends Controller
         abort_unless($filters->hasAny(), 422, 'Selecciona al menos un filtro.');
 
         // Los mismos Flogs que usa la tarjeta (las facetas salen de caché).
-        $flogs = $this->filterOptions->summaryValues($filters, $this->filterOptions->build($filters))['flogs']->all();
-        $data = $this->sales->detalle($flogs, $filters->flog, $filters->articulo, $filters->tamano);
+        $flogs = $this->filterOptions->summaryValues($filters)['flogs']->all();
+        $data = $this->sales->detalle($flogs, $filters->articulo, $filters->tamano);
         // Referencia de la curva: el pedido de AX (null si AX no responde).
         $pedido = $data ? ($this->flogs->facturacion($flogs, $filters->articulo, $filters->tamano)['pedido'] ?? null) : null;
 

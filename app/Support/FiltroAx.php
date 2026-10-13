@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use Closure;
+use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -21,9 +22,94 @@ use Illuminate\Database\Eloquent\Builder;
  * vacío que ignorar el filtro y enseñar todo).
  *
  * Uso en ConTabla::columnas(): ['campo' => 'Mes', 'filtro' => FiltroAx::mes('Mes')].
+ *
+ * Para columnas de texto (códigos de Trazabilidad) están valores()/texto(): lista con comas,
+ * rango y comodín `*`, con el parámetro como VARCHAR para no anular el índice.
  */
 final class FiltroAx
 {
+    /** Tope de valores por filtro de texto: van como bindings (SQL Server admite 2100). */
+    private const MAX_VALORES = 100;
+
+    /**
+     * Partes de un filtro de texto escrito como en AX ("7166, 7167,71*"), sin repetir
+     * (sin importar mayúsculas) y hasta MAX_VALORES.
+     *
+     * @return list<string>
+     */
+    public static function valores(string $texto): array
+    {
+        $valores = [];
+        $vistos = [];
+        foreach (explode(',', $texto) as $valor) {
+            $valor = trim($valor);
+            $clave = mb_strtolower($valor);
+            if ($valor !== '' && ! isset($vistos[$clave])) {
+                $vistos[$clave] = true;
+                $valores[] = $valor;
+            }
+        }
+
+        return array_slice($valores, 0, self::MAX_VALORES);
+    }
+
+    /** Un valor o una lista (selector múltiple) como texto AX normalizado: "a,b,c". */
+    public static function unir(mixed $valores): string
+    {
+        $lista = array_filter(is_array($valores) ? $valores : [$valores], is_scalar(...));
+
+        return implode(',', self::valores(implode(',', array_map(strval(...), $lista))));
+    }
+
+    /** Rango o comodín: no se puede buscar en una lista de opciones. */
+    public static function esPatron(string $valor): bool
+    {
+        return str_contains($valor, '..') || str_contains($valor, '*');
+    }
+
+    /**
+     * Filtro de texto: exacto (`7166`), rango (`7160..7170`, `7160..`, `..7170`) o comodín
+     * (`71*`), separados por coma y combinados con OR. Los parámetros llevan CAST a varchar:
+     * pdo_sqlsrv los manda como NVARCHAR y contra columnas VARCHAR eso anula el índice
+     * (ver TrazaProduccion::filtrados).
+     *
+     * @param  string  $columna  nombre fijo del código, nunca del usuario.
+     */
+    public static function texto(QueryBuilder $query, string $columna, string $texto, int $largo = 100): void
+    {
+        $valores = self::valores($texto);
+        if ($valores === []) {
+            return;
+        }
+
+        $param = 'CAST(? AS varchar('.$largo.'))';
+        $col = '['.$columna.']';
+
+        $query->where(function (QueryBuilder $q) use ($valores, $param, $col): void {
+            $exactos = [];
+            foreach ($valores as $valor) {
+                if (str_contains($valor, '..')) {
+                    [$desde, $hasta] = array_map('trim', explode('..', $valor, 2));
+                    match (true) {
+                        $desde !== '' && $hasta !== '' => $q->orWhereRaw($col.' BETWEEN '.$param.' AND '.$param, [$desde, $hasta]),
+                        $desde !== '' => $q->orWhereRaw($col.' >= '.$param, [$desde]),
+                        $hasta !== '' => $q->orWhereRaw($col.' <= '.$param, [$hasta]),
+                        default => null,
+                    };
+                } elseif (str_contains($valor, '*')) {
+                    // '!' como escape: el % _ [ que traiga el valor se buscan literales.
+                    $patron = strtr($valor, ['!' => '!!', '%' => '!%', '_' => '!_', '[' => '![', '*' => '%']);
+                    $q->orWhereRaw($col.' LIKE '.$param." ESCAPE '!'", [$patron]);
+                } else {
+                    $exactos[] = $valor;
+                }
+            }
+            if ($exactos !== []) {
+                $q->orWhereRaw($col.' IN ('.implode(', ', array_fill(0, count($exactos), $param)).')', $exactos);
+            }
+        });
+    }
+
     /** @return Closure(Builder, list<string>): void */
     public static function numero(string $columna): Closure
     {

@@ -8,6 +8,7 @@ use App\Services\Trazabilidad\TrazabilidadFilterOptionsService;
 use App\Services\Trazabilidad\TrazabilidadProduccionService;
 use App\Services\Trazabilidad\TrazabilidadResumenService;
 use App\Services\Trazabilidad\TrazabilidadVentasService;
+use App\Support\FiltroAx;
 use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\On;
@@ -27,6 +28,16 @@ class Index extends Component
 
     #[Url(except: '')]
     public string $tamano = '';
+
+    /** @var list<string> */
+    #[Url(except: [])]
+    public array $cliente = [];
+
+    #[Url(except: '')]
+    public string $anio = '';
+
+    #[Url(except: '')]
+    public string $mes = '';
 
     /** Hubo cambio de filtros en esta request: render() avisa al front una sola vez. */
     private bool $filtersChanged = false;
@@ -62,14 +73,15 @@ class Index extends Component
     public function actualizarFiltro(string $campo, mixed $valor): void
     {
         abort_unless(
-            in_array($campo, ['flog', 'articulo', 'tamano'], true),
+            in_array($campo, TrazabilidadFilters::CAMPOS, true),
             422,
             'Filtro de trazabilidad no válido.'
         );
-        abort_unless(is_scalar($valor) || $valor === null, 422, 'Valor de filtro no válido.');
+        abort_unless(is_scalar($valor) || is_array($valor) || $valor === null, 422, 'Valor de filtro no válido.');
 
+        // Los selectores múltiples mandan un arreglo; el VO lo normaliza (lista AX o nombres).
         $values = $this->filterValues();
-        $values[$campo] = mb_substr(trim((string) ($valor ?? '')), 0, 100);
+        $values[$campo] = $valor ?? '';
 
         $this->applyNormalizedFilters(TrazabilidadFilters::fromArray($values));
         $this->filtersChanged = true;
@@ -104,14 +116,15 @@ class Index extends Component
         $tableProgress = $hasFilter
             ? $this->production->buildTablaAvance($filterValues)
             : [];
-        $summaryValues = $this->filterOptions->summaryValues($filters, $options);
+        $summaryValues = $hasFilter ? $this->filterOptions->summaryValues($filters) : null;
 
         return view('livewire.trazabilidad.index', [
             'filtros' => $filterValues,
             'hayFiltro' => $hasFilter,
-            'hayFlog' => $filters->hasFlog(),
             'opcionesArticulo' => $options['articulo'],
             'opcionesTamano' => $options['tamano'],
+            'opcionesCliente' => $options['cliente'],
+            'opcionesAnio' => $options['anio'],
             'resumenFlog' => $hasFilter ? $this->summary->build($filterValues, $summaryValues, $tableProgress) : null,
             'tablaAvancePedido' => $tableProgress,
             'ventas' => $hasFilter ? $this->sales->resumen(
@@ -119,6 +132,8 @@ class Index extends Component
                 $filters->articulo,
                 $filters->tamano,
             ) : null,
+            'meses' => ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+                'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
         ]);
     }
 
@@ -137,7 +152,7 @@ class Index extends Component
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function filterValues(): array
     {
@@ -145,30 +160,48 @@ class Index extends Component
             'flog' => $this->flog,
             'articulo' => $this->articulo,
             'tamano' => $this->tamano,
+            'cliente' => $this->cliente,
+            'anio' => $this->anio,
+            'mes' => $this->mes,
         ];
     }
 
     /**
+     * Quita los valores exactos que ya no existen con los demás filtros. Rangos y comodines
+     * se quedan: no se pueden buscar en la lista.
+     *
      * @param  array<string, iterable<mixed>>  $options
      */
     private function discardOutOfScopeFilters(TrazabilidadFilters $filters, array $options): bool
     {
-        $available = static fn (string $selected, iterable $values): bool => $selected === ''
-            || collect($values)
-                ->map(static fn (mixed $option): string => trim((string) (is_array($option)
-                    ? ($option['codigo'] ?? '')
-                    : $option)))
-                ->contains(static fn (string $code): bool => strcasecmp($code, $selected) === 0);
+        $codes = static fn (iterable $values): array => collect($values)
+            ->map(static fn (mixed $option): string => mb_strtolower(trim((string) (is_array($option)
+                ? ($option['codigo'] ?? '')
+                : $option))))
+            ->all();
+        $keep = static fn (array $selected, iterable $values): array => array_values(array_filter(
+            $selected,
+            static fn (string $value): bool => FiltroAx::esPatron($value)
+                || in_array(mb_strtolower($value), $codes($values), true)
+        ));
 
-        $discarded = false;
+        $values = $filters->toArray();
         foreach (['flog', 'articulo', 'tamano'] as $field) {
-            if (! $available($filters->{$field}, $options[$field] ?? [])) {
-                $this->{$field} = '';
-                $discarded = true;
-            }
+            $values[$field] = implode(',', $keep(FiltroAx::valores($filters->{$field}), $options[$field] ?? []));
+        }
+        $values['cliente'] = $keep($filters->cliente, $options['cliente'] ?? []);
+        if ($filters->anio !== '' && ! in_array($filters->anio, array_map('strval', $codes($options['anio'] ?? [])), true)) {
+            $values['anio'] = '';
         }
 
-        return $discarded;
+        $cleaned = TrazabilidadFilters::fromArray($values);
+        if ($cleaned == $filters) {
+            return false;
+        }
+
+        $this->applyNormalizedFilters($cleaned);
+
+        return true;
     }
 
     private function applyNormalizedFilters(TrazabilidadFilters $filters): void
@@ -176,5 +209,8 @@ class Index extends Component
         $this->flog = $filters->flog;
         $this->articulo = $filters->articulo;
         $this->tamano = $filters->tamano;
+        $this->cliente = $filters->cliente;
+        $this->anio = $filters->anio;
+        $this->mes = $filters->mes;
     }
 }

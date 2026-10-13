@@ -5,7 +5,7 @@
     $encontrado = (bool) ($flogs['encontrado'] ?? false);
     $estadoFlogs = $flogs['estado'] ?? ($encontrado ? 'ok' : 'not_found');
     $errorMensaje = $flogs['errorMensaje'] ?? null;
-    $hayFlogFiltro = filled($filtros['flog'] ?? null);
+    $flogsLista = $flogsLista ?? [];
     $lineas = $flogs['lineas'] ?? [];
 
     $columnasLineas = [
@@ -82,16 +82,29 @@
 @endphp
 
 <div id="flogs-contenido" class="space-y-4">
-@if (! $hayFlogFiltro)
-    <x-trazabilidad.vacio icono="document-text" titulo="Elige un Flog para ver su información"
-                          texto="Usa el filtro Flog de arriba." />
+@if (count($flogsLista) > 1)
+    {{-- Varios Flogs en el filtro: el detalle de AX es de uno; aquí se elige cuál. --}}
+    <div class="flex flex-wrap items-center gap-2">
+        <flux:label for="flog-ver">Flog</flux:label>
+        <select id="flog-ver" data-flog-ver class="min-h-touch rounded-lg border border-zinc-300 bg-white px-3 text-sm">
+            @foreach ($flogsLista as $opcion)
+                <option value="{{ $opcion }}" @selected($opcion === $flogVer)>{{ $opcion }}</option>
+            @endforeach
+        </select>
+        <flux:text class="text-caption">{{ count($flogsLista) }} Flogs con estos filtros</flux:text>
+    </div>
+@endif
+
+@if ($flogsLista === [])
+    <x-trazabilidad.vacio icono="document-text" titulo="Ningún Flog con estos filtros"
+                          texto="Ajusta los filtros de arriba." />
 @elseif ($estadoFlogs === 'error')
     <flux:callout variant="danger" icon="server" heading="No se pudo consultar la información del Flog">
         <flux:callout.text>{{ $errorMensaje }} El incidente quedó registrado.</flux:callout.text>
     </flux:callout>
 @elseif (! $encontrado)
     <x-trazabilidad.vacio icono="exclamation-triangle" titulo="El Flog no existe en el sistema de pedidos"
-                          :texto="$filtros['flog'] ?? ''" />
+                          :texto="$flogVer ?? ''" />
 @else
     {{-- <details> nativo: se pliega con teclado y tacto sin JS. --}}
     <flux:card class="!p-0">

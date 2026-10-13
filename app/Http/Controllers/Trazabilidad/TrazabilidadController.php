@@ -27,7 +27,13 @@ final class TrazabilidadController extends Controller
      */
     public function opcionesFlog(Request $request): JsonResponse
     {
-        $validated = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'articulo' => ['nullable', 'string', 'max:2000'],
+            'tamano' => ['nullable', 'string', 'max:2000'],
+            'cliente' => ['nullable', 'array', 'max:100'],
+            'cliente.*' => ['string', 'max:100'],
+        ]);
         $termino = trim((string) ($validated['q'] ?? ''));
 
         return response()->json([
@@ -50,7 +56,7 @@ final class TrazabilidadController extends Controller
     public function index(Request $request): View
     {
         return view('modulos.trazabilidad.index', [
-            'hayFlog' => TrazabilidadFilters::fromRequest($request)->hasFlog(),
+            'hayFlog' => TrazabilidadFilters::fromRequest($request)->flogUnico() !== null,
         ]);
     }
 

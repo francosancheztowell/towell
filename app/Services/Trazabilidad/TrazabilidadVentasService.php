@@ -6,6 +6,7 @@ namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
 use App\Models\Ventas\TwHistVtasModel;
+use App\Support\FiltroAx;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -45,11 +46,11 @@ class TrazabilidadVentasService
      * @param  list<string>  $flogs
      * @return array<string, mixed>|null null = sin Flog o sin conexión
      */
-    public function detalle(array $flogs, string $flog = '', string $articulo = '', string $tamano = ''): ?array
+    public function detalle(array $flogs, string $articulo = '', string $tamano = ''): ?array
     {
-        return $this->conCache('detalle_v2', $flogs, $articulo, $tamano, fn (array $flogs): array => self::armarDetalle(
+        return $this->conCache('detalle_v3', $flogs, $articulo, $tamano, fn (array $flogs): array => self::armarDetalle(
             $this->consultarLineas($flogs, $articulo, $tamano),
-            $this->producidoTerminado($flog, $articulo, $tamano),
+            $this->producidoTerminado($flogs, $articulo, $tamano),
         ));
     }
 
@@ -119,8 +120,9 @@ class TrazabilidadVentasService
         foreach (array_chunk($flogs, 1000) as $lote) {
             $query = TwHistVtasModel::query()->toBase()
                 ->whereIn('IDFLOG', $lote)
-                ->when($articulo !== '', fn ($query) => $query->where('ITEMID', $articulo))
-                ->when($tamano !== '', fn ($query) => $query->where('INVENTSIZEID', $tamano));
+                // Sintaxis de AX (lista, rango, comodín): la misma que el filtro de la pantalla.
+                ->tap(fn ($query) => FiltroAx::texto($query, 'ITEMID', $articulo))
+                ->tap(fn ($query) => FiltroAx::texto($query, 'INVENTSIZEID', $tamano));
             $filas = $filas->concat($armar($query)->get());
         }
 
@@ -128,15 +130,24 @@ class TrazabilidadVentasService
     }
 
     /**
-     * Piezas que entraron a producto terminado con los mismos filtros.
+     * Piezas que entraron a producto terminado: los mismos Flogs de las ventas (ya acotados
+     * por cliente/año/mes) con el mismo artículo y tamaño.
+     *
+     * @param  list<string>  $flogs
      */
-    private function producidoTerminado(string $flog, string $articulo, string $tamano): float
+    private function producidoTerminado(array $flogs, string $articulo, string $tamano): float
     {
-        return (float) TrazaProduccion::query()
-            ->filtrados(['flog' => $flog, 'articulo' => $articulo, 'tamano' => $tamano])
-            // CAST: NombreAlmacen es VARCHAR y la 2a llave de IX_TrazaProduccion_Flogs_Cubre (ver filtrados()).
-            ->whereRaw('NombreAlmacen IN (CAST(? AS varchar(60)), CAST(? AS varchar(60)))', self::ALMACENES_TERMINADO)
-            ->sum('Cantidad');
+        $total = 0.0;
+        // De 100 en 100: el filtro AX admite hasta 100 valores por campo.
+        foreach (array_chunk($flogs, 100) as $lote) {
+            $total += (float) TrazaProduccion::query()
+                ->filtrados(['flog' => implode(',', $lote), 'articulo' => $articulo, 'tamano' => $tamano])
+                // CAST: NombreAlmacen es VARCHAR y la 2a llave de IX_TrazaProduccion_Flogs_Cubre (ver filtrados()).
+                ->whereRaw('NombreAlmacen IN (CAST(? AS varchar(60)), CAST(? AS varchar(60)))', self::ALMACENES_TERMINADO)
+                ->sum('Cantidad');
+        }
+
+        return $total;
     }
 
     /**

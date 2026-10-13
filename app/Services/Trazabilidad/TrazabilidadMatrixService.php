@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -78,7 +79,8 @@ final class TrazabilidadMatrixService
         $columnaMetrica = 'Cantidad';
         $decimales = 0;
 
-        $hayFlog = filled($filtros['flog'] ?? null);
+        // Tipo/Cliente/Agente son de un Flog: con varios, un MAX() mezclaría los de distintos.
+        $hayFlog = TrazabilidadFilters::fromArray($filtros)->flogUnico() !== null;
 
         $agrupacion = 'CAST(Fecha AS date), NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor';
 

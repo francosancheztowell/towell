@@ -53,8 +53,16 @@ function bootstrap(): void {
             ? (event.detail?.filtros as { flog?: string } | undefined)
             : undefined;
 
-        redbooth.toggle(Boolean(filters?.flog));
+        // Redbooth abre las órdenes de un Flog: solo con uno exacto (sin lista, rango ni comodín).
+        const flog = filters?.flog ?? '';
+        redbooth.toggle(flog !== '' && !/[,*]|\.\./.test(flog));
         loader.invalidateAndClose();
+    });
+
+    // Detalle Flog con varios Flogs: el selector pide el de otro.
+    result.addEventListener('change', (event) => {
+        const select = (event.target as Element | null)?.closest<HTMLSelectElement>('[data-flog-ver]');
+        if (select) void loader.open('flogs', { ver: select.value });
     });
 
     filterSelects.init();

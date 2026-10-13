@@ -46,19 +46,21 @@ class TrazabilidadStructureTest extends TestCase
     {
         $component = file_get_contents(app_path('Livewire/Trazabilidad/Index.php'));
 
-        $this->assertSame(3, substr_count($component, '#[Url('));
-        foreach (['$flog', '$articulo', '$tamano'] as $property) {
+        $this->assertSame(6, substr_count($component, '#[Url('));
+        foreach (['$flog', '$articulo', '$tamano', '$anio', '$mes'] as $property) {
             $this->assertStringContainsString("public string {$property}", $component);
         }
+        $this->assertStringContainsString('public array $cliente', $component);
         $this->assertStringNotContainsString('history.replaceState', $component);
     }
 
-    public function test_hidden_color_month_and_metric_filters_are_gone(): void
+    public function test_hidden_color_and_metric_filters_are_gone(): void
     {
         $filters = file_get_contents(resource_path('views/livewire/trazabilidad/index.blade.php'));
         $loader = file_get_contents(resource_path('js/trazabilidad/detail-loader.ts'));
 
-        foreach (['filtro-color', 'filtro-mes', 'filtro-metrica'] as $id) {
+        // Mes volvió (oct-2026) como control visible que elige Flogs; no recorta la producción.
+        foreach (['filtro-color', 'filtro-metrica'] as $id) {
             $this->assertStringNotContainsString($id, $filters);
             $this->assertStringNotContainsString($id, $loader);
         }
@@ -235,7 +237,7 @@ class TrazabilidadStructureTest extends TestCase
         $query = TrazaProduccion::query()->filtrados(['flog' => ' F-1 ', 'articulo' => '', 'tamano' => 'MB'], 'tamano');
 
         // VARCHAR explícito: un parámetro NVARCHAR impedía buscar en el índice de Flogs.
-        $this->assertStringContainsString('[Flogs] = CAST(? AS varchar(100))', $query->toSql());
+        $this->assertStringContainsString('[Flogs] IN (CAST(? AS varchar(25)))', $query->toSql());
         $this->assertStringNotContainsString('Articulo', $query->toSql());
         $this->assertStringNotContainsString('Tamano', $query->toSql());
         $this->assertSame(['F-1'], $query->getBindings());

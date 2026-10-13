@@ -26,10 +26,10 @@ export interface RemotoCombobox {
     /** Endpoint GET. Responde `{ results: [{ id, text }] }` (formato de los endpoints actuales) o un arreglo. */
     url: string;
     /** Parámetros extra, se leen en cada búsqueda (p. ej. otros filtros activos). */
-    params?: () => Record<string, string>;
+    params?: () => Record<string, string | string[]>;
 }
 
-type GetJson = (url: string, config: { params: Record<string, string> }) => Promise<unknown>;
+type GetJson = (url: string, config: { params: Record<string, string | string[]> }) => Promise<unknown>;
 
 /** Convierte la respuesta del servidor a opciones; ignora filas sin id. */
 export function opcionesRemotas(respuesta: unknown): OpcionCombobox[] {
@@ -88,5 +88,7 @@ export function plantillas(textos: TextosCombobox, fallo: () => boolean = () => 
         item: (datos) => `<div>${escapeHtml(datos.text)}</div>`,
         no_results: () => `<div class="no-results">${escapeHtml(fallo() ? textos.errorCarga : textos.sinResultados)}</div>`,
         loading: () => `<div class="combobox-cargando">${escapeHtml(textos.buscando)}</div>`,
+        // Solo con `crear`: lo escrito se agrega tal cual (p. ej. un rango 7160..7170).
+        option_create: (datos) => `<div class="create">Usar <strong>${escapeHtml(datos.input)}</strong></div>`,
     };
 }

@@ -1,4 +1,5 @@
 import { errorMessage, eventElement, queryElement } from './dom';
+import { valorDe } from './filter-selects';
 import type {
     DetailResponse,
     DetailType,
@@ -84,14 +85,15 @@ export class DetailLoader {
         });
     }
 
-    private async open(type: DetailType): Promise<void> {
+    /** `extra`: parámetros propios del detalle (p. ej. `ver` = qué Flog mostrar de varios). */
+    public async open(type: DetailType, extra: Record<string, string> = {}): Promise<void> {
         const requestSequence = ++this.sequence;
         this.activeType = type;
         this.recordarEnUrl(type);
         this.showShell(TITLES[type]);
 
         try {
-            const data = await this.request(type, this.currentFilters());
+            const data = await this.request(type, { ...this.currentFilters(), ...extra });
             if (requestSequence !== this.sequence) return;
 
             const content = this.content();
@@ -111,7 +113,7 @@ export class DetailLoader {
 
     private request(
         type: DetailType,
-        filters: TrazabilidadFilters,
+        filters: TrazabilidadFilters & Record<string, unknown>,
     ): Promise<DetailResponse> {
         const route = this.routes[type];
         if (!route) return Promise.reject(new Error('El detalle solicitado no está disponible.'));
@@ -192,13 +194,20 @@ export class DetailLoader {
     }
 
     private currentFilters(): TrazabilidadFilters {
-        const value = (selector: string): string =>
-            queryElement<HTMLSelectElement>(selector)?.value?.trim() || '';
+        const value = (selector: string): string | string[] => {
+            const select = queryElement<HTMLSelectElement>(selector);
+            return select ? valorDe(select) : '';
+        };
+        const texto = (selector: string): string => String(value(selector));
+        const cliente = value('#filtro-cliente');
 
         return {
-            flog: value('#filtro-flog'),
-            articulo: value('#filtro-articulo'),
-            tamano: value('#filtro-tamano'),
+            flog: texto('#filtro-flog'),
+            articulo: texto('#filtro-articulo'),
+            tamano: texto('#filtro-tamano'),
+            cliente: Array.isArray(cliente) ? cliente : [],
+            anio: texto('#filtro-anio'),
+            mes: texto('#filtro-mes'),
         };
     }
 

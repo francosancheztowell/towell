@@ -1,9 +1,13 @@
 export type DetailType = 'flogs' | 'trazabilidad' | 'produccion' | 'ventas';
 
+/** Flog/artículo/tamaño en sintaxis AX (texto con comas); cliente, lista de nombres. */
 export interface TrazabilidadFilters {
     flog: string;
     articulo: string;
     tamano: string;
+    cliente: string[];
+    anio: string;
+    mes: string;
 }
 
 export interface TrazabilidadConfig {
