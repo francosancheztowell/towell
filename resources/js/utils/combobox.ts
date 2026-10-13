@@ -23,6 +23,7 @@ import dropdownInput from 'tom-select/plugins/dropdown_input/plugin.js';
 import removeButton from 'tom-select/plugins/remove_button/plugin.js';
 // CSS (Tom Select + combobox.css): en resources/css/app.css.
 
+import { escapeHtml } from './format.ts';
 import http from './http.ts';
 import {
     TEXTOS_COMBOBOX,
@@ -52,6 +53,8 @@ export interface OpcionesCombobox {
     crear?: boolean;
     /** Múltiple: casilla en cada opción; se marcan varias sin cerrar la lista. */
     casillas?: boolean;
+    /** El chip de lo elegido muestra el valor ("7166") y no el texto largo ("7166 / JQ SOFT…"). */
+    chipConValor?: boolean;
     /** Cargar las opciones del servidor al buscar (y al abrir). */
     remoto?: RemotoCombobox;
     textos?: Partial<TextosCombobox>;
@@ -87,7 +90,12 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
         allowEmptyOption: false,
         // Múltiple: con algo elegido, el "Todos" junto a los chips confunde.
         hidePlaceholder: multiple,
-        render: plantillas(textos, cargar?.fallo),
+        render: {
+            ...plantillas(textos, cargar?.fallo),
+            ...(opciones.chipConValor
+                ? { item: (datos: Record<string, unknown>) => `<div title="${escapeHtml(String(datos.text).trim())}">${escapeHtml(datos.value)}</div>` }
+                : {}),
+        },
     };
 
     if (opciones.crear) {

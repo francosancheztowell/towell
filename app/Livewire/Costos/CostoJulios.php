@@ -211,7 +211,8 @@ class CostoJulios extends Component
     {
         $formula = $julios->groupBy(fn ($j) => $j['mes'].'|'.$j['maquina'])->map(fn ($l) => (float) $l->sum('mp'));
 
-        return $julios->map(function (array $j) use ($formula, $kardexPorMes): array {
+        /** @var Collection<int, array<string, mixed>> $ajustados */
+        $ajustados = $julios->map(function (array $j) use ($formula, $kardexPorMes): array {
             $j['mpFormula'] = $j['mp'];
             $kardex = $kardexPorMes[$j['mes']][$j['maquina']]['imp'] ?? null;
             $base = $formula[$j['mes'].'|'.$j['maquina']] ?? 0.0;
@@ -221,6 +222,8 @@ class CostoJulios extends Component
 
             return $j;
         });
+
+        return $ajustados;
     }
 
     /**

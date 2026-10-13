@@ -165,8 +165,14 @@ class TrazabilidadVentasService
                 ->where(fn ($q) => $q->whereNull('IDFLOG')->orWhere('IDFLOG', ''))
                 ->where('FECHAFACTURA', '>=', $stock['desde'])
                 ->where(function ($q) use ($pares): void {
+                    // Los kits facturan varios artículos en un renglón: ITEMID '7216,7217' (3.46 M pza,
+                    // 33 códigos) y tamaño 'MB,UNI'. Se busca el código dentro de la lista, no igual.
+                    // '!' escapa los comodines de LIKE que traiga el código.
+                    $enLista = static fn (string $valor): string => '%,'.strtr($valor, ['!' => '!!', '%' => '!%', '_' => '!_', '[' => '![']).',%';
                     foreach ($pares as [$articulo, $tamano]) {
-                        $q->orWhere(fn ($par) => $par->where('ITEMID', $articulo)->where('INVENTSIZEID', $tamano));
+                        $q->orWhere(fn ($par) => $par
+                            ->whereRaw("',' + ITEMID + ',' LIKE ? ESCAPE '!'", [$enLista($articulo)])
+                            ->whereRaw("',' + INVENTSIZEID + ',' LIKE ? ESCAPE '!'", [$enLista($tamano)]));
                     }
                 });
             $filas = $filas->concat($armar($query)->get());

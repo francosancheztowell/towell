@@ -14,7 +14,8 @@ function elemento(): HTMLElement | null {
 }
 
 function cookieDescarga(): string {
-    return document.cookie.split('; ').find((c) => c.startsWith(`${COOKIE_DESCARGA}=`)) ?? '';
+    // ?? '': sin navegador (tests en node) no hay cookies.
+    return (document.cookie ?? '').split('; ').find((c) => c.startsWith(`${COOKIE_DESCARGA}=`)) ?? '';
 }
 
 /**

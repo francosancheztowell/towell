@@ -9,10 +9,10 @@
     @endphp
     <flux:card size="sm" class="!p-2">
         <form wire:submit.prevent class="flex flex-col gap-2 lg:flex-row lg:items-end">
-            {{-- Dos líneas: Flog, Cliente, Artículo / Tamaño, Año, Mes.
-                 Flog, Artículo, Tamaño y Cliente son múltiples. Los tres primeros aceptan
+            {{-- Una fila desde 1024 px (Flog, Cliente, Artículo más anchos; Tamaño, Año, Mes angostos).
+                 Flog, Artículo, Tamaño y Cliente son múltiples; Flog, Artículo y Tamaño aceptan
                  la sintaxis de AX al escribir o pegar: 7166,7167 · 7160..7170 · 71* --}}
-            <div class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1.5fr))_repeat(3,minmax(0,1fr))]">
                 <div class="flex min-w-0 flex-col gap-1">
                     <flux:label for="filtro-flog">Flog</flux:label>
                     {{-- Solo viajan los Flogs seleccionados: el resto se busca por AJAX. --}}

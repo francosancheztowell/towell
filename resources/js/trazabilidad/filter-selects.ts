@@ -50,6 +50,7 @@ export class FilterSelects {
                     // data-ax: se escribe o pega como en AX (7166,7167 · 7160..7170 · 71*).
                     crear: select.hasAttribute('data-ax'),
                     casillas: true,
+                    chipConValor: true,
                     ...(remoto ? { remoto } : {}),
                 });
                 if (select.multiple) instancia.on('blur', () => this.send(select));

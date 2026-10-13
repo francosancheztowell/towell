@@ -72,7 +72,8 @@ class Checklist extends Component
 
         $faltan = $this->area->porTelar() ? 0 : $lineas->filter($vacia)->count();
         if ($faltan > 0) {
-            $this->dispatch('aviso', tipo: 'warning', texto: "Faltan {$faltan} marca(s). Marca todas (✓, ✗".($this->area->porTelar() ? ' o mantenimiento' : '').') antes de terminar.');
+            // Solo Urdido/Engomado llegan aquí (Tejedores no exige todas): no hay marca de mantenimiento.
+            $this->dispatch('aviso', tipo: 'warning', texto: "Faltan {$faltan} marca(s). Marca todas (✓, ✗) antes de terminar.");
 
             return;
         }
