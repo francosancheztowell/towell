@@ -52,8 +52,9 @@
             mostrarLoader();
         });
 
-        // Si la navegación no ocurre (descarga, target raro, vuelta por bfcache),
-        // no dejar el loader colgado.
+        // Si la navegación no ocurre (target raro, vuelta por bfcache), no dejar el loader
+        // colgado. Las descargas no disparan pageshow: las quita loader.ts con la cookie de
+        // MarcarDescarga.
         window.addEventListener("pageshow", ocultarLoader);
         document.addEventListener("livewire:navigated", ocultarLoader);
     }

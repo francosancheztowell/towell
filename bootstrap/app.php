@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthenticateRedboothApiKey;
 use App\Http\Middleware\EnsureModulePermission;
+use App\Http\Middleware\MarcarDescarga;
 use App\Http\Middleware\Monitoreo\AplicarCierreRemoto;
 use App\Http\Middleware\Monitoreo\CapturarRespuesta5xx;
 use App\Http\Middleware\Monitoreo\IdentificarDispositivo;
@@ -47,7 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Tema del panel /admin ('claro' u 'oscuro'): lo escribe el navegador y el layout lo lee
         // para pintar el tema desde el servidor, sin parpadeo. No es dato sensible.
-        $middleware->encryptCookies(except: ['towell_admin_tema']);
+        $middleware->encryptCookies(except: ['towell_admin_tema', MarcarDescarga::COOKIE]);
 
         // Middleware para establecer contexto de SQL Server antes de queries
         // Esto permite que los triggers capturen informacion del usuario
@@ -55,6 +56,8 @@ return Application::configure(basePath: dirname(__DIR__))
             SetSqlContextInfo::class,
             ProgramaTejidoContext::class,
             NoCacheHtmlResponses::class,
+            // Descargas: cookie para que el loader global se quite al llegar el archivo.
+            MarcarDescarga::class,
             // Monitoreo (fase 11): identidad del dispositivo, cierre remoto por dispositivo,
             // header Server-Timing y 5xx que los catch devuelven sin pasar por el handler.
             IdentificarDispositivo::class,

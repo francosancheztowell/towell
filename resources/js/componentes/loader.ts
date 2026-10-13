@@ -4,15 +4,35 @@
  */
 
 const ID = 'globalLoader';
+/** La pone App\Http\Middleware\MarcarDescarga en cada respuesta de descarga (Excel, PDF…). */
+const COOKIE_DESCARGA = 'towell_descarga';
 let temporizador: ReturnType<typeof setTimeout> | undefined;
+let vigilancia: ReturnType<typeof setInterval> | undefined;
 
 function elemento(): HTMLElement | null {
     return document.getElementById(ID);
 }
 
+function cookieDescarga(): string {
+    return document.cookie.split('; ').find((c) => c.startsWith(`${COOKIE_DESCARGA}=`)) ?? '';
+}
+
+/**
+ * Una descarga no cambia de página: ni `pageshow` ni la navegación quitan el loader. Mientras está
+ * visible, si la cookie de descarga cambia, el archivo ya llegó y el loader se oculta.
+ */
+function vigilarDescarga(): void {
+    clearInterval(vigilancia);
+    const antes = cookieDescarga();
+    vigilancia = setInterval(() => {
+        if (cookieDescarga() !== antes) hide();
+    }, 400);
+}
+
 /** @param retrasoMs espera antes de mostrarlo (evita el parpadeo en operaciones rápidas) */
 export function show(retrasoMs = 0): void {
     clearTimeout(temporizador);
+    vigilarDescarga();
     const mostrar = () => {
         const el = elemento();
         if (!el) return;
@@ -25,6 +45,7 @@ export function show(retrasoMs = 0): void {
 
 export function hide(): void {
     clearTimeout(temporizador);
+    clearInterval(vigilancia);
     const el = elemento();
     if (!el) return;
     el.classList.add('hidden');
