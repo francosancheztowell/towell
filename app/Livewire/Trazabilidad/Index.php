@@ -131,11 +131,8 @@ class Index extends Component
             'resumenFlog' => $hasFilter ? $this->flogCard($filterValues, $summaryValues, $tableProgress) : null,
             'flogsResumen' => $summaryValues['flogs'] ?? collect(),
             'tablaAvancePedido' => $tableProgress,
-            'ventas' => $hasFilter ? $this->sales->resumen(
-                $summaryValues['flogs']->all(),
-                $filters->articulo,
-                $filters->tamano,
-            ) : null,
+            // Ventas de los Flogs completos, igual que el pedido de AX (ver TrazabilidadResumenService).
+            'ventas' => $hasFilter ? $this->sales->resumen($summaryValues['flogs']->all(), $this->sales->stock($filterValues)) : null,
             'meses' => ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
                 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
         ]);

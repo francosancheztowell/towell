@@ -8,6 +8,7 @@ use App\Livewire\Trazabilidad\Index;
 use App\Services\Trazabilidad\TrazabilidadFilterOptionsService;
 use App\Services\Trazabilidad\TrazabilidadProduccionService;
 use App\Services\Trazabilidad\TrazabilidadResumenService;
+use App\Services\Trazabilidad\TrazabilidadVentasService;
 use Livewire\Livewire;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -45,6 +46,10 @@ class TrazabilidadLivewireTest extends TestCase
             TrazabilidadProduccionService::class,
             fn (MockInterface $mock) => $mock->shouldReceive('buildTablaAvance')->andReturn([])
         );
+        $this->mock(TrazabilidadVentasService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('stock')->andReturnNull();
+            $mock->shouldReceive('resumen')->andReturnNull();
+        });
     }
 
     public function test_it_initializes_filters_from_the_url_and_renders_the_summary(): void

@@ -37,6 +37,10 @@
                 <dt class="text-xs font-medium text-zinc-500">Última factura</dt>
                 <dd class="mt-0.5 text-sm font-semibold tabular-nums text-zinc-800">{{ $ventas['ultima'] ?? '—' }}</dd>
                 <dd class="text-xs text-zinc-500">{{ $ventas['totalClientes'] }} {{ $ventas['totalClientes'] === 1 ? 'cliente' : 'clientes' }}</dd>
+                @if ($ventas['stockDesde'] ?? null)
+                    {{-- Las facturas de stock no traen Flog: se ligan por artículo + tamaño (TrazabilidadVentasService::stock). --}}
+                    <dd class="text-xs text-amber-700">Incluye stock desde {{ $ventas['stockDesde'] }}</dd>
+                @endif
             </div>
         </dl>
 

@@ -157,9 +157,10 @@ final class TrazabilidadDetailController extends Controller
 
         // Los mismos Flogs que usa la tarjeta (las facetas salen de caché).
         $flogs = $this->filterOptions->summaryValues($filters)['flogs']->all();
-        $data = $this->sales->detalle($flogs, $filters->articulo, $filters->tamano);
+        // Flogs completos, como la tarjeta: artículo y tamaño solo eligen los Flogs.
+        $data = $this->sales->detalle($flogs, $this->sales->stock($filters->toArray()));
         // Referencia de la curva: el pedido de AX (null si AX no responde).
-        $pedido = $data ? ($this->flogs->facturacion($flogs, $filters->articulo, $filters->tamano)['pedido'] ?? null) : null;
+        $pedido = $data ? ($this->flogs->facturacion($flogs)['pedido'] ?? null) : null;
 
         $html = view('modulos.trazabilidad._ventas_detalle', [
             'ventas' => $data,

@@ -6,7 +6,6 @@ namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
 use App\Models\Ventas\TwHistVtasModel;
-use App\Support\FiltroAx;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -31,33 +30,69 @@ class TrazabilidadVentasService
 
     /**
      * @param  list<string>  $flogs
-     * @return array{cantidades: array<string, float>, importes: array<string, float>, clientes: list<array<string, mixed>>, totalClientes: int, ultima: ?string}|null null = sin Flog o sin conexión
+     * @param  array{desde: string, pares: list<array{0: string, 1: string}>}|null  $stock  ver stock()
+     * @return array{cantidades: array<string, float>, importes: array<string, float>, clientes: list<array<string, mixed>>, totalClientes: int, ultima: ?string, stockDesde: ?string}|null null = sin Flog o sin conexión
      */
-    public function resumen(array $flogs, string $articulo = '', string $tamano = ''): ?array
+    public function resumen(array $flogs, ?array $stock = null): ?array
     {
-        return $this->conCache('resumen', $flogs, $articulo, $tamano, fn (array $flogs): array => self::resumir(
-            $this->consultar($flogs, $articulo, $tamano)
-        ));
+        return $this->conCache('resumen_v2', $flogs, $stock, fn (array $flogs): array => [
+            ...self::resumir($this->consultar($flogs, $stock)),
+            'stockDesde' => $stock ? Carbon::parse($stock['desde'])->format('d/m/Y') : null,
+        ]);
     }
 
     /**
      * Detalle: facturas, facturación por mes, valor del pedido y reparto por cliente.
      *
      * @param  list<string>  $flogs
+     * @param  array{desde: string, pares: list<array{0: string, 1: string}>}|null  $stock  ver stock()
      * @return array<string, mixed>|null null = sin Flog o sin conexión
      */
-    public function detalle(array $flogs, string $articulo = '', string $tamano = ''): ?array
+    public function detalle(array $flogs, ?array $stock = null): ?array
     {
-        return $this->conCache('detalle_v3', $flogs, $articulo, $tamano, fn (array $flogs): array => self::armarDetalle(
-            $this->consultarLineas($flogs, $articulo, $tamano),
-            $this->producidoTerminado($flogs, $articulo, $tamano),
+        return $this->conCache('detalle_v4', $flogs, $stock, fn (array $flogs): array => self::armarDetalle(
+            $this->consultarLineas($flogs, $stock),
+            $this->producidoTerminado($flogs),
         ));
+    }
+
+    /**
+     * Las facturas de stock no traen Flog (2026: 5.07 M pza sin Flog contra 0 de Flogs RS-).
+     * Para no perderlas, lo producido con el filtro en Flogs de stock (RS-) se liga a las
+     * facturas sin Flog del mismo artículo + tamaño, desde la primera fecha de esa producción.
+     * Los Flogs CE- (pedido de cliente) no jalan ventas de stock. Decisión del usuario, 2026-10-13.
+     *
+     * @param  array<string, mixed>  $filtros  TrazabilidadFilters::toArray()
+     * @return array{desde: string, pares: list<array{0: string, 1: string}>}|null
+     */
+    public function stock(array $filtros): ?array
+    {
+        return Cache::remember(
+            self::CACHE_PREFIX.'_stock_'.app()->environment().'_'.md5((string) json_encode($filtros)),
+            self::CACHE_TTL,
+            function () use ($filtros): ?array {
+                $filas = TrazaProduccion::query()->filtrados($filtros)
+                    // CAST: Flogs es VARCHAR (ver TrazaProduccion::filtrados()).
+                    ->whereRaw('[Flogs] LIKE CAST(? AS varchar(25))', ['RS-%'])
+                    ->whereNotNull('Articulo')
+                    ->whereNotNull('Tamano')
+                    ->selectRaw('Articulo, Tamano, MIN(Fecha) AS desde')
+                    ->groupBy('Articulo', 'Tamano')
+                    ->toBase()
+                    ->get();
+
+                return $filas->isEmpty() ? null : [
+                    'desde' => substr((string) $filas->min('desde'), 0, 10),
+                    'pares' => $filas->map(fn (object $f): array => [trim((string) $f->Articulo), trim((string) $f->Tamano)])->values()->all(),
+                ];
+            }
+        );
     }
 
     /**
      * @param  list<string>  $flogs
      */
-    private function conCache(string $tipo, array $flogs, string $articulo, string $tamano, callable $calcular): ?array
+    private function conCache(string $tipo, array $flogs, ?array $stock, callable $calcular): ?array
     {
         $flogs = array_values(array_unique(array_filter(array_map('trim', $flogs))));
         if ($flogs === []) {
@@ -70,7 +105,7 @@ class TrazabilidadVentasService
             return null;
         }
 
-        $clave = self::CACHE_PREFIX.'_'.$tipo.'_'.app()->environment().'_'.md5(implode("\0", [...$flogs, '|', $articulo, $tamano]));
+        $clave = self::CACHE_PREFIX.'_'.$tipo.'_'.app()->environment().'_'.md5(implode("\0", [...$flogs, '|', (string) json_encode($stock)]));
 
         try {
             return Cache::remember($clave, self::CACHE_TTL, fn (): array => $calcular($flogs));
@@ -85,10 +120,10 @@ class TrazabilidadVentasService
     /**
      * @param  list<string>  $flogs
      */
-    private function consultar(array $flogs, string $articulo, string $tamano): Collection
+    private function consultar(array $flogs, ?array $stock): Collection
     {
         // ponytail: lee del índice IX_TwHistoricosVentas_IdFlog (13–39 ms medido); caché de 10 min encima.
-        return $this->porLotes($flogs, $articulo, $tamano, fn ($query) => $query
+        return $this->porLotes($flogs, $stock, fn ($query) => $query
             // selectRaw: agregados con alias que lee resumir().
             ->selectRaw('CUSTNAME AS cliente, UNITID AS unidad, CURRENCYCODE AS moneda,
                 SUM(QTY) AS cantidad, SUM(AMOUNTNETO) AS importe, MAX(FECHAFACTURA) AS ultima')
@@ -100,9 +135,9 @@ class TrazabilidadVentasService
      *
      * @param  list<string>  $flogs
      */
-    private function consultarLineas(array $flogs, string $articulo, string $tamano): Collection
+    private function consultarLineas(array $flogs, ?array $stock): Collection
     {
-        return $this->porLotes($flogs, $articulo, $tamano, fn ($query) => $query
+        return $this->porLotes($flogs, $stock, fn ($query) => $query
             // selectRaw: agregados con alias que lee armarDetalle().
             ->selectRaw('INVOICEID AS folio, FECHAFACTURA AS fecha, PURCHASEORDERID AS oc, CUSTNAME AS cliente,
                 TIPODOCUMENTO AS tipo, CURRENCYCODE AS moneda, UNITID AS unidad,
@@ -111,18 +146,29 @@ class TrazabilidadVentasService
     }
 
     /**
+     * Facturas de los Flogs y, aparte, las de stock (sin Flog). resumir()/armarDetalle() vuelven
+     * a juntar por cliente y por factura, así que partir en consultas no cuenta doble.
+     *
      * @param  list<string>  $flogs
      */
-    private function porLotes(array $flogs, string $articulo, string $tamano, callable $armar): Collection
+    private function porLotes(array $flogs, ?array $stock, callable $armar): Collection
     {
         $filas = collect();
 
         foreach (array_chunk($flogs, 1000) as $lote) {
+            $filas = $filas->concat($armar(TwHistVtasModel::query()->toBase()->whereIn('IDFLOG', $lote))->get());
+        }
+
+        // De 500 en 500 pares: 2 parámetros por par y SQL Server admite 2100.
+        foreach (array_chunk($stock['pares'] ?? [], 500) as $pares) {
             $query = TwHistVtasModel::query()->toBase()
-                ->whereIn('IDFLOG', $lote)
-                // Sintaxis de AX (lista, rango, comodín): la misma que el filtro de la pantalla.
-                ->tap(fn ($query) => FiltroAx::texto($query, 'ITEMID', $articulo))
-                ->tap(fn ($query) => FiltroAx::texto($query, 'INVENTSIZEID', $tamano));
+                ->where(fn ($q) => $q->whereNull('IDFLOG')->orWhere('IDFLOG', ''))
+                ->where('FECHAFACTURA', '>=', $stock['desde'])
+                ->where(function ($q) use ($pares): void {
+                    foreach ($pares as [$articulo, $tamano]) {
+                        $q->orWhere(fn ($par) => $par->where('ITEMID', $articulo)->where('INVENTSIZEID', $tamano));
+                    }
+                });
             $filas = $filas->concat($armar($query)->get());
         }
 
@@ -130,18 +176,18 @@ class TrazabilidadVentasService
     }
 
     /**
-     * Piezas que entraron a producto terminado: los mismos Flogs de las ventas (ya acotados
-     * por cliente/año/mes) con el mismo artículo y tamaño.
+     * Piezas que entraron a producto terminado en los mismos Flogs de las ventas
+     * (ya acotados por los filtros).
      *
      * @param  list<string>  $flogs
      */
-    private function producidoTerminado(array $flogs, string $articulo, string $tamano): float
+    private function producidoTerminado(array $flogs): float
     {
         $total = 0.0;
         // De 100 en 100: el filtro AX admite hasta 100 valores por campo.
         foreach (array_chunk($flogs, 100) as $lote) {
             $total += (float) TrazaProduccion::query()
-                ->filtrados(['flog' => implode(',', $lote), 'articulo' => $articulo, 'tamano' => $tamano])
+                ->filtrados(['flog' => implode(',', $lote)])
                 // CAST: NombreAlmacen es VARCHAR y la 2a llave de IX_TrazaProduccion_Flogs_Cubre (ver filtrados()).
                 ->whereRaw('NombreAlmacen IN (CAST(? AS varchar(60)), CAST(? AS varchar(60)))', self::ALMACENES_TERMINADO)
                 ->sum('Cantidad');

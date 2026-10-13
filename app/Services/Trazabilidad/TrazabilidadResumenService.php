@@ -44,10 +44,10 @@ class TrazabilidadResumenService
         $fechaInicio = $programas->pluck('FechaInicio')->filter()->min();
         $fechaFin = $programas->pluck('FechaFinal')->filter()->max();
         // Pedido, facturado y pendiente salen juntos de AX para que cuadren entre sí.
+        // De los Flogs completos: artículo y tamaño solo eligen los Flogs. El artículo que se produce muchas veces no es el que se factura (7476 → 7490, 7447 CT → 7447),
+        // así que filtrar AX por ese código dejaba el pedido vacío (decisión del usuario, 2026-10-13).
         $facturacion = $this->flogsAx->facturacion(
             $flogs->map(fn ($flog): string => (string) $flog)->all(),
-            trim((string) ($filtros['articulo'] ?? '')),
-            trim((string) ($filtros['tamano'] ?? '')),
         );
         // Sin AX: el pedido cae a lo programado de la tarjeta "Programa tejido" y lo
         // facturado queda sin dato ("—"), no en un 0 que parezca real.
