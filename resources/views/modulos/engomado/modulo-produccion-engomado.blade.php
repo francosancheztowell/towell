@@ -664,7 +664,7 @@
                                             data-field="ubicacion"
                                             class="w-full border border-gray-300 rounded px-1.5 py-0.5 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                         >
-                                            <option value="">-</option>
+                                            <option value="" disabled {{ $ubicacion === '' ? 'selected' : '' }}>-</option>
                                             @foreach($ubicaciones ?? [] as $ubicacionItem)
                                                 <option value="{{ $ubicacionItem->Codigo }}" {{ $ubicacion === $ubicacionItem->Codigo ? 'selected' : '' }}>
                                                     {{ $ubicacionItem->Codigo }}

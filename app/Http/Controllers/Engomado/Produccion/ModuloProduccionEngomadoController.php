@@ -261,7 +261,11 @@ class ModuloProduccionEngomadoController extends Controller
             $campo = $request->campo;
 
             if ($campo === 'Ubicacion') {
-                $valor = $request->valor !== null && $request->valor !== '' ? (string) $request->valor : null;
+                // La ubicación es obligatoria: no se puede vaciar y debe existir en el catálogo.
+                $valor = trim((string) $request->valor);
+                if ($valor === '' || ! CatUbicaciones::where('Codigo', $valor)->exists()) {
+                    return response()->json(['success' => false, 'error' => 'Selecciona una ubicación válida del catálogo'], 422);
+                }
             } else {
                 if ($request->valor !== null && $request->valor !== '') {
                     if (! is_numeric($request->valor)) {
@@ -408,14 +412,16 @@ class ModuloProduccionEngomadoController extends Controller
                     $q->whereNull('NoJulio')
                         ->orWhere('NoJulio', '')
                         ->orWhereNull('KgBruto')
-                        ->orWhere('KgBruto', 0);
+                        ->orWhere('KgBruto', 0)
+                        ->orWhereNull('Ubicacion')
+                        ->orWhere('Ubicacion', '');
                 })
                 ->count();
 
             if ($registrosInvalidos > 0) {
                 return response()->json([
                     'success' => false,
-                    'error' => "No se puede finalizar: hay {$registrosInvalidos} registro(s) con No. Julio vacío o Kg Bruto en cero. Revisa los registros antes de finalizar.",
+                    'error' => "No se puede finalizar: hay {$registrosInvalidos} registro(s) con No. Julio vacío, Kg Bruto en cero o sin Ubicación. Revisa los registros antes de finalizar.",
                 ], 422);
             }
 
