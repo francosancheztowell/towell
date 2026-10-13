@@ -36,9 +36,6 @@ class Cuotas extends Component
         'std' => CosCuotasSTD::class,
     ];
 
-    /** Pestaña de solo lectura con el costo de cada julio del mes (App\Livewire\Costos\CostoJulios). */
-    public const JULIOS = 'julios';
-
     /** Pestaña abierta; va en la URL para que al recargar se quede donde estaba. Default: la estándar. */
     #[Url(as: 'vista', except: 'std')]
     public string $tabla = 'std';
@@ -67,7 +64,13 @@ class Cuotas extends Component
     {
         abort_unless(userCan('acceso', self::MODULO), 403, 'No tienes acceso a las cuotas de costos.');
 
-        if (! isset(self::TABLAS[$this->tabla]) && $this->tabla !== self::JULIOS) {
+        if ($this->tabla === 'julios') {
+            $this->redirectRoute('costos.curdeng'); // la pestaña "Costo por julio" pasó a /costos/curdeng
+
+            return;
+        }
+
+        if (! isset(self::TABLAS[$this->tabla])) {
             $this->tabla = 'std'; // vista de la URL que no existe
         }
     }
@@ -79,7 +82,7 @@ class Cuotas extends Component
      */
     public function updatedTabla(): void
     {
-        if (! isset(self::TABLAS[$this->tabla]) && $this->tabla !== self::JULIOS) {
+        if (! isset(self::TABLAS[$this->tabla])) {
             $this->tabla = 'std';
         }
 
@@ -349,10 +352,6 @@ class Cuotas extends Component
 
     public function render(): View
     {
-        if ($this->tabla === self::JULIOS) {
-            return view('livewire.costos.cuotas', ['anios' => [], 'puede' => []]);
-        }
-
         $modelo = $this->modelo();
         $anios = $this->anios();
         if ($this->anio !== '' && ! isset($anios[(int) $this->anio])) {

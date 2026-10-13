@@ -8,24 +8,25 @@ use App\Exports\CostoJuliosExport;
 use App\Models\Costos\CosCuota;
 use App\Models\Costos\CosCuotasReal;
 use App\Models\Inventario\InvKardexMPConsol;
+use App\Models\Urdido\Urdbom;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Services\Costos\CostosJulio;
 use App\Services\Costos\CuotasUrdidoService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
-use Livewire\Attributes\Reactive;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Pestaña "Costo por julio" de Cuotas: los julios urdidos en un mes con el costo que ya tienen
+ * Costo por julio (/costos/curdeng): los julios urdidos en un mes con el costo que ya tienen
  * guardado en UrdProduccionUrdido (ImporteMP del kardex + lo que "Calcular Urdido" reparte, ver
  * App\Services\Costos\CostosJulio). Solo lectura: aquí no se recalcula nada.
  *
  * Los julios se agrupan por folio (orden de urdido) y se despliegan; los indicadores y el cuadre
  * contra la sábana de la cuota real son del mes completo, la tabla respeta búsqueda y máquina.
+ * Arriba va el veredicto del mes (veredicto()): si el hilo cuadra con el kardex y la conversión con la sábana.
  */
 class CostoJulios extends Component
 {
@@ -44,7 +45,8 @@ class CostoJulios extends Component
     /** Sábana de la cuota real => columna del julio: Σ julios del mes = Sab (CostosJulio). */
     public const SABANA = ['SabMO' => 'MOD', 'SabMOI' => 'MOI', 'SabGtosVariable' => 'GtsV', 'SabGtosFijos' => 'GtsF'];
 
-    #[Reactive]
+    /** Método de costeo: 'directo' deja fuera los fijos. Mismo switch del navbar que Cuotas y la Hoja de costos. */
+    #[Url(except: 'absorbente')]
     public string $costeo = 'absorbente';
 
     #[Url(as: 'julios_anio')]
@@ -93,6 +95,82 @@ class CostoJulios extends Component
     public function filtrarMaquina(string $maquina): void
     {
         $this->maquina = $this->maquina === $maquina ? '' : $maquina;
+    }
+
+    public function limpiarFiltros(): void
+    {
+        $this->buscar = '';
+        $this->maquina = '';
+    }
+
+    /** Merma aceptable del hilo, en %: lo normal es 2–6; fuera de este rango se marca (veredicto y tabla del kardex). */
+    public const MERMA_MIN = 0.0;
+
+    public const MERMA_MAX = 8.0;
+
+    /** Merma % = hilo que salió del almacén y no llegó a los julios. null = sin kardex con qué medir. */
+    public static function merma(float $kgJulios, float $kgKardex): ?float
+    {
+        return $kgKardex > 0 ? (1 - $kgJulios / $kgKardex) * 100 : null;
+    }
+
+    public static function mermaFuera(?float $merma): bool
+    {
+        return $merma === null || $merma < self::MERMA_MIN || $merma > self::MERMA_MAX;
+    }
+
+    /**
+     * Veredicto del mes, lo primero que ve el contador. Hilo: merma (merma()) dentro de MERMA_MIN–MERMA_MAX,
+     * la misma regla que la tabla del kardex. Conversión: Σ julios contra la sábana, con $5 de tolerancia por
+     * redondeo. Julios sin kg: el mes aún no se captura completo. estado: 'ok' | 'fuera' | 'sin' (no hay con qué comparar).
+     *
+     * @param  array{julios: float, sab: float}|null  $sabana  null = no hay cuota real del mes
+     * @return list<array{estado: string, titulo: string, detalle: string}>
+     */
+    public static function veredicto(float $kgJulios, ?float $kgKardex, ?array $sabana, int $sinCosto, int $sinKg = 0): array
+    {
+        $kg = fn (float $v): string => number_format($v, 0).' kg';
+        $pesos = fn (float $v): string => ($v < 0 ? '-$' : '$').number_format(abs($v), 0);
+        $puntos = [];
+
+        if ($sinKg > 0) {
+            $puntos[] = ['estado' => 'fuera', 'titulo' => number_format($sinKg).' julios sin kg capturados',
+                'detalle' => 'Sin kg no entran al costo por kg ni al cuadre del hilo; si el mes sigue abierto, los números aún no son finales.'];
+        }
+
+        $merma = $kgKardex === null ? null : self::merma($kgJulios, $kgKardex);
+        if ($merma === null) {
+            $puntos[] = ['estado' => 'sin', 'titulo' => 'Sin kardex de AX del mes',
+                'detalle' => 'La MP de los julios es la de fórmula; el cuadre del hilo aparece cuando AX tenga el mes.'];
+        } else {
+            $rango = sprintf('lo normal es 2–6 %%, se marca fuera de %s–%s %%', number_format(self::MERMA_MIN, 0), number_format(self::MERMA_MAX, 0));
+            $puntos[] = ! self::mermaFuera($merma)
+                ? ['estado' => 'ok', 'titulo' => sprintf('Merma del hilo %s %%: cuadra con el kardex', number_format($merma, 1)),
+                    'detalle' => sprintf('Julios %s de %s que salieron del almacén (%s).', $kg($kgJulios), $kg((float) $kgKardex), $rango)]
+                : ['estado' => 'fuera', 'titulo' => sprintf('Merma del hilo %s %%: no cuadra con el kardex', number_format($merma, 1)),
+                    'detalle' => sprintf('Los julios suman %s y del almacén salieron %s (%s). '
+                        .'La MP de cada julio se reparte del importe del kardex, así que su $/kg sube.',
+                        $kg($kgJulios), $kg((float) $kgKardex), $rango)];
+        }
+
+        if ($sabana === null) {
+            $puntos[] = ['estado' => 'sin', 'titulo' => 'Sin cuota real del mes', 'detalle' => 'No hay sábana de AX con qué cuadrar la conversión.'];
+        } else {
+            $dif = $sabana['julios'] - $sabana['sab'];
+            $puntos[] = abs($dif) < 5
+                ? ['estado' => 'ok', 'titulo' => 'La conversión cuadra con la sábana',
+                    'detalle' => sprintf('Julios %s contra sábana de AX %s.', $pesos($sabana['julios']), $pesos($sabana['sab']))]
+                : ['estado' => 'fuera', 'titulo' => 'La conversión no cuadra con la sábana',
+                    'detalle' => sprintf('Julios %s contra sábana de AX %s: diferencia de %s. Revisa Calcular Urdido del mes en Cuotas.',
+                        $pesos($sabana['julios']), $pesos($sabana['sab']), $pesos($dif))];
+        }
+
+        if ($sinCosto > 0) {
+            $puntos[] = ['estado' => 'fuera', 'titulo' => number_format($sinCosto).' julios sin costo',
+                'detalle' => 'Aún no los costea Calcular Urdido (Cuotas): no suman al costo del mes.'];
+        }
+
+        return $puntos;
     }
 
     /**
@@ -277,6 +355,9 @@ class CostoJulios extends Component
 
         $cuadre = [];
         foreach (self::SABANA as $sab => $col) {
+            if ($this->costeo === 'directo' && in_array($col, self::FIJOS, true)) {
+                continue; // en directo los fijos no se cobran a los julios: tampoco se cuadran
+            }
             $cuadre[self::CONCEPTOS[$col]] = ['sab' => (float) $cuota->getAttribute($sab), 'julios' => (float) $julios->sum($col)];
         }
 
@@ -310,6 +391,22 @@ class CostoJulios extends Component
         }
 
         return array_map(fn ($p) => ['kg' => (float) $fila->{$p.'KG'}, 'imp' => (float) $fila->{$p.'IMP'}], self::KARDEX);
+    }
+
+    /**
+     * Composición de la LMAT de cada folio (dbo.Urdbom): materiales con su % y costo unitario (cump).
+     * ponytail: un whereIn con los folios en pantalla (~150 al mes); si pasan de 2000, partir en lotes (límite de bindings).
+     *
+     * @param  list<string>  $folios
+     * @return Collection<string, Collection<int, Urdbom>>
+     */
+    private function lmat(array $folios): Collection
+    {
+        return $folios === [] ? collect() : Urdbom::query()
+            ->whereIn('Folio', $folios)
+            ->orderBy('Id')
+            ->get(['Folio', 'Lmat', 'Calibre', 'Config', 'Color', 'Porcentaje', 'cump'])
+            ->groupBy(fn (Urdbom $m) => trim((string) $m->Folio));
     }
 
     public function abrirExportar(): void
@@ -348,18 +445,32 @@ class CostoJulios extends Component
         $julios = $this->julios();
         $conceptos = $this->conceptosVisibles($julios);
         $filtrados = $this->filtrados($julios);
+        $porMaquina = $julios->groupBy('maquina')->sortKeys()->map(fn ($l) => self::totales($l, $conceptos));
+        $folios = $filtrados->groupBy('folio')->map(fn ($l) => ['julios' => $l] + self::totales($l, $conceptos) + $l->first());
+        $cuadre = $this->cuadre($julios);
+        $kardex = $this->kardex();
+        $sabana = $cuadre === null ? null : ['julios' => (float) array_sum(array_column($cuadre, 'julios')), 'sab' => (float) array_sum(array_column($cuadre, 'sab'))];
 
         return view('livewire.costos.costo-julios', [
             'conceptos' => $conceptos,
             'meses' => $meses,
             'nombreMes' => CosCuota::MESES[$this->mes] ?? '',
             'mesTotal' => self::totales($julios, $conceptos),
-            'porMaquina' => $julios->groupBy('maquina')->sortKeys()->map(fn ($l) => self::totales($l, $conceptos)),
+            'porMaquina' => $porMaquina,
             'mpFormula' => $julios->groupBy('maquina')->map(fn ($l) => (float) $l->sum('mpFormula')),
-            'folios' => $filtrados->groupBy('folio')->map(fn ($l) => ['julios' => $l] + self::totales($l, $conceptos) + $l->first()),
+            'folios' => $folios,
+            'lmat' => $this->lmat($folios->keys()->map(fn ($f) => (string) $f)->all()),
             'filtroTotal' => self::totales($filtrados, $conceptos),
-            'cuadre' => $this->cuadre($julios),
-            'kardex' => $this->kardex(),
+            'cuadre' => $cuadre,
+            'kardex' => $kardex,
+            // Hilo: solo las máquinas que el kardex trae (las demás no tienen contra qué cuadrar).
+            'veredicto' => self::veredicto(
+                (float) $porMaquina->only(array_keys($kardex ?? []))->sum('kg'),
+                $kardex === null ? null : (float) array_sum(array_column($kardex, 'kg')),
+                $sabana,
+                $meses[$this->mes]['sinCosto'] ?? 0,
+                $julios->filter(fn ($j) => ! ($j['kg'] > 0))->count(),
+            ),
             'anios' => range(now()->year, 2025),
         ]);
     }

@@ -19,3 +19,7 @@ Route::view('/costos/cuotas', 'modulos.costos.cuotas.index')->name('costos.cuota
 
 // Hoja de costo unitario por artículo. ponytail: sin módulo en SYSRoles aún, basta con auth.
 Route::view('/costos/hojacostos', 'modulos.costos.hoja-costos.index')->name('costos.hojacostos');
+
+// Costo por julio de urdido-engomado (antes pestaña "vista=julios" de Cuotas). El acceso lo valida
+// App\Livewire\Costos\CostoJulios::mount con el permiso de Cuotas. ponytail: sin módulo propio en SYSRoles aún.
+Route::view('/costos/curdeng', 'modulos.costos.curdeng.index')->name('costos.curdeng');

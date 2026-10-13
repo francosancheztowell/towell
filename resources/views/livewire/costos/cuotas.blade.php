@@ -5,7 +5,6 @@
             {{-- Activa en azul, como el encabezado de la tabla (Flux la marca con data-checked). --}}
             <flux:radio value="std" label="Cuotas estándar (STD)" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
             <flux:radio value="real" label="Cuotas reales" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
-            <flux:radio value="julios" label="Costo por julio" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
         </flux:radio.group>
 
 
@@ -27,10 +26,6 @@
         @endif
     </div>
 
-    @if ($tabla === 'julios')
-        {{-- Costo de cada julio del mes: componente aparte, solo lectura. Comparte el costeo de arriba. --}}
-        <livewire:costos.costo-julios :costeo="$costeo" wire:key="costo-julios" />
-    @else
     <x-tabla :columnas="$this->columnas()"
              :filas="$filas"
              :seleccionado="$seleccionado"
@@ -73,7 +68,6 @@
             @endif
         </x-slot:acciones>
     </x-tabla>
-    @endif
 
     {{-- Alta / edición: <dialog> con el aspecto de los demás diálogos (.ui-dialogo). Se abre al
          renderizarse; wire:ignore.self evita que un refresco le quite `open`. Esc, clic fuera o
