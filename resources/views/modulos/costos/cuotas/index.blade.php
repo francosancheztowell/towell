@@ -8,7 +8,11 @@
 
 @section('navbar-right')
     {{-- El componente teletransporta aquí sus botones (ver x-tabla). --}}
-    <div id="tabla-navbar-acciones" class="flex items-center gap-2"></div>
+    <div class="flex items-center gap-2">
+        <div id="tabla-navbar-acciones" class="flex items-center gap-2"></div>
+        {{-- Directo / Absorbente (x-costos.costeo), el mismo de la Hoja de costos. --}}
+        <div id="costos-navbar-costeo"></div>
+    </div>
 @endsection
 
 @section('content')

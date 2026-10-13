@@ -9,17 +9,12 @@
         </flux:radio.group>
 
 
-        {{-- Costeo: absorbente (todas las columnas) o directo (sin los costos fijos). Las pills usan el
-             acento de Flux (morado); aquí se pasa a azul, como la pestaña activa. --}}
-        <flux:radio.group wire:model.live="costeo" variant="pills" aria-label="Método de costeo" class="ms-auto gap-2! [--color-accent:var(--color-blue-600)]">
-            <flux:radio value="directo" class="min-h-touch px-3!" title="Sin costos fijos">Directo</flux:radio>
-            <flux:radio value="absorbente" class="min-h-touch px-3!" title="Todos los costos">Absorbente</flux:radio>
-        </flux:radio.group>
+        {{-- Costeo: absorbente (todas las columnas) o directo (sin los costos fijos), en el navbar como en la Hoja de costos. --}}
+        <x-costos.costeo destino="#costos-navbar-costeo" />
 
         {{-- Años de la tabla (pills de Flux, con cuántas cuotas tiene cada uno): filtran al elegirlos. --}}
         @if ($anios !== [])
-            <flux:separator vertical class="my-2" />
-            <flux:radio.group wire:model.live="anio" variant="pills" aria-label="Filtrar por año" class="gap-2! [--color-accent:var(--color-blue-600)]">
+            <flux:radio.group wire:model.live="anio" variant="pills" aria-label="Filtrar por año" class="ms-auto gap-2! [--color-accent:var(--color-blue-600)]">
                 <flux:radio value="" class="min-h-touch px-3!">Todos</flux:radio>
                 @foreach ($anios as $valor => $total)
                     <flux:radio value="{{ $valor }}" class="min-h-touch px-3! tabular-nums">

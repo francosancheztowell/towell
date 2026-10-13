@@ -15,15 +15,7 @@
                abrirFiltros() { window.matchMedia('(min-width: 1024px)').matches ? this.filtros = !this.filtros : this.$flux.modal('hoja-filtros').show() },
                fijo: (() => { try { return localStorage.getItem('hoja-costos-fijo') === '1' } catch (e) { return false } })() }"
      x-effect="(() => { try { localStorage.setItem('hoja-costos-fijo', fijo ? '1' : '0') } catch (e) {} })()">
-    {{-- Costeo en el navbar (en móvil, la fila de acciones que el navbar pone debajo). --}}
-    @teleport('#hoja-navbar-acciones')
-    <div class="-mt-1 flex items-center gap-2">
-        <flux:radio.group wire:model.live="costeo" variant="segmented" aria-label="Método de costeo" class="h-11!">
-            <flux:radio value="directo" label="Directo" title="Sin costos fijos" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
-            <flux:radio value="absorbente" label="Absorbente" title="Todos los costos" class="min-h-touch data-checked:bg-blue-600! data-checked:text-white!" />
-        </flux:radio.group>
-    </div>
-    @endteleport
+    <x-costos.costeo destino="#hoja-navbar-acciones" />
 
     {{-- Filtros + pestañas. --}}
     <div class="sticky top-0 z-10 flex h-15 items-center gap-2 bg-slate-800 px-2 md:px-6">
