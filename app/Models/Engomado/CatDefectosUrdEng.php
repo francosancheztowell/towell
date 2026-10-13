@@ -4,12 +4,21 @@ namespace App\Models\Engomado;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string|null $Clave
+ * @property string|null $Defecto
+ */
 class CatDefectosUrdEng extends Model
 {
     protected $connection = 'sqlsrv';
+
     protected $table = 'CatDefectosUrdEng';
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     public $timestamps = false;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Urdido;
 
 use App\Exports\BpmUrdidoExport;
 use App\Exports\KaizenExport;
+use App\Exports\OeeUrdidoExport;
 use App\Exports\PanelControlKmExport;
 use App\Exports\ReporteResumenSemanalUrdidoExport;
 use App\Exports\ReportesUrdidoExport;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdBpmModel;
 use App\Models\Urdido\UrdProduccionUrdido;
+use App\Services\Urdido\OeeUrdidoService;
 use App\Services\Urdido\PanelControlKmService;
 use App\Support\Programas\ProgramaModulo;
 use Carbon\Carbon;
@@ -107,6 +109,12 @@ class ReportesUrdidoController extends Controller
                 'nombre' => 'Panel de Control KM',
                 'accion' => 'Seleccionar Telar y Año',
                 'url' => route('urdido.reportes.urdido.panel-control'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => 'OEE Urdido',
+                'accion' => 'Seleccionar Meses',
+                'url' => route('urdido.reportes.urdido.oee'),
                 'disponible' => true,
             ],
         ];
@@ -1307,6 +1315,39 @@ class ReportesUrdidoController extends Controller
         $operador = trim((string) ($operador ?? ''));
 
         return $operador !== '' ? $operador : 'Sin asignar';
+    }
+
+    /** Meses ('Y-m', máx. 12) y tipos de paro del query; sin `meses` en el query, los 4 tipos marcados. */
+    private function filtrosOee(Request $request): array
+    {
+        $meses = array_values(array_unique(array_filter((array) $request->query('meses', []),
+            fn ($m) => is_string($m) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $m))));
+        $tipos = $request->has('meses')
+            ? array_values(array_intersect(OeeUrdidoService::TIPOS, (array) $request->query('tipos', [])))
+            : OeeUrdidoService::TIPOS;
+
+        return [array_slice($meses, 0, 12), $tipos];
+    }
+
+    public function reporteOee(Request $request, OeeUrdidoService $oee)
+    {
+        [$meses, $tipos] = $this->filtrosOee($request);
+
+        return view('modulos.urdido.reportes-oee-urdido', [
+            'meses' => $meses,
+            'tipos' => $tipos,
+            'reporte' => $meses === [] ? null : $oee->reporte($meses, $tipos),
+        ]);
+    }
+
+    public function exportarOeeExcel(Request $request, OeeUrdidoService $oee)
+    {
+        [$meses, $tipos] = $this->filtrosOee($request);
+        if ($meses === []) {
+            return redirect()->route('urdido.reportes.urdido.oee')->with('error', 'Seleccione al menos un mes para exportar.');
+        }
+
+        return Excel::download(new OeeUrdidoExport($oee->reporte($meses, $tipos)), 'oee-urdido-'.implode('_', $meses).'.xlsx');
     }
 
     public function reporteResumen(Request $request)

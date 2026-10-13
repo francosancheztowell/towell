@@ -2,6 +2,7 @@
 
 namespace App\Models\Urdido;
 
+use App\Models\Engomado\CatDefectosUrdEng;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -15,7 +16,17 @@ use Illuminate\Support\Carbon;
  * @property string|null $ImporteMP decimal(18,4): KgNeto × Σ(cump × %) del folio, ver CumpKardexService
  * @property string|null $NoJulio
  * @property int|string|null $Hilos
+ * @property float|null $Metros1
+ * @property float|null $Metros2
+ * @property float|null $Metros3
+ * @property string|null $NomEmpl1
+ * @property string|null $NomEmpl2
+ * @property string|null $NomEmpl3
+ * @property bool|int|null $Finalizar
+ * @property int|null $ClaveDefecto
+ * @property float|null $Penalizacion
  * @property-read UrdProgramaUrdido|null $programa
+ * @property-read CatDefectosUrdEng|null $defecto
  */
 class UrdProduccionUrdido extends Model
 {
@@ -73,6 +84,12 @@ class UrdProduccionUrdido extends Model
     public function programa(): BelongsTo
     {
         return $this->belongsTo(UrdProgramaUrdido::class, 'Folio', 'Folio');
+    }
+
+    /** @return BelongsTo<CatDefectosUrdEng, $this> */
+    public function defecto(): BelongsTo
+    {
+        return $this->belongsTo(CatDefectosUrdEng::class, 'ClaveDefecto', 'Id');
     }
 
     public static function folioTieneAx(string $folio): bool

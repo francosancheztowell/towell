@@ -24,6 +24,7 @@
         && !request()->routeIs('codificacion-modelos')
         && !request()->routeIs('planeacion.alineacion.index')
         && !request()->routeIs('trazabilidad.*')
+        && !request()->routeIs('urdido.reportes.urdido.oee')
         && !request()->routeIs('crudo.*')
         && !request()->is('simulacion*')
         && !request()->routeIs('ventas.*')
