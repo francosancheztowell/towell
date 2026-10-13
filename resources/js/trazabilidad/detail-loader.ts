@@ -74,7 +74,9 @@ export class DetailLoader {
             const type = trigger.dataset.resumenDetalle as DetailType | undefined;
             if (type && type in TITLES) {
                 this.opener = trigger;
-                void this.open(type);
+                // Tarjeta Flog con paginador: el detalle abre el Flog que se está viendo.
+                const ver = trigger.closest<HTMLElement>('[data-flog-actual]')?.dataset.flogActual;
+                void this.open(type, ver ? { ver } : {});
             }
         });
 

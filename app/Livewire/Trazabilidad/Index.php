@@ -39,6 +39,9 @@ class Index extends Component
     #[Url(except: '')]
     public string $mes = '';
 
+    /** Tarjeta Flog con varios Flogs: cuál se está viendo (0 = el primero). Vuelve a 0 al filtrar. */
+    public int $flogPagina = 0;
+
     /** Hubo cambio de filtros en esta request: render() avisa al front una sola vez. */
     private bool $filtersChanged = false;
 
@@ -125,7 +128,8 @@ class Index extends Component
             'opcionesTamano' => $options['tamano'],
             'opcionesCliente' => $options['cliente'],
             'opcionesAnio' => $options['anio'],
-            'resumenFlog' => $hasFilter ? $this->summary->build($filterValues, $summaryValues, $tableProgress) : null,
+            'resumenFlog' => $hasFilter ? $this->flogCard($filterValues, $summaryValues, $tableProgress) : null,
+            'flogsResumen' => $summaryValues['flogs'] ?? collect(),
             'tablaAvancePedido' => $tableProgress,
             'ventas' => $hasFilter ? $this->sales->resumen(
                 $summaryValues['flogs']->all(),
@@ -135,6 +139,36 @@ class Index extends Component
             'meses' => ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
                 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
         ]);
+    }
+
+    /**
+     * Tarjeta Flog: con varios Flogs muestra uno a la vez (paginador), con sus propios
+     * artículos, tamaños, pedido y facturado. Las demás tarjetas siguen con todo el filtro.
+     *
+     * @param  array<string, mixed>  $filterValues
+     * @param  array<string, mixed>  $summaryValues
+     * @param  array<int, array<string, mixed>>  $tableProgress
+     * @return array<string, mixed>
+     */
+    private function flogCard(array $filterValues, array $summaryValues, array $tableProgress): array
+    {
+        $flogs = $summaryValues['flogs']->values();
+        if ($flogs->count() <= 1) {
+            return $this->summary->build($filterValues, $summaryValues, $tableProgress);
+        }
+
+        $this->flogPagina = max(0, min($this->flogPagina, $flogs->count() - 1));
+        $flog = (string) $flogs[$this->flogPagina];
+        $uno = TrazabilidadFilters::fromArray([...$filterValues, 'flog' => $flog]);
+
+        return [
+            ...$this->summary->build(
+                $uno->toArray(),
+                $this->filterOptions->summaryValues($uno),
+                array_values(array_filter($tableProgress, static fn (array $fila): bool => ($fila['flog'] ?? '') === $flog)),
+            ),
+            'flogVista' => $flog,
+        ];
     }
 
     protected function authorizeAccess(): void
@@ -201,11 +235,23 @@ class Index extends Component
 
         $this->applyNormalizedFilters($cleaned);
 
+        // Sin aviso, el valor tecleado desaparecía del filtro y parecía que no se había escrito.
+        $quitados = array_diff(
+            [...FiltroAx::valores($filters->flog), ...FiltroAx::valores($filters->articulo),
+                ...FiltroAx::valores($filters->tamano), ...$filters->cliente, $filters->anio],
+            [...FiltroAx::valores($cleaned->flog), ...FiltroAx::valores($cleaned->articulo),
+                ...FiltroAx::valores($cleaned->tamano), ...$cleaned->cliente, $cleaned->anio],
+        );
+        if ($quitados !== []) {
+            $this->dispatch('aviso', tipo: 'warning', texto: 'Sin producción con los demás filtros, se quitó: '.implode(', ', $quitados));
+        }
+
         return true;
     }
 
     private function applyNormalizedFilters(TrazabilidadFilters $filters): void
     {
+        $this->flogPagina = 0;
         $this->flog = $filters->flog;
         $this->articulo = $filters->articulo;
         $this->tamano = $filters->tamano;

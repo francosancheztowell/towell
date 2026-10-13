@@ -17,6 +17,7 @@
  * morph y vuelve a llamar `combobox()` después (así lo hace Trazabilidad).
  */
 import TomSelect from 'tom-select/base';
+import checkboxOptions from 'tom-select/plugins/checkbox_options/plugin.js';
 import clearButton from 'tom-select/plugins/clear_button/plugin.js';
 import dropdownInput from 'tom-select/plugins/dropdown_input/plugin.js';
 import removeButton from 'tom-select/plugins/remove_button/plugin.js';
@@ -31,6 +32,7 @@ import {
     type TextosCombobox,
 } from './combobox-opciones.ts';
 
+TomSelect.define('checkbox_options', checkboxOptions);
 TomSelect.define('clear_button', clearButton);
 TomSelect.define('dropdown_input', dropdownInput);
 TomSelect.define('remove_button', removeButton);
@@ -48,6 +50,8 @@ export interface OpcionesCombobox {
      * escribir o pegar `a,b,c` agrega tres valores.
      */
     crear?: boolean;
+    /** Múltiple: casilla en cada opción; se marcan varias sin cerrar la lista. */
+    casillas?: boolean;
     /** Cargar las opciones del servidor al buscar (y al abrir). */
     remoto?: RemotoCombobox;
     textos?: Partial<TextosCombobox>;
@@ -69,6 +73,7 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
         ...(!multiple ? ['dropdown_input'] : []),
         ...(opciones.permitirVacio && !multiple ? ['clear_button'] : []),
         ...(multiple ? ['remove_button'] : []),
+        ...(multiple && opciones.casillas ? ['checkbox_options'] : []),
     ];
     const clasesDelSelect = [...select.classList];
 
@@ -120,6 +125,22 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
     ajustes.dropdownClass = 'ts-dropdown combobox-flotante';
 
     const instancia: TomSelect = new TomSelect(select, ajustes as ConstructorParameters<typeof TomSelect>[1]);
+
+    // Crear: Tom Select solo corta por coma en keypress y al pegar; con teclados táctiles,
+    // autocompletado o IME la coma se quedaba en el texto ("7120,"). Aquí se corta siempre.
+    if (opciones.crear) {
+        instancia.on('type', (texto: string) => {
+            if (!texto.includes(',')) return;
+            const partes = texto.split(',').map((parte) => parte.trim());
+            const resto = partes.pop() ?? '';
+            partes.filter(Boolean).forEach((parte) => {
+                if (instancia.options[parte]) instancia.addItem(parte);
+                else instancia.createItem(parte);
+            });
+            instancia.setTextboxValue(resto);
+            instancia.refreshOptions(false);
+        });
+    }
 
     // Remoto: consultar al abrir, siempre (Select2 volvía a pedir en cada apertura).
     if (cargar) instancia.on('dropdown_open', () => instancia.load(instancia.inputValue()));

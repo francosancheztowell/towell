@@ -12,15 +12,25 @@ export class FilterSelects {
 
     private readonly onChange = (event: Event): void => {
         const select = event.currentTarget as HTMLSelectElement;
-        const field = select.dataset.livewireFilter || '';
-        if (!field) return;
+        // Múltiple mientras se escribe: cada petición desmonta Tom Select y se pierde el foco
+        // (no se podía teclear 7160,7120). Se manda al salir del campo; la ✕ sin foco, al momento.
+        if (select.multiple && comboboxDe(select)?.isFocused) return;
+        this.send(select);
+    };
 
+    /** Avisa a Livewire solo si el valor cambió desde el último que conoce el servidor. */
+    private send(select: HTMLSelectElement): void {
+        const field = select.dataset.livewireFilter || '';
         const value = valorDe(select);
+        const key = JSON.stringify(value);
+        if (!field || key === select.dataset.enviado) return;
+        select.dataset.enviado = key;
+
         // Fuera del evento: Tom Select sigue usando su DOM después de emitir `change`.
         window.setTimeout(() => {
             window.Livewire?.dispatch('trazabilidad-actualizar-filtro', { campo: field, valor: value });
         });
-    };
+    }
 
     public constructor(root: HTMLElement) {
         this.root = root;
@@ -31,14 +41,18 @@ export class FilterSelects {
             // data-bloqueado: Mes sin Año.
             select.disabled = select.hasAttribute('data-bloqueado');
             if (!comboboxDe(select)) {
+                // Lo que llegó del servidor: send() compara contra esto.
+                select.dataset.enviado = JSON.stringify(valorDe(select));
                 const remoto = this.remoteSource(select);
-                combobox(select, {
+                const instancia = combobox(select, {
                     placeholder: select.disabled ? 'Elige año' : 'Todos',
                     permitirVacio: true,
                     // data-ax: se escribe o pega como en AX (7166,7167 · 7160..7170 · 71*).
                     crear: select.hasAttribute('data-ax'),
+                    casillas: true,
                     ...(remoto ? { remoto } : {}),
                 });
+                if (select.multiple) instancia.on('blur', () => this.send(select));
             }
 
             select.removeEventListener('change', this.onChange);

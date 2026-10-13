@@ -21,6 +21,14 @@ main.app-main:has(.trazabilidad-page) {
     border-radius: 0.5rem;
 }
 
+/* Antes de que Tom Select monte (al cargar y mientras Livewire redibuja los filtros) el <select>
+   nativo se vería: los múltiples como lista alta con todas las opciones. Se reserva el alto del
+   control final, invisible, para que la barra no salte. Tom Select pone .tomselected al montar. */
+.trazabilidad-page select.filtro-select:not(.tomselected) {
+    height: 2.75rem;
+    visibility: hidden;
+}
+
 /* Barra de progreso mientras Livewire recalcula el resumen. */
 .traza-progreso {
     position: absolute;
