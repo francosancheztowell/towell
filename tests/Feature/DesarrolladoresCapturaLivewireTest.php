@@ -1051,6 +1051,55 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         $this->assertSame('2108', $detalles[0]['Cuenta']);
     }
 
+    /**
+     * Sin caché sembrado: la consulta real a AX. De JULIO-URDIDO solo sale lo que tiene
+     * TwVigente = 1; las filas son de AX (2148-300/1 existe pero no esta vigente).
+     */
+    public function test_karl_mayer_solo_ofrece_lo_vigente_de_julio_urdido(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarKarlMayer();
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)
+            ->update(['CuentaBarra1' => '2148', 'CalibreBarra1' => '300.1']);
+
+        config()->set('database.connections.sqlsrv_ti', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
+        DB::purge('sqlsrv_ti');
+        $ax = [
+            'ConfigTable' => ['ConfigId', ['Poly-Fil-T' => 1, 'ALG-OPEN' => 1, 'HILO' => 1, 'TENCEL' => 0, 'BAMBU' => 0]],
+            'InventSize' => ['InventSizeId', ['2108-370/1' => 1, '2148-370/1' => 1, '2148-300/1' => 0, '370/1' => 0, '2160_12/1' => 1]],
+            'InventColor' => ['InventColorId', ['1000' => 1]],
+        ];
+        foreach ($ax as $tabla => [$columna, $filas]) {
+            Schema::connection('sqlsrv_ti')->create($tabla, function (Blueprint $t) use ($columna): void {
+                $t->string('ItemId');
+                $t->string($columna);
+                $t->string('Name')->nullable();
+                $t->string('DATAAREAID');
+                $t->integer('TwVigente');
+            });
+            foreach ($filas as $valor => $vigente) {
+                DB::connection('sqlsrv_ti')->table($tabla)->insert([
+                    'ItemId' => Captura::ARTICULO_KM, $columna => $valor, 'DATAAREAID' => 'PRO', 'TwVigente' => $vigente,
+                ]);
+            }
+        }
+
+        $componente = Livewire::test(Captura::class)
+            ->set('telarId', '401')
+            ->call('seleccionar', $id);
+        $opciones = $componente->instance()->opcionesFila($componente->get('detalles')[0]);
+
+        // HILO es vigente pero es el comodin de AX; 2160_12/1 esta mal escrito.
+        $this->assertSame(['ALG-OPEN', 'Poly-Fil-T'], $opciones['fibras']);
+        $this->assertSame(['2108-370/1', '2148-370/1'], $opciones['tamanos']);
+        $this->assertSame(['1000'], array_column($opciones['colores'], 'InventColorId'));
+
+        // La barra trae una cuenta no vigente: se marca y no se puede elegir.
+        $this->assertTrue($opciones['tamanoFuera']);
+        $detalles = $componente->call('elegirCuentaKm', 0, '2148-300/1')->get('detalles');
+        $this->assertSame('300.1', $detalles[0]['Calibre']);
+    }
+
     /** Karl Mayer no monta julios ni teje rizo: exigirlos dejaba la captura sin salida. */
     public function test_karl_mayer_no_exige_julio_ni_altura_de_rizo(): void
     {
