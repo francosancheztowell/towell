@@ -18,7 +18,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icons/icon-180x180.png') }}">
 
   <!-- Tailwind CSS compilado a través de Vite -->
-  @vite(['resources/css/app.css'])
+  @vite(['resources/css/app.css', 'resources/js/modulos/login/index.ts'])
 
   <style>
     html, body { margin: 0; padding: 0; }

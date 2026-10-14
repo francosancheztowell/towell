@@ -92,9 +92,10 @@
             variant="primary"
             size="lg"
             fullWidth="true"
-            class="mb-4"
+            class="mb-4 gap-2"
         >
-            Iniciar Sesión
+            {{-- resources/js/modulos/login/index.ts lo cambia a "Accediendo…" al enviar. --}}
+            <span data-texto-login>Iniciar Sesión</span>
         </x-ui.button>
     </form>
 </div>
