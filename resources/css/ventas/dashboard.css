@@ -46,6 +46,15 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .pvoc-multi-list { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .pvoc-multi-note { padding: .35rem .4rem; color: var(--pvoc-muted); font-size: .74rem; }
 .pvoc-multi-clear { margin-top: .3rem; border: 0; border-top: 1px solid #e2e8f0; background: transparent; padding: .4rem; color: #1d4ed8; font-size: .76rem; font-weight: 700; text-align: left; }
+/* Tablet: options and buttons sized for a finger (44 px, same as the min-h-touch token). */
+@media (pointer: coarse) {
+    .pvoc-multi-button { height: 2.75rem; }
+    .pvoc-multi-option { min-height: 2.75rem; font-size: .9rem; }
+    .pvoc-multi-option input { width: 1.15rem; height: 1.15rem; }
+    .pvoc-multi-search { height: 2.5rem; font-size: 1rem; }
+    .pvoc-multi-clear { min-height: 2.75rem; font-size: .85rem; }
+    .pvoc-multi-list { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+}
 .pvoc-multi.is-filtered > span { color: #1d4ed8; }
 .pvoc-multi.is-filtered .pvoc-multi-button { border-color: #2a78d6; }
 .pvoc-select-label { display: grid; gap: .24rem; color: #64748b; font-size: .67rem; font-weight: 700; letter-spacing: .035em; text-transform: uppercase; }

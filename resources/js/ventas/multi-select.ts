@@ -4,6 +4,7 @@
  * y recortaría un popover absoluto.
  */
 import { escapeHtml } from '../utils/format';
+import { panelPlacement } from './multi-select-placement';
 
 export type MultiSelect = {
     element: HTMLDivElement;
@@ -11,6 +12,7 @@ export type MultiSelect = {
     open(): void;
     close(): void;
     sync(): void;
+    reposition(): void;
     setAvailable(next: Set<string> | null): void;
 };
 
@@ -32,19 +34,27 @@ const SEARCH_THRESHOLD = 8;
 const openInstances = new Set<MultiSelect>();
 let globalListenersBound = false;
 
-/** Clic fuera, Escape, scroll o resize cierran cualquier panel abierto. */
+/** En tablet el buscador no se enfoca solo: abriría el teclado y taparía la lista. */
+const isTouch = () => window.matchMedia?.('(pointer: coarse)').matches ?? false;
+
+/**
+ * Toque/clic fuera o Escape cierran el panel. Scroll y resize (p. ej. el teclado de la tablet)
+ * solo lo recolocan; antes lo cerraban y en tablet el filtro no llegaba a abrirse.
+ */
 const bindGlobalListeners = () => {
     if (globalListenersBound) return;
     globalListenersBound = true;
-    document.addEventListener('mousedown', (event) => {
+    document.addEventListener('pointerdown', (event) => {
         openInstances.forEach((instance) => { if (!instance.element.contains(event.target as Node)) instance.close(); });
     });
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') openInstances.forEach((instance) => instance.close());
     });
-    window.addEventListener('resize', () => openInstances.forEach((instance) => instance.close()));
+    const reposition = () => openInstances.forEach((instance) => instance.reposition());
+    window.addEventListener('resize', reposition);
+    window.visualViewport?.addEventListener('resize', reposition);
     window.addEventListener('scroll', (event) => {
-        openInstances.forEach((instance) => { if (!instance.panel.contains(event.target as Node)) instance.close(); });
+        openInstances.forEach((instance) => { if (!instance.panel.contains(event.target as Node)) instance.reposition(); });
     }, true);
 };
 
@@ -106,9 +116,14 @@ export const createMultiSelect = ({ label, values = [], selected = new Set(), fo
 
     const position = () => {
         const rect = button.getBoundingClientRect();
-        panel.style.minWidth = `${Math.max(rect.width, 200)}px`;
-        panel.style.top = `${rect.bottom + 4}px`;
-        panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - panel.offsetWidth - 8))}px`;
+        // Con teclado abierto, visualViewport es el alto realmente visible.
+        const viewport = { width: window.innerWidth, height: window.visualViewport?.height ?? window.innerHeight };
+        const place = panelPlacement(rect, viewport, panel.offsetWidth);
+        panel.style.minWidth = `${place.minWidth}px`;
+        panel.style.maxHeight = `${place.maxHeight}px`;
+        panel.style.top = place.top === null ? '' : `${place.top}px`;
+        panel.style.bottom = place.bottom === null ? '' : `${place.bottom}px`;
+        panel.style.left = `${place.left}px`;
     };
 
     const instance: MultiSelect = {
@@ -124,7 +139,7 @@ export const createMultiSelect = ({ label, values = [], selected = new Set(), fo
             openInstances.add(instance);
             renderList();
             position();
-            if (!search.hidden) search.focus({ preventScroll: true });
+            if (!search.hidden && !isTouch()) search.focus({ preventScroll: true });
         },
         close() {
             if (panel.hidden) return;
@@ -133,6 +148,9 @@ export const createMultiSelect = ({ label, values = [], selected = new Set(), fo
             openInstances.delete(instance);
         },
         sync,
+        reposition() {
+            if (!panel.hidden) position();
+        },
         /** Valores con datos bajo el resto de filtros; los demás se muestran atenuados. */
         setAvailable(next) {
             available = next;
