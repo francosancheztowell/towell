@@ -23,6 +23,7 @@ function entrada(sinExtension) {
 
 export default defineConfig({
   build: {
+    target: 'safari15.4',
     sourcemap: false,
     // Sin `minify`: vite 8 minifica con Oxc (nativo), más rápido y ~400 KB menos que esbuild.
     rolldownOptions: {
