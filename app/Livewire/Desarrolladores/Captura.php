@@ -54,6 +54,15 @@ class Captura extends Component
     /** Marbetes pendientes a partir de los cuales finalizar pide confirmacion. */
     public const SALDO_MARBETE_ALERTA = 2;
 
+    /**
+     * Karl Mayer teje julios de urdido: sus barras cuelgan siempre de este articulo de
+     * AX, igual que en L.Mat. Cuenta es su tamano (CUENTA-CALIBRE), fibra su config.
+     */
+    public const ARTICULO_KM = 'JULIO-URDIDO';
+
+    /** Tamanos limpios de JULIO-URDIDO: "2108-370/1". Los mal escritos en AX no se ofrecen. */
+    private const TAMANO_KM = '/^(\d+)-(\d+)\/(\d+)$/';
+
     // ── Formulario ────────────────────────────────────────────────────────
     /** @var array<string, mixed> */
     public array $form = [
@@ -417,7 +426,14 @@ class Captura extends Component
 
             $renglon = ($esKm ? 'Barra '.($i + 1) : 'Renglon '.($i + 1)).': ';
 
-            if (! empty($d['noVigente'])) {
+            if ($esKm) {
+                $opciones = $this->opcionesFila($d);
+                if ($opciones['tamanoActual'] === '') {
+                    $faltantes[] = $renglon.'falta elegir la cuenta.';
+                } elseif ($opciones['tamanoFuera']) {
+                    $faltantes[] = $renglon.'la cuenta '.$opciones['tamanoActual'].' no esta en AX ('.self::ARTICULO_KM.'), elige una de la lista.';
+                }
+            } elseif (! empty($d['noVigente'])) {
                 $faltantes[] = $renglon.'el calibre '.($d['Calibre'] ?? '').' ya no esta vigente, elige uno de la lista.';
             } elseif (empty($d['CalibreId'])) {
                 $faltantes[] = $renglon.'falta elegir el hilo.';
@@ -546,8 +562,10 @@ class Captura extends Component
             return;
         }
 
+        $esKm = $this->esKarlMayer();
+
         $this->detalles = collect($resultado['detalles'] ?? [])
-            ->map(function (array $d): array {
+            ->map(function (array $d) use ($esKm): array {
                 $fila = [
                     // Solo Karl Mayer la trae; en el resto viaja vacia y no se guarda.
                     'Cuenta' => (string) ($d['Cuenta'] ?? ''),
@@ -560,7 +578,10 @@ class Captura extends Component
                     'slot' => (string) ($d['pasadasField'] ?? ''),
                 ];
 
-                return $fila + $this->resolverCalibre($fila['Calibre'], $fila['Hilo']);
+                // Karl Mayer no usa el catalogo de hilos: su calibre va en la cuenta de AX.
+                return $fila + ($esKm
+                    ? ['CalibreId' => null, 'noVigente' => false]
+                    : $this->resolverCalibre($fila['Calibre'], $fila['Hilo']));
             })
             ->values()
             ->all();
@@ -714,6 +735,10 @@ class Captura extends Component
     /** El ItemId de AX del hilo elegido en un renglon. Vacio si aun no hay hilo. */
     private function codigoAx(array $detalle): string
     {
+        if ($this->esKarlMayer()) {
+            return self::ARTICULO_KM;
+        }
+
         $hilo = $this->calibres->firstWhere('Id', (int) ($detalle['CalibreId'] ?? 0));
 
         return $hilo ? trim((string) $hilo->Codigo) : '';
@@ -767,7 +792,7 @@ class Captura extends Component
      * texto libre con 272 variantes, y exigirlas todas dejaria el piso sin poder cerrar
      * una sola orden. Se ve, se corrige al vuelo, pero no detiene el turno.
      *
-     * @return array{fibras: list<string>, colores: list<array{InventColorId: string, Name: string}>, fibraFuera: bool, colorFuera: bool}
+     * @return array{fibras: list<string>, colores: list<array{InventColorId: string, Name: string}>, fibraFuera: bool, colorFuera: bool, tamanos: list<string>, tamanoActual: string, tamanoFuera: bool}
      */
     public function opcionesFila(array $detalle): array
     {
@@ -790,12 +815,58 @@ class Captura extends Component
             ]);
         }
 
+        // Solo Karl Mayer elige tamano. Sin catalogo (AX caido) no se marca nada fuera:
+        // la cuenta bloquea el guardado y un AX caido no debe frenar el turno.
+        $esKm = $this->esKarlMayer();
+        $tamanos = collect($esKm ? ($catalogo['tamanos'] ?? []) : [])
+            ->pluck('InventSizeId')
+            ->filter(fn (string $t): bool => preg_match(self::TAMANO_KM, $t) === 1);
+        $tamanoActual = $esKm ? $this->tamanoKm($detalle) : '';
+        $tamanoFuera = $tamanoActual !== '' && $tamanos->isNotEmpty() && ! $tamanos->contains($tamanoActual);
+
         return [
             'fibras' => $fibras->values()->all(),
             'colores' => $colores->values()->all(),
             'fibraFuera' => $fibraFuera,
             'colorFuera' => $colorFuera,
+            'tamanos' => $tamanos->values()->all(),
+            'tamanoActual' => $tamanoActual,
+            'tamanoFuera' => $tamanoFuera,
         ];
+    }
+
+    /**
+     * La cuenta y el calibre de una barra como tamano de JULIO-URDIDO: 2108 + 370.1 ->
+     * "2108-370/1". El calibre se guarda con punto, que es lo que lee L.Mat; el que
+     * viene con diagonal (16/1) tambien sirve.
+     */
+    public function tamanoKm(array $detalle): string
+    {
+        $cuenta = trim((string) ($detalle['Cuenta'] ?? ''));
+        $calibre = str_replace('.', '/', trim((string) ($detalle['Calibre'] ?? '')));
+
+        if ($cuenta === '' || $calibre === '') {
+            return '';
+        }
+
+        return $cuenta.'-'.(str_contains($calibre, '/') ? $calibre : $calibre.'/1');
+    }
+
+    /** Un solo select llena cuenta y calibre de la barra, como el calibre llena el hilo. */
+    public function elegirCuentaKm(int $indice, string $tamano): void
+    {
+        if (! isset($this->detalles[$indice])
+            || ! in_array($tamano, $this->opcionesFila($this->detalles[$indice])['tamanos'], true)) {
+            return;
+        }
+
+        preg_match(self::TAMANO_KM, $tamano, $partes);
+
+        $this->detalles[$indice]['Cuenta'] = $partes[1];
+        $this->detalles[$indice]['Calibre'] = $partes[2].'.'.$partes[3];
+
+        unset($this->problemas);
+        $this->resetValidation('detalles.'.$indice.'.Cuenta');
     }
 
     /** El nombre del color no se captura: viene con el codigo, del mismo renglon de AX. */

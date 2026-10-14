@@ -464,6 +464,8 @@
                                                 @php($fueraDeCatalogo = ! empty($detalle['noVigente']))
                                                 @php($opciones = $this->opcionesFila($detalle))
                                                 @php($hilos = $this->hilosDelCalibre((string) ($detalle['Calibre'] ?? '')))
+                                                {{-- Fibra y color esperan al hilo; en Karl Mayer el articulo ya es fijo --}}
+                                                @php($sinHilo = ! $esKm && empty($detalle['CalibreId']))
                                                 <tr wire:key="det-{{ $produccionSeleccionada }}-{{ $i }}" class="{{ $trDetalle }}">
                                                     {{-- Cabecera del renglon: solo en movil, donde la tabla deja de serlo --}}
                                                     <td class="flex items-center justify-between bg-slate-50 px-4 py-2 md:hidden">
@@ -484,8 +486,15 @@
                                                          select llena los dos, que es lo que impide que se desparejen:
                                                          capturados por separado, el codigo 10.1 llego a convivir con
                                                          diez divisores distintos y la formula de L.Mat calculaba mal. --}}
-                                                    <td data-label="Calibre" class="{{ $tdDetalle }} md:min-w-64">
+                                                    <td data-label="Calibre" class="{{ $tdDetalle }} {{ $esKm ? '' : 'md:min-w-64' }}">
                                                         <div class="w-full">
+                                                            @if ($esKm)
+                                                                {{-- Karl Mayer: el articulo es fijo, el calibre viaja en la cuenta --}}
+                                                                <input type="text" readonly tabindex="-1"
+                                                                       value="{{ \App\Livewire\Desarrolladores\Captura::ARTICULO_KM }}"
+                                                                       aria-label="Calibre, barra {{ $i + 1 }}"
+                                                                       class="h-10 w-full rounded-lg border border-slate-300 bg-slate-100 px-2 text-sm text-slate-700 md:w-36">
+                                                            @else
                                                             <select wire:key="det-{{ $i }}-CalibreId"
                                                                     wire:change="elegirCalibre({{ $i }}, $event.target.value)"
                                                                     wire:loading.attr="disabled" wire:target="elegirCalibre"
@@ -506,6 +515,7 @@
                                                                     El calibre <strong>{{ $detalle['Calibre'] }}</strong> ya no está vigente. Elige uno de la lista para poder guardar.
                                                                 </p>
                                                             @endif
+                                                            @endif
                                                             @error('detalles.'.$i.'.CalibreId') <p class="mt-1 text-xs font-medium text-rose-700">{{ $message }}</p> @enderror
                                                         </div>
                                                     </td>
@@ -516,10 +526,29 @@
                                                     <td data-label="{{ $esKm ? 'Cuenta' : 'Hilo' }}" class="{{ $tdDetalle }}">
                                                         <div class="w-full">
                                                             @if ($esKm)
-                                                                {{-- Karl Mayer no guarda divisor: lo que acompana al calibre es la cuenta --}}
-                                                                <input type="text" wire:model="detalles.{{ $i }}.Cuenta"
-                                                                       aria-label="Cuenta, barra {{ $i + 1 }}" autocomplete="off"
-                                                                       class="h-10 w-full rounded-lg border border-slate-300 px-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 md:w-28">
+                                                                {{-- Karl Mayer no guarda divisor: la cuenta es el tamano de JULIO-URDIDO
+                                                                     en AX (CUENTA-CALIBRE) y un solo select llena las dos columnas. --}}
+                                                                <select wire:key="det-{{ $i }}-Cuenta-{{ $opciones['tamanoActual'] }}"
+                                                                        wire:change="elegirCuentaKm({{ $i }}, $event.target.value)"
+                                                                        wire:loading.attr="disabled" wire:target="elegirCuentaKm"
+                                                                        aria-label="Cuenta, barra {{ $i + 1 }}"
+                                                                        class="h-10 w-full rounded-lg border px-2 text-sm focus:outline-none focus:ring-2 disabled:opacity-60 md:w-44
+                                                                               {{ $opciones['tamanoFuera'] ? 'border-rose-500 bg-rose-50 text-rose-900 focus:ring-rose-500/30' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/30' }}">
+                                                                    @if ($opciones['tamanoFuera'])
+                                                                        <option value="" selected disabled>{{ $detalle['Cuenta'] }}-{{ $detalle['Calibre'] }} — fuera de AX</option>
+                                                                    @elseif ($opciones['tamanoActual'] === '')
+                                                                        <option value="" selected disabled>Elige la cuenta</option>
+                                                                    @elseif (! in_array($opciones['tamanoActual'], $opciones['tamanos'], true))
+                                                                        {{-- AX no respondio: se muestra lo guardado, sin marcarlo --}}
+                                                                        <option value="" selected disabled>{{ $opciones['tamanoActual'] }}</option>
+                                                                    @endif
+                                                                    @foreach ($opciones['tamanos'] as $tamano)
+                                                                        <option value="{{ $tamano }}" @selected($opciones['tamanoActual'] === $tamano)>{{ $tamano }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                @if ($opciones['tamanoFuera'])
+                                                                    <p class="mt-1 text-xs font-medium text-rose-700">No está en {{ \App\Livewire\Desarrolladores\Captura::ARTICULO_KM }}. Elige una de la lista para poder guardar.</p>
+                                                                @endif
                                                                 @error('detalles.'.$i.'.Cuenta') <p class="mt-1 text-xs font-medium text-rose-700">{{ $message }}</p> @enderror
                                                             @elseif (count($hilos) > 1)
                                                                 <select wire:key="det-{{ $i }}-Hilo"
@@ -548,10 +577,10 @@
                                                         <div class="w-full">
                                                             <select wire:key="det-{{ $i }}-Fibra" wire:model="detalles.{{ $i }}.Fibra"
                                                                     aria-label="Fibra, fila {{ $i + 1 }}"
-                                                                    @disabled(empty($detalle['CalibreId']))
+                                                                    @disabled($sinHilo)
                                                                     class="h-10 w-full rounded-lg border px-2 text-sm focus:outline-none focus:ring-2 disabled:bg-slate-100 disabled:text-slate-500
                                                                            {{ $opciones['fibraFuera'] ? 'border-amber-500 bg-amber-50 text-amber-900 focus:ring-amber-500/30' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/30' }}">
-                                                                <option value="">{{ empty($detalle['CalibreId']) ? 'Elige primero el hilo' : 'Sin fibra' }}</option>
+                                                                <option value="">{{ $sinHilo ? 'Elige primero el hilo' : 'Sin fibra' }}</option>
                                                                 @foreach ($opciones['fibras'] as $fibra)
                                                                     <option value="{{ $fibra }}">{{ $fibra }}{{ $opciones['fibraFuera'] && $loop->first ? ' — fuera de AX' : '' }}</option>
                                                                 @endforeach
@@ -561,14 +590,16 @@
                                                     </td>
                                                     <td data-label="Color" class="{{ $tdDetalle }}">
                                                         <div class="w-full">
-                                                            <select wire:key="det-{{ $i }}-CodColor"
+                                                            {{-- La llave lleva el valor (igual en Cuenta): al salir la opcion "fuera de AX"
+                                                                 Livewire reusaba el select y el navegador lo dejaba en "Sin color". --}}
+                                                            <select wire:key="det-{{ $i }}-CodColor-{{ $detalle['CodColor'] }}"
                                                                     wire:change="elegirColor({{ $i }}, $event.target.value)"
                                                                     wire:loading.attr="disabled" wire:target="elegirColor"
                                                                     aria-label="Cod Color, fila {{ $i + 1 }}"
-                                                                    @disabled(empty($detalle['CalibreId']))
+                                                                    @disabled($sinHilo)
                                                                     class="h-10 w-full rounded-lg border px-2 text-sm focus:outline-none focus:ring-2 disabled:bg-slate-100 disabled:text-slate-500
                                                                            {{ $opciones['colorFuera'] ? 'border-amber-500 bg-amber-50 text-amber-900 focus:ring-amber-500/30' : 'border-slate-300 focus:border-blue-500 focus:ring-blue-500/30' }}">
-                                                                <option value="">{{ empty($detalle['CalibreId']) ? 'Elige primero el hilo' : 'Sin color' }}</option>
+                                                                <option value="">{{ $sinHilo ? 'Elige primero el hilo' : 'Sin color' }}</option>
                                                                 @foreach ($opciones['colores'] as $color)
                                                                     <option value="{{ $color['InventColorId'] }}" @selected((string) ($detalle['CodColor'] ?? '') === (string) $color['InventColorId'])>{{ $color['InventColorId'] }}{{ $opciones['colorFuera'] && $loop->first ? ' — fuera de AX' : '' }}</option>
                                                                 @endforeach

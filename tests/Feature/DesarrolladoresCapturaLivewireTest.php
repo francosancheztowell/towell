@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Livewire\Desarrolladores\Captura;
+use App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -527,10 +530,10 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         ]);
     }
 
-    /** @param  callable(\Illuminate\Http\Request): bool|null  $conPeticion */
+    /** @param  callable(Request): bool|null  $conPeticion */
     private function servicioDeGuardado(int $veces, ?callable $conPeticion = null): void
     {
-        $this->mock(\App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService::class, function ($mock) use ($veces, $conPeticion) {
+        $this->mock(ProcesarDesarrolladorService::class, function ($mock) use ($veces, $conPeticion) {
             $esperado = $mock->shouldReceive('store')->times($veces);
             if ($conPeticion !== null) {
                 $esperado->withArgs($conPeticion);
@@ -603,7 +606,7 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('accionesDeLaAlerta')]
+    #[DataProvider('accionesDeLaAlerta')]
     public function test_elegir_en_la_alerta_guarda_con_esa_accion(string $accion): void
     {
         $this->autenticar();
@@ -1008,6 +1011,44 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
             array_column($componente->get('detalles'), 'slot')
         );
         $this->assertSame('24', $componente->get('detalles')[0]['Cuenta']);
+    }
+
+    /** Cuenta, fibra y color de Karl Mayer salen de JULIO-URDIDO, no del catalogo de hilos. */
+    public function test_karl_mayer_cuenta_fibra_y_color_salen_de_julio_urdido(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarKarlMayer();
+        Cache::put('desarrolladores.ax.'.md5(Captura::ARTICULO_KM), [Captura::ARTICULO_KM => [
+            'configs' => ['Poly-Fil-T'],
+            // Uno mal escrito en AX: no se ofrece.
+            'tamanos' => [['InventSizeId' => '2108-370/1', 'Name' => ''], ['InventSizeId' => '2160_12/1', 'Name' => '']],
+            'colores' => [['InventColorId' => '1000', 'Name' => 'JULIO URDIDO']],
+        ]], now()->addMinutes(30));
+
+        $componente = Livewire::test(Captura::class)
+            ->set('telarId', '401')
+            ->call('seleccionar', $id);
+
+        $opciones = $componente->instance()->opcionesFila($componente->get('detalles')[0]);
+        $this->assertSame(['2108-370/1'], $opciones['tamanos']);
+        $this->assertSame(['Poly-Fil-T'], $opciones['fibras']);
+        $this->assertSame('1000', $opciones['colores'][0]['InventColorId']);
+
+        // La orden trae 24 + 10.1, que no existe en AX: no deja guardar.
+        $this->assertTrue($opciones['tamanoFuera']);
+        $this->assertContains(
+            'Barra 1: la cuenta 24-10/1 no esta en AX (JULIO-URDIDO), elige una de la lista.',
+            $componente->instance()->problemas()
+        );
+
+        // Una sola opcion llena cuenta y calibre, el calibre con punto como lo lee L.Mat.
+        $detalles = $componente->call('elegirCuentaKm', 0, '2108-370/1')->get('detalles');
+        $this->assertSame('2108', $detalles[0]['Cuenta']);
+        $this->assertSame('370.1', $detalles[0]['Calibre']);
+
+        // Lo que no esta en la lista no se acepta.
+        $detalles = $componente->call('elegirCuentaKm', 0, '9999-1/1')->get('detalles');
+        $this->assertSame('2108', $detalles[0]['Cuenta']);
     }
 
     /** Karl Mayer no monta julios ni teje rizo: exigirlos dejaba la captura sin salida. */
