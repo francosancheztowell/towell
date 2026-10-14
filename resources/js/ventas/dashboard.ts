@@ -3,8 +3,9 @@ import { http } from '../utils/http';
 import { HISTORY_SECTIONS, mountVentasHistoricas } from './ventas-historicas';
 import { createMultiSelect } from './multi-select';
 import { bindRowSelection, clearRowSelection } from './row-selection';
-import { PANEL_LAYOUT, columnCount, empresaRowClass, type Panel, type Series } from './compara';
+import { PANEL_LAYOUT, columnCount, expectedCompliance, mexicoToday, rowClass, type Panel, type Series } from './compara';
 import { bindColumnResize, colgroupHtml, columnKeys, createWidthStore, resizeHandle, tableAttributes } from './column-resize';
+import { bindLabelScroll, labelScrollBar } from './label-scroll';
 import { bindSidebar } from './sidebar';
 import { bindZoom } from './zoom';
 
@@ -25,7 +26,7 @@ type Level = [
     formatter?: ((value: string) => string) | undefined,
     sortKey?: string,
 ];
-/** field = campo por el que se agrupó el nodo ('empresa', 'tipo'…), para colorear los subtotales de empresa. */
+/** field = campo por el que se agrupó el nodo ('empresa', 'tipo'…), para colorear empresas y artículos. */
 type TreeNode = { id: string; label: string; field: string | undefined; items: PvRecord[]; children: TreeNode[] };
 
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -49,7 +50,7 @@ const DESGLOSES = [['empresa', 'Empresa'], ['tipo', 'Tipo de pedido'], ['cliente
 
 const DETAIL_LEVELS: Level[] = [
     ['empresa'], ['tipo'], ['cliente'],
-    [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
+    [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`, undefined, 'articulo'],
 ];
 
 /** Orden de negocio de los tipos de pedido; los no listados van al final en orden alfabético. */
@@ -299,7 +300,10 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
         },
     };
 
-    const PANELS = Object.keys(TABLES) as Panel[];
+    /** Solo las tablas que trae la vista: VtasR. vs PlanVtas está oculta y no se pinta. */
+    const PANELS = (Object.keys(TABLES) as Panel[]).filter((panel) => root.querySelector(`[data-pvoc-table="${panel}"]`));
+    /** Fecha de hoy para el Cumplimiento Actual; se toma de nuevo en cada pintado. */
+    let today = mexicoToday();
     /** Anchos de columna tipo Excel (column-resize.ts), por tabla y recordados por navegador. */
     const columnWidths = createWidthStore();
 
@@ -348,14 +352,15 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
         return totals;
     };
 
-    /** Par del Δ y el Cumpl.: fijo en VtasR. vs PlanVtas; en el resto lo elige "Comparar Δ y %". */
+    /** Par del Δ y el Cumpl. Pzas.: fijo en VtasR. vs PlanVtas; en el resto lo elige "Comparar Δ y %". */
     const comparisonSeries = (panel: Panel) => PANEL_LAYOUT[panel].comparison ?? state.comparison.split('-') as [Series, Series];
     /** Medidas visibles del panel, en el orden de METRICS. */
     const visibleMetrics = (panel: Panel) => METRICS.filter(([metric]) => state.columns[panel].has(metric));
     const visibleColumnCount = (panel: Panel) => columnCount(PANEL_LAYOUT[panel].series.length, visibleMetrics(panel).length);
 
-    const numberCells = (totals: Totals, panel: Panel) => {
+    const numberCells = (items: PvRecord[], panel: Panel) => {
         const { dashZero } = TABLES[panel];
+        const totals = sum(items);
         const metrics = visibleMetrics(panel);
         const [left, right] = comparisonSeries(panel);
         const percentage = totals[left].piezas ? (totals[right].piezas / totals[left].piezas) * 100 : 0;
@@ -366,7 +371,7 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
         const deltaCells = metrics.map(([metric]) => totals[right][metric] - totals[left][metric]).map((value) =>
             `<td class="pvoc-number pvoc-delta ${value < 0 ? 'is-negative' : 'is-positive'}">${value > 0 ? '+' : ''}${formatNumber(value)}</td>`).join('');
         const status = percentage >= 100 ? ['En meta', 'is-success'] : percentage >= 85 ? ['Parcial', 'is-warning'] : ['Bajo', 'is-danger'];
-        const complianceCells = `<td class="pvoc-number">${percentage.toFixed(1)}%</td><td><span class="pvoc-status ${status[1]}">${status[0]}</span></td>`;
+        const complianceCells = `<td class="pvoc-number">${percentage.toFixed(1)}%</td><td class="pvoc-number">${expectedCompliance(items, today).toFixed(1)}%</td><td><span class="pvoc-status ${status[1]}">${status[0]}</span></td>`;
         return `${seriesCells}${deltaCells}${complianceCells}`;
     };
 
@@ -379,10 +384,10 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
         const widths = columnWidths.get(panel);
         return `<table${tableAttributes(keys, widths)}>${colgroupHtml(keys, widths)}<thead>
             <tr class="pvoc-table-groups">
-                <th rowspan="2" class="pvoc-label"><span class="pvoc-label-text">${TABLES[panel].label}</span>${resizeHandle('label')}</th>
+                <th rowspan="2" class="pvoc-label"><span class="pvoc-label-text">${TABLES[panel].label}</span>${labelScrollBar()}${resizeHandle('label')}</th>
                 ${series.map((key) => `<th colspan="${metrics.length}" class="pvoc-${SERIES[key].className}">${SERIES[key].label}</th>`).join('')}
                 <th colspan="${metrics.length}" class="pvoc-delta">${deltaLabel ?? `Δ ${comparisonSeries(panel).map((key) => SERIES[key].label).join(' − ')}`}</th>
-                <th rowspan="2">Cumpl.${resizeHandle('cumpl')}</th><th rowspan="2">Estatus${resizeHandle('estatus')}</th>
+                <th rowspan="2">Cumpl. Pzas.${resizeHandle('cumpl')}</th><th rowspan="2">Cumplimiento Actual${resizeHandle('cumplActual')}</th><th rowspan="2">Estatus${resizeHandle('estatus')}</th>
             </tr>
             <tr>${series.map(metricHeaders).join('')}${metricHeaders('delta')}</tr>
         </thead><tbody>`;
@@ -416,17 +421,22 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
         const toggle = expandable
             ? `<button type="button" class="pvoc-expander" data-pvoc-node="${escapeHtml(node.id)}" aria-expanded="${isExpanded}">${isExpanded ? '▾' : '▸'}</button>`
             : '<span class="pvoc-expander-placeholder">•</span>';
-        const row = `<tr class="pvoc-level-${Math.min(level, 3)}${empresaRowClass(node.field, node.label)}" data-row-key="${escapeHtml(node.id)}"><td class="pvoc-label" title="${escapeHtml(node.label)}"><span class="pvoc-label-text">${indentation}${toggle}${escapeHtml(node.label)}</span></td>${numberCells(sum(node.items), panel)}</tr>`;
+        const row = `<tr class="pvoc-level-${Math.min(level, 3)}${rowClass(node.field, node.label)}" data-row-key="${escapeHtml(node.id)}"><td class="pvoc-label" title="${escapeHtml(node.label)}"><span class="pvoc-label-text">${indentation}${toggle}${escapeHtml(node.label)}</span></td>${numberCells(node.items, panel)}</tr>`;
         return row + (isExpanded ? node.children.map((child) => renderNode(child, level + 1, panel)).join('') : '');
     };
 
     const tableContainer = (panel: Panel) => root.querySelector<HTMLElement>(`[data-pvoc-table="${panel}"]`)!;
 
+    /** Barra de scroll de los nombres de cada tabla (label-scroll.ts). */
+    const labelScrolls = {} as Record<Panel, () => void>;
+
     const renderTable = (panel: Panel) => {
+        today = mexicoToday();
         const filtered = filteredRecords();
         const rows = buildTree(filtered, TABLES[panel].levels()).map((node) => renderNode(node, 0, panel)).join('');
         tableContainer(panel).innerHTML = `${tableHeader(panel)}${rows || `<tr><td colspan="${visibleColumnCount(panel)}" class="pvoc-empty">No hay datos para los filtros seleccionados.</td></tr>`}
-            <tr class="pvoc-row-total"><td class="pvoc-label"><span class="pvoc-label-text">Total general</span></td>${numberCells(sum(filtered), panel)}</tr></tbody></table>`;
+            <tr class="pvoc-row-total"><td class="pvoc-label"><span class="pvoc-label-text">Total general</span></td>${numberCells(filtered, panel)}</tr></tbody></table>`;
+        labelScrolls[panel]?.();
     };
 
     const toggleNode = (panel: Panel, node: string) => {
@@ -475,6 +485,7 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
         // Antes que el expander: la fila se marca antes de que toggleNode re-pinte la tabla.
         bindRowSelection(container);
         bindColumnResize(container, panel, columnWidths);
+        labelScrolls[panel] = bindLabelScroll(container);
         container.addEventListener('click', (event) => {
             const button = (event.target as Element).closest<HTMLElement>('[data-pvoc-node]');
             if (button) toggleNode(panel, button.dataset.pvocNode ?? '');
