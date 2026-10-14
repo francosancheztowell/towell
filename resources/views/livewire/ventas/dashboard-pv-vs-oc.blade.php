@@ -19,8 +19,8 @@
                     <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i><span>Compara</span>
                 </button>
                 <ul id="pvoc-nav-summary" class="pvoc-nav-items">
-                    <li><button type="button" class="pvoc-nav-item is-active" aria-current="page" data-pvoc-nav="summary" data-pvoc-nav-sub="planreal">VtasR. vs PlanVtas</button></li>
-                    <li><button type="button" class="pvoc-nav-item" data-pvoc-nav="summary" data-pvoc-nav-sub="resumen">Resumen General</button></li>
+                    {{-- VtasR. vs PlanVtas oculta por ahora: para volver a mostrarla, restaurar su botón y su subpanel. --}}
+                    <li><button type="button" class="pvoc-nav-item is-active" aria-current="page" data-pvoc-nav="summary" data-pvoc-nav-sub="resumen">Resumen General</button></li>
                     <li><button type="button" class="pvoc-nav-item" data-pvoc-nav="summary" data-pvoc-nav-sub="analisis">Análisis Histórico</button></li>
                 </ul>
             </div>
@@ -37,11 +37,7 @@
 
     <div class="pvoc-content">
         <section class="pvoc-card" data-pvoc-panel="summary">
-            <div class="pvoc-subpanel" role="region" aria-label="VtasR. vs PlanVtas" data-pvoc-subpanel="planreal">
-                <div class="pvoc-table-scroll" data-pvoc-table="planreal">@include('livewire.ventas.partials.cargando')</div>
-            </div>
-
-            <div class="pvoc-subpanel is-hidden" role="region" aria-label="Resumen General" data-pvoc-subpanel="resumen">
+            <div class="pvoc-subpanel" role="region" aria-label="Resumen General" data-pvoc-subpanel="resumen">
                 <div class="pvoc-card-header">
                 </div>
                 <div class="pvoc-table-scroll" data-pvoc-table="summary">@include('livewire.ventas.partials.cargando')</div>

@@ -14,12 +14,13 @@ const AUTOFIT_ROWS = 400;
 
 type Widths = Record<string, number>;
 
-/** Claves en el orden de las celdas: etiqueta, serie × medida, Δ × medida, Cumpl., Estatus. */
+/** Claves en el orden de las celdas: etiqueta, serie × medida, Δ × medida, Cumpl. Pzas., Cumplimiento Actual, Estatus. */
 export const columnKeys = (series: string[], metrics: string[]) => [
     'label',
     ...series.flatMap((serie) => metrics.map((metric) => `${serie}:${metric}`)),
     ...metrics.map((metric) => `delta:${metric}`),
     'cumpl',
+    'cumplActual',
     'estatus',
 ];
 

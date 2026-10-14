@@ -143,6 +143,16 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .pvoc-table tr.pvoc-empresa-textil td { background-color: #d1fae5; color: #064e3b; }
 .pvoc-table tr.pvoc-empresa-towel td:first-child { box-shadow: inset 4px 0 #1d4ed8; }
 .pvoc-table tr.pvoc-empresa-textil td:first-child { box-shadow: inset 4px 0 #059669; }
+/* Filas de artículo (bajo cada cliente): color propio para no perderlas entre los subtotales. */
+.pvoc-table tr.pvoc-articulo td { background-color: #f3effe; color: #4c1d95; }
+.pvoc-table tr.pvoc-articulo td:first-child { box-shadow: inset 4px 0 #7c3aed; }
+/* Scroll horizontal de los nombres (label-scroll.ts): barra al pie del encabezado, visible también en WebKit. */
+.pvoc-label-scroll { position: absolute; z-index: 1; right: 6px; bottom: 0; left: 0; height: 10px; overflow-x: auto; overflow-y: hidden; background: #c9d6e1; scrollbar-color: #6b8297 #c9d6e1; scrollbar-width: thin; }
+.pvoc-label-scroll > div { height: 1px; }
+.pvoc-label-scroll.is-idle { visibility: hidden; }
+.is-label-scrolled .pvoc-table tbody .pvoc-label-text { text-overflow: clip; }
+.pvoc-label-scroll::-webkit-scrollbar { height: 10px; }
+.pvoc-label-scroll::-webkit-scrollbar-thumb { border-radius: 5px; background: #6b8297; }
 .pvoc-expander { width: 1.25em; border: 0; background: transparent; padding: 0; color: #5d7183; font-weight: 900; }.pvoc-expander:hover { color: #06496a; }.pvoc-expander-placeholder { display: inline-block; width: 1.25em; color: #94a3b8; }
 .is-negative { color: #dc2626 !important; }.is-positive { color: #008b7b !important; }
 .pvoc-status { display: inline-block; border: 1px solid; border-radius: 999px; padding: .05em .5em; font-size: .92em; font-weight: 800; }.pvoc-status.is-success { border-color: #86efac; background: #f0fdf4; color: #15803d; }.pvoc-status.is-warning { border-color: #fcd34d; background: #fffbeb; color: #a16207; }.pvoc-status.is-danger { border-color: #fecaca; background: #fef2f2; color: #dc2626; }

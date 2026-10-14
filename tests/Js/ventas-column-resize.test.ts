@@ -4,9 +4,9 @@ import test from 'node:test';
 
 import { COLUMN_MIN_EM, colgroupHtml, columnKeys, resizeWidth, tableWidthEm } from '../../resources/js/ventas/column-resize.ts';
 
-test('columnKeys follows the cell order: label, series × metrics, Δ × metrics, Cumpl., Estatus', () => {
+test('columnKeys follows the cell order: label, series × metrics, Δ × metrics, Cumpl. Pzas., Cumplimiento Actual, Estatus', () => {
     assert.deepEqual(columnKeys(['plan', 'real'], ['piezas', 'kilos']), [
-        'label', 'plan:piezas', 'plan:kilos', 'real:piezas', 'real:kilos', 'delta:piezas', 'delta:kilos', 'cumpl', 'estatus',
+        'label', 'plan:piezas', 'plan:kilos', 'real:piezas', 'real:kilos', 'delta:piezas', 'delta:kilos', 'cumpl', 'cumplActual', 'estatus',
     ]);
 });
 
