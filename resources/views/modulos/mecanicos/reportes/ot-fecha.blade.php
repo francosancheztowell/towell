@@ -7,8 +7,29 @@
     $hayDatos = $reporte && $reporte['mecanicos'] !== [];
 @endphp
 
+@section('navbar-right')
+    @if ($hayDatos)
+        <button type="button" data-ot-fecha-descargar="excel"
+            class="flex items-center gap-2 min-h-touch px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <i class="fas fa-file-excel" aria-hidden="true"></i> Excel
+        </button>
+        <button type="button" data-ot-fecha-descargar="pdf"
+            class="flex items-center gap-2 min-h-touch px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <i class="fas fa-file-pdf" aria-hidden="true"></i> PDF
+        </button>
+        <button type="button" data-ot-fecha-imagen
+            class="flex items-center gap-2 min-h-touch px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <i class="fas fa-image" aria-hidden="true"></i> Imagen
+        </button>
+    @endif
+@endsection
+
 @section('content')
-    <div class="w-full p-4" id="reporte-ot-fecha">
+    <div class="w-full p-4" id="reporte-ot-fecha"
+         data-excel-url="{{ route('mecanicos.reportes.ot-fecha.excel') }}"
+         data-pdf-url="{{ route('mecanicos.reportes.ot-fecha.pdf') }}"
+         data-imagen-url="{{ route('mecanicos.reportes.ot-fecha.telegram-imagen') }}"
+         data-nombre-imagen="{{ $reporte ? 'ot-fecha_'.$reporte['desde'].'_'.$reporte['hasta'].'.png' : 'ot-fecha.png' }}">
         @if ($error)
             <div class="mb-4 px-4 py-3 bg-red-100 border border-red-400 text-red-700 rounded-lg" role="alert">{{ $error }}</div>
         @endif
@@ -55,6 +76,13 @@
                 <p class="text-gray-600 font-medium">No hay órdenes de trabajo en el rango seleccionado.</p>
             </div>
         @else
+            <form id="form-export-ot-fecha" method="POST" class="hidden">
+                @csrf
+                <input type="hidden" name="desde" value="{{ $reporte['desde'] }}">
+                <input type="hidden" name="hasta" value="{{ $reporte['hasta'] }}">
+                <input type="hidden" name="mecanico" value="{{ $reporte['mecanico'] }}">
+            </form>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
                 @foreach ($reporte['mecanicos'] as $resumen)
                     <div class="bg-white rounded-xl shadow border border-gray-200 p-4">

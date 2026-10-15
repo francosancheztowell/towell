@@ -72,6 +72,9 @@ Route::prefix('mecanicos/reportes')
     ->middleware('module.permission:acceso,209') // OT x Fecha
     ->group(function (): void {
         Route::get('/ot-fecha', [MecReporteOtFechaController::class, 'index'])->name('ot-fecha');
+        Route::post('/ot-fecha/excel', [MecReporteOtFechaController::class, 'exportarExcel'])->name('ot-fecha.excel');
+        Route::post('/ot-fecha/pdf', [MecReporteOtFechaController::class, 'exportarPdf'])->name('ot-fecha.pdf');
+        Route::post('/ot-fecha/telegram-imagen', [MecReporteOtFechaController::class, 'telegramImagen'])->name('ot-fecha.telegram-imagen');
     });
 
 // Reportes nivel 2 (SYSRoles 1103 → Ruta=/mecanicos/reportes)

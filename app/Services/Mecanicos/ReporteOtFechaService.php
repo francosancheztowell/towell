@@ -64,6 +64,20 @@ final class ReporteOtFechaService
     }
 
     /**
+     * build() sin excepción: el rango inválido llega como mensaje para la vista o el 422.
+     *
+     * @return array{0: array<string, mixed>|null, 1: string|null}
+     */
+    public function intentar(string $desde, string $hasta, string $mecanico = ''): array
+    {
+        try {
+            return [$this->build($desde, $hasta, $mecanico), null];
+        } catch (InvalidArgumentException $exception) {
+            return [null, $exception->getMessage()];
+        }
+    }
+
+    /**
      * Agrupa por mecánico (ordenados por nombre) y ordena sus trabajos por fecha y hora de inicio.
      *
      * @param  array{desde: string, hasta: string}  $rango
@@ -269,7 +283,7 @@ final class ReporteOtFechaService
             ->map(fn (MecOrdenTrabajoLineModel $linea): array => [
                 'cve' => $linea->CveOperador,
                 'nombre' => $linea->NomOperador,
-                'fecha' => $linea->Fecha instanceof Carbon ? $linea->Fecha->toDateString() : (string) $linea->Fecha,
+                'fecha' => $linea->Fecha?->toDateString() ?? '',
                 'folio' => $linea->Folio,
                 'telar' => $linea->getAttribute('TelarId'),
                 'falla' => $linea->getAttribute('Falla'),

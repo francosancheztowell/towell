@@ -7,6 +7,7 @@ namespace Tests\Feature\Mecanicos;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;
@@ -170,6 +171,57 @@ class ReporteOtFechaHttpTest extends TestCase
         $this->get(self::URL.'?desde=2026-10-05&hasta=2026-10-01')
             ->assertOk()
             ->assertSee('La fecha inicial no puede ser mayor que la fecha final.');
+    }
+
+    public function test_excel_descarga_el_rango_filtrado(): void
+    {
+        $this->conAcceso();
+
+        $response = $this->post(self::URL.'/excel', ['desde' => '2026-10-01', 'hasta' => '2026-10-02', 'mecanico' => '3003']);
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->assertHeader('Content-Disposition', 'attachment; filename="ot-fecha_2026-10-01_2026-10-02.xlsx"');
+        $this->assertStringStartsWith('PK', (string) $response->getContent());
+    }
+
+    public function test_pdf_descarga_el_rango(): void
+    {
+        $this->conAcceso();
+
+        $response = $this->post(self::URL.'/pdf', ['desde' => '2026-10-01', 'hasta' => '2026-10-02']);
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition', 'attachment; filename="ot-fecha_2026-10-01_2026-10-02.pdf"');
+        $this->assertStringStartsWith('%PDF', (string) $response->getContent());
+    }
+
+    public function test_exportar_con_rango_invertido_responde_422(): void
+    {
+        $this->conAcceso();
+
+        $this->post(self::URL.'/excel', ['desde' => '2026-10-05', 'hasta' => '2026-10-01'])->assertStatus(422);
+    }
+
+    public function test_imagen_se_acepta_para_telegram(): void
+    {
+        $this->conAcceso();
+
+        $this->postJson(self::URL.'/telegram-imagen', [
+            'desde' => '2026-10-01',
+            'hasta' => '2026-10-02',
+            'mecanico' => '',
+            'imagen' => UploadedFile::fake()->image('ot-fecha.png'),
+        ])->assertOk()->assertJson(['ok' => true]);
+    }
+
+    public function test_exportar_sin_permiso_responde_403(): void
+    {
+        $this->actingAs($this->createUsuario(['area' => 'MANTENIMIENTO']), 'web');
+        $this->grantModulo('Otro módulo', ['acceso'], idRol: 1);
+
+        $this->post(self::URL.'/pdf', ['desde' => '2026-10-01', 'hasta' => '2026-10-02'])->assertForbidden();
     }
 
     public function test_rango_sin_ot_muestra_aviso_vacio(): void
