@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Imports\ReqProgramaTejidoSimpleImport;
 use App\Imports\ReqProgramaTejidoUpdateImport;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use Tests\TestCase;

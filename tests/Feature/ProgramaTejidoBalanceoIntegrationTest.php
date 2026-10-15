@@ -2,12 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\BalancearTejido;
 use App\Services\Planeacion\ProgramaTejido\DividirTejido;
 use App\Services\Planeacion\ProgramaTejido\DuplicarTejido;
 use App\Services\Planeacion\ProgramaTejido\FormulasEficiencia;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use Illuminate\Support\Facades\Route;
 use Tests\Feature\Planeacion\Concerns\ConPermisosPlaneacion;
 use Tests\TestCase;
@@ -196,7 +196,7 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
      */
     public function test_balancear_usa_where_in_para_consultas_bulk(): void
     {
-        $path = app_path('Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php');
+        $path = app_path('Services/Planeacion/ProgramaTejido/BalancearTejido.php');
         $content = file_get_contents($path);
 
         $this->assertStringContainsString(

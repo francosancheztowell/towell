@@ -2,9 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Services\Planeacion\ProgramaTejido\EliminarTejido;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -62,7 +63,7 @@ class ProgramaTejidoEliminarSellaFechaFinalizaTest extends TestCase
 
         // PT-02: el observer ya no se traga los fallos (hallazgos 4 y 5 de PT-01); estas tablas
         // existen en live y el fixture las necesita para no depender del catch silencioso.
-        $this->createTablaDesdeModelo(\App\Models\Planeacion\ReqProgramaTejidoLine::class);
+        $this->createTablaDesdeModelo(ReqProgramaTejidoLine::class);
     }
 
     protected function tearDown(): void

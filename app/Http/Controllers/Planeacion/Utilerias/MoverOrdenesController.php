@@ -28,13 +28,13 @@ namespace App\Http\Controllers\Planeacion\Utilerias;
 
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Services\Planeacion\ProgramaTejido\Helpers\DateHelpers;
+use App\Services\Planeacion\ProgramaTejido\Helpers\QueryHelpers;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Planeacion\TelarSalonResolver;

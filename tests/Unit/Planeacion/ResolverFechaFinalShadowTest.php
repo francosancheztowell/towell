@@ -2,8 +2,8 @@
 
 namespace Tests\Unit\Planeacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Services\Planeacion\ProgramaTejido\BalancearTejido;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;

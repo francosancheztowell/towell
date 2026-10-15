@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
+use App\Services\Planeacion\ProgramaTejido\EliminarTejido;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;

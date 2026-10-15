@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdenDeCambio\OrdenDeCambioFelpaExcel;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -16,11 +16,11 @@ class OrdenDeCambioTipoFormatoTest extends TestCase
 {
     private function tipoFormato(array $atributos): string
     {
-        $metodo = new ReflectionMethod(OrdenDeCambioFelpaController::class, 'determinarTipoFormatoDesdeBD');
+        $metodo = new ReflectionMethod(OrdenDeCambioFelpaExcel::class, 'determinarTipoFormatoDesdeBD');
 
         $registro = (new ReqProgramaTejido)->forceFill($atributos);
 
-        return $metodo->invoke(new OrdenDeCambioFelpaController, $registro);
+        return $metodo->invoke(new OrdenDeCambioFelpaExcel, $registro);
     }
 
     public function test_karl_mayer_no_se_clasifica_como_felpa(): void

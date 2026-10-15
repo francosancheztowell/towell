@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
+namespace App\Services\Planeacion\ProgramaTejido\Helpers;
 
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;

@@ -2,8 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Services\Planeacion\ProgramaTejido\UpdateTejido;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -83,7 +84,7 @@ class ProgramaTejidoUpdateTest extends TestCase
 
         // PT-02: el observer ya no se traga los fallos (hallazgos 4 y 5 de PT-01); estas tablas
         // existen en live y el fixture las necesita para no depender del catch silencioso.
-        $this->createTablaDesdeModelo(\App\Models\Planeacion\ReqProgramaTejidoLine::class);
+        $this->createTablaDesdeModelo(ReqProgramaTejidoLine::class);
     }
 
     protected function tearDown(): void

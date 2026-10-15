@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\BalancearTejido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log as LogFacade;
 

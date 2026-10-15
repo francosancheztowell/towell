@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Planeacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
+use App\Services\Planeacion\ProgramaTejido\Helpers\DateHelpers;
 use App\Services\Planeacion\ProgramaTejido\SecuenciaFechasTelar;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;

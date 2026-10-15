@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Planeacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
+use App\Services\Planeacion\ProgramaTejido\Helpers\UtilityHelpers;
 use App\Support\Planeacion\ProgramaTejido\ColumnasGrillaProgramaTejido;
 use PHPUnit\Framework\TestCase;
 

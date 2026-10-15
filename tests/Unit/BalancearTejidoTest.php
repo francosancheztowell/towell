@@ -3,12 +3,12 @@
 namespace Tests\Unit;
 
 use App\Actions\Planeacion\ProgramaTejido\RecalcularRegistroPorProduccion;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Services\Planeacion\ProgramaTejido\BalancearTejido;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;

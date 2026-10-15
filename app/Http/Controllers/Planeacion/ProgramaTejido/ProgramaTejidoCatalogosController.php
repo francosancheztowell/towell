@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqMatrizHilos;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\Helpers\QueryHelpers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 

@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\BalancearTejido;
 use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
 use Carbon\Carbon;
 use Tests\Concerns\UsesSqlsrvSqlite;

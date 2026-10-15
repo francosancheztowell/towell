@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use App\Support\Planeacion\TelarSalonResolver;
 use PHPUnit\Framework\TestCase;
 

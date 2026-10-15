@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\CatalogosPlaneacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqCalendarioTab;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\BalancearTejido;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;

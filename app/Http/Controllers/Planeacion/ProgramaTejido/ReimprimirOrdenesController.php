@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdenDeCambio\OrdenDeCambioFelpaExcel;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -59,10 +59,8 @@ class ReimprimirOrdenesController extends Controller
                 ], 404);
             }
 
-            // Usar el controlador de orden de cambio para generar el Excel
-            $ordenCambioController = new OrdenDeCambioFelpaController;
             // Reimprimir es solo lectura: no sincroniza CatCodificados ni ReqModelosCodificados.
-            $response = $ordenCambioController->generarExcelDesdeBD(collect([$registroReqProgramaTejido]), false);
+            $response = app(OrdenDeCambioFelpaExcel::class)->generarExcelDesdeBD(collect([$registroReqProgramaTejido]), false);
 
             // Si la respuesta es un StreamedResponse, retornarla directamente
             if ($response instanceof StreamedResponse) {

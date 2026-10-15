@@ -1,14 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
+namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Actions\Planeacion\ProgramaTejido\MutacionRechazada;
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
 use App\Http\Requests\Planeacion\ProgramaTejido\ActualizarProgramaTejidoRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Services\Planeacion\ProgramaTejido\EdicionProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\Helpers\UtilityHelpers;
 use App\Support\Planeacion\NumeroPrograma;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

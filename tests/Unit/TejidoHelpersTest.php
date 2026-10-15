@@ -2,13 +2,12 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use Tests\TestCase;
 
 class TejidoHelpersTest extends TestCase
 {
-
     public function test_calcular_horas_prod_con_valores_validos_retorna_mayor_a_cero(): void
     {
         $horas = TejidoHelpers::calcularHorasProdFromParams(

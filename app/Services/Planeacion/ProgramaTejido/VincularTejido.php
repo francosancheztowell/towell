@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
+namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;

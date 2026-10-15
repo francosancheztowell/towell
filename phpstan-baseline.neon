@@ -2062,1903 +2062,1903 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ActualizaLmat\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$AlturaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Ancho\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$BomId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$BomName\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalTramaFondoC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalTramaFondoC12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra22\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra32\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreBarra42\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb22\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb32\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb42\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreComb52\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibrePie2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreRizo2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CalibreTrama2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CambioRepaso\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Cantidad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CategoriaCalidad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Clave\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ClaveModelo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorC2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorC3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorC4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorC5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CodigoDibujo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ColorBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ColorBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ColorBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ColorBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Comb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Comb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Comb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Comb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CombinaTram\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CreaProd\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CuentaBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CuentaBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CuentaBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CuentaBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$CustName\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Densidad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Departamento\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$DobladilloId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$EficienciaSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FechaCompromiso\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FechaCumplimiento\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FibraTramaFondoC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FlogsId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$HiloAX\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$HoraCreacion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$HoraModificacion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$InventSizeId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$ItemId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Largo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$LogLuchaTotal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Luchaje\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$MedIniRizoCenefa\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$MedidaCenefa\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$MedidaPlano\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$MtsRollo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NoMarbete\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NoOrden\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NoTiras\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NomColorC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NomColorC2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NomColorC3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NomColorC4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NomColorC5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Nombre\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$NombreProyecto\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Obs\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Obs1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Obs2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Obs3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Obs4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Obs5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$OrdCompartidaLider\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$OrdPrincipal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$OrdenTejido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$P_crudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PasadasTramaFondoC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Pedido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Peine\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PesoMuestra\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Prioridad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Produccion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$PzasRollo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Razurada\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Repeticiones\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Saldos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$TelarId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$TipoRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Tolerancia\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Total\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$TotalPzas\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$TotalRollos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Tra\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$TramaAnchoPeine\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$UsuarioCrea\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$UsuarioModifica\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$VelocidadSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$Vendedor\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\ReqPesosRollosTejido\:\:\$PesoRollo\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$AlturaRizo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$AnchoPeineTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$AnchoToalla\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalTramaFondoC1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalTramaFondoC12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreComb1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreComb2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreComb3\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreComb4\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$ClasificacionKG\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Clave\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$ClaveModelo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CodColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CodigoDibujo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$ContracRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Contraccion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$DIF\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Densidad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$DobladilloId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$EFIC\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraTramaFondoC1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$ItemId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$KGDia\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$LargoToalla\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$LogLuchaTotal\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Luchaje\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$MedIniRizoCenefa\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$MedidaCenefa\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$MedidaPlano\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Nombre\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$NombreProyecto\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Obs\.$#'
 			identifier: property.notFound
 			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Obs1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Obs2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Obs3\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Obs4\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Obs5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$OrdPrincipal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PASADAS\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PasadasComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PasadasComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PasadasComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PasadasComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PasadasComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Peine\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PesoCrudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PesoMuestra\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Prioridad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PzasDiaFormula\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PzasDiaPasadas\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Rev\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$TipoRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Tolerancia\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Total\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$TramasCMTejido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$VelocidadSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Vendedor\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ancho\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdPrincipal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PesoMuestra\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ProgramarProd\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPzas\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalRollos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Call to function is_numeric\(\) with non\-falsy\-string&numeric\-string will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Offset ''largo'' on array\{orden_numero\: string, fecha_orden\: string, fecha_cumplimiento\: string, departamento\: string, telar\: string, prioridad\: string, modelo\: string, clave_modelo\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Offset ''mts_rollo'' on array\{orden_numero\: string, fecha_orden\: string, fecha_cumplimiento\: string, departamento\: string, telar\: string, prioridad\: string, modelo\: string, clave_modelo\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Offset ''repeticiones'' on array\{orden_numero\: string, fecha_orden\: string, fecha_cumplimiento\: string, departamento\: string, telar\: string, prioridad\: string, modelo\: string, clave_modelo\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Offset ''tiras'' on array\{orden_numero\: string, fecha_orden\: string, fecha_cumplimiento\: string, departamento\: string, telar\: string, prioridad\: string, modelo\: string, clave_modelo\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Strict comparison using \=\=\= between mixed and null will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>AlturaRizo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>AnchoPeineTrama" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>AnchoToalla" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalTramaFondoC1" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalTramaFondoC12" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibreComb1" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibreComb2" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibreComb3" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibreComb4" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibreComb5" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibrePie" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibreRizo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CalibreTrama" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>ClasificacionKG" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Clave" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>ClaveModelo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CodColorTrama" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CodigoDibujo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>ContracRizo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Contraccion" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CuentaPie" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>CuentaRizo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>DIF" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Densidad" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>DobladilloId" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>EFIC" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraComb1" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraComb2" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraComb3" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraComb4" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraComb5" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraId" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraPie" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraRizo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>FibraTramaFondoC1" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>ItemId" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>KGDia" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>LargoToalla" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>LogLuchaTotal" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Luchaje" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>MedIniRizoCenefa" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>MedidaCenefa" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>MedidaPlano" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>NombreProyecto" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Obs" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Obs1" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Obs2" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Obs3" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Obs4" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Obs5" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PASADAS" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PasadasComb1" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PasadasComb2" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PasadasComb3" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PasadasComb4" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PasadasComb5" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Peine" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PesoCrudo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Prioridad" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PzasDiaFormula" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>PzasDiaPasadas" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Rev" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>TipoRizo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Tolerancia" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Total" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>TramasCMTejido" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>VelocidadSTD" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>Vendedor" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Variable \$tamanoClave in empty\(\) always exists and is not falsy\.$#'
 			identifier: empty.variable
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
+			path: app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
@@ -4132,31 +4132,31 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
 			identifier: property.notFound
 			count: 6
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/BalancearTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 6
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/BalancearTejido.php
 
 		-
-			message: '#^Constant App\\Http\\Controllers\\Planeacion\\ProgramaTejido\\funciones\\BalancearTejido\:\:SMALL_GAP_SECONDS is unused\.$#'
+			message: '#^Constant App\\Services\\Planeacion\\ProgramaTejido\\BalancearTejido\:\:SMALL_GAP_SECONDS is unused\.$#'
 			identifier: classConstant.unused
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/BalancearTejido.php
 
 		-
 			message: '#^Offset ''pedido'' on array\{pedido\: float, saldo\: float\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/BalancearTejido.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between non\-falsy\-string and '''' will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/BalancearTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$AnchoToalla\.$#'
@@ -4630,19 +4630,19 @@ parameters:
 			message: '#^Offset ''detalles'' on array\{detalles\: array\<int, array\<string, mixed\>\>, idsAfectados\: list\<int\>, updates\: array\<int, array\<string, mixed\>\>\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DragAndDropTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DragAndDropTejido.php
 
 		-
 			message: '#^Offset ''idsAfectados'' on array\{detalles\: array\<int, array\<string, mixed\>\>, idsAfectados\: list\<int\>, updates\: array\<int, array\<string, mixed\>\>\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DragAndDropTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DragAndDropTejido.php
 
 		-
 			message: '#^Offset ''updates'' on array\{detalles\: array\<int, array\<string, mixed\>\>, idsAfectados\: list\<int\>, updates\: array\<int, array\<string, mixed\>\>\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DragAndDropTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DragAndDropTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$AnchoToalla\.$#'
@@ -5350,1141 +5350,1141 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinaliza\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartidaLider\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Variable \$lider in isset\(\) always exists and is not nullable\.$#'
 			identifier: isset.variable
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Variable \$posicionAjustada might not be defined\.$#'
 			identifier: variable.undefined
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Variable \$receptor in isset\(\) always exists and is not nullable\.$#'
 			identifier: isset.variable
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoProduccion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartidaLider\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$OrdCompartidaLider\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$UpdatedAt\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$Id\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^If condition is always true\.$#'
 			identifier: if.alwaysTrue
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Left side of && is always true\.$#'
 			identifier: booleanAnd.leftAlwaysTrue
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between non\-falsy\-string and '''' will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/QueryHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/QueryHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra22\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra32\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra42\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb22\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb32\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb42\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb52\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorCtaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EficienciaSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$VelocidadSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ancho\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$AnchoToalla\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$AplicacionId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb22\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb32\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb42\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb52\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CambioHilo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CustName\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$DiasEficiencia\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$DiasJornada\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$DobladilloId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EficienciaSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaCte\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaPT\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaProduc\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FlogsId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$InventSizeId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ItemId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$LargoCrudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Luchaje\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$MedidaPlano\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$MtsRollo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoMarbete\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTiras\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProducto\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProyecto\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Observaciones\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PTvsCte\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PedidoTempo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Peine\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PesoCrudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PesoGRM2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PorcentajeSegundos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ProdKgDia\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ProdKgDia2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Produccion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ProgramarProd\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PzasRollo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Rasurado\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Repeticiones\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$RollosProgramados\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoMarbete\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$StdDia\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$StdHrsEfect\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$StdToaHra\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TipoPedido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPzas\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalRollos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$VelocidadSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
+			path: app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FechaTejido\.$#'
@@ -6541,7 +6541,7 @@ parameters:
 			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
 
 		-
-			message: '#^Static method App\\Http\\Controllers\\Planeacion\\ProgramaTejido\\helper\\DateHelpers\:\:recalcularFechasSecuencia\(\) invoked with 3 parameters, 2 required\.$#'
+			message: '#^Static method App\\Services\\Planeacion\\ProgramaTejido\\Helpers\\DateHelpers\:\:recalcularFechasSecuencia\(\) invoked with 3 parameters, 2 required\.$#'
 			identifier: arguments.count
 			count: 1
 			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
@@ -6607,7 +6607,7 @@ parameters:
 			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
 		-
-			message: '#^Static method App\\Http\\Controllers\\Planeacion\\ProgramaTejido\\helper\\DateHelpers\:\:recalcularFechasSecuencia\(\) invoked with 3 parameters, 2 required\.$#'
+			message: '#^Static method App\\Services\\Planeacion\\ProgramaTejido\\Helpers\\DateHelpers\:\:recalcularFechasSecuencia\(\) invoked with 3 parameters, 2 required\.$#'
 			identifier: arguments.count
 			count: 1
 			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php

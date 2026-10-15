@@ -6,7 +6,6 @@ use App\Helpers\AuditoriaHelper;
 use App\Helpers\FolioHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarCamposEditablesService;
@@ -17,6 +16,7 @@ use App\Services\Planeacion\Liberar\LiberarHilosCatalogo;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
 use App\Services\Planeacion\Liberar\LiberarValidacionesService;
+use App\Services\Planeacion\ProgramaTejido\OrdenDeCambio\OrdenDeCambioFelpaExcel;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Planeacion\TelarSalonResolver;
@@ -691,7 +691,7 @@ class LiberarOrdenesController extends Controller
         $obLevel = ob_get_level();
 
         try {
-            $response = (new OrdenDeCambioFelpaController)->generarExcelDesdeBD($actualizados);
+            $response = app(OrdenDeCambioFelpaExcel::class)->generarExcelDesdeBD($actualizados);
 
             // Si la respuesta es un StreamedResponse, convertirla a base64
             if ($response instanceof StreamedResponse) {

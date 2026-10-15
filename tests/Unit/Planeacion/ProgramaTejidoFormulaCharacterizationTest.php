@@ -2,10 +2,10 @@
 
 namespace Tests\Unit\Planeacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Services\Planeacion\ProgramaTejido\ConsumosLineaDiaria;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use App\Services\Planeacion\ProgramaTejido\MetrosHiloLineaDiaria;
 use Tests\TestCase;
 

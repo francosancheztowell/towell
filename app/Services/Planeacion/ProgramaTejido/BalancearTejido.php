@@ -1,14 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
+namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
 use App\Actions\Planeacion\ProgramaTejido\RecalcularRegistroPorProduccion;
 use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
-use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use App\Support\Planeacion\NumeroPrograma;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;

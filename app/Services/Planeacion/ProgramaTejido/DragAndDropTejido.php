@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
+namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Actions\Planeacion\ProgramaTejido\MutacionRechazada;
 use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\Helpers\DateHelpers;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;

@@ -2,8 +2,8 @@
 
 namespace Tests\Unit\Planeacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use Tests\TestCase;
 
 /** Karl Mayer se programa a 600 kg/dia por telar (meta del andon), sin eficiencia; JAC/SMIT no cambian. */

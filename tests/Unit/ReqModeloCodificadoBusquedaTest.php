@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
