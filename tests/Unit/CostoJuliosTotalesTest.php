@@ -44,48 +44,19 @@ class CostoJuliosTotalesTest extends TestCase
         $this->assertEqualsWithDelta(4400.0, $ajustados->where('mes', 9)->where('maquina', 'Mc Coy 1')->sum('mp'), 0.0001);
     }
 
-    public function test_veredicto_marca_kg_y_sabana_fuera_y_cuenta_sin_costo(): void
+    public function test_veredicto_marca_sabana_fuera_y_cuenta_sin_costo(): void
     {
-        // AX recibió 151 de 206 kg de julios: los kg no cuadran; sábana con $5 o más de diferencia; 3 julios sin costo.
-        $fuera = CostoJulios::veredicto(206.0, 151.0, ['julios' => 1000.0, 'sab' => 1010.0], 3, 0, ['kg' => 2, 'maquina' => 1]);
-        $this->assertSame(['fuera', 'fuera', 'fuera'], array_column($fuera, 'estado'));
-        $this->assertStringContainsString('-55 kg', $fuera[0]['detalle']);
-        $this->assertStringContainsString('2 folios con otros kg que AX; 1 folio en otra máquina', $fuera[0]['detalle']);
+        // Sábana con $5 o más de diferencia: no cuadra; 3 julios sin costo.
+        $fuera = CostoJulios::veredicto(['julios' => 1000.0, 'sab' => 1010.0], 3);
+        $this->assertSame(['fuera', 'fuera'], array_column($fuera, 'estado'));
 
-        // Kg iguales salvo redondeo y $4 de diferencia: cuadra; sin julios pendientes no hay tercer punto.
-        $ok = CostoJulios::veredicto(299.9, 299.89999, ['julios' => 1000.0, 'sab' => 1004.0], 0);
-        $this->assertSame(['ok', 'ok'], array_column($ok, 'estado'));
-
-        // El total cuadra pero un folio está en otra máquina: por máquina no cuadra.
-        $this->assertSame('fuera', CostoJulios::veredicto(100.0, 100.0, null, 0, 0, ['kg' => 0, 'maquina' => 1])[0]['estado']);
+        // $4 de diferencia es redondeo: cuadra; sin julios pendientes no hay segundo punto.
+        $this->assertSame(['ok'], array_column(CostoJulios::veredicto(['julios' => 1000.0, 'sab' => 1004.0], 0), 'estado'));
 
         // Julios sin kg (mes abierto o captura pendiente) van primero en el veredicto.
-        $this->assertStringStartsWith('2 julios sin kg', CostoJulios::veredicto(0.0, null, null, 0, 2)[0]['titulo']);
+        $this->assertStringStartsWith('2 julios sin kg', CostoJulios::veredicto(null, 0, 2)[0]['titulo']);
 
-        // Sin kardex de julios ni cuota real: no hay con qué comparar, no se inventa un cuadre.
-        $this->assertSame(['sin', 'sin'], array_column(CostoJulios::veredicto(50.0, null, null, 0), 'estado'));
-    }
-
-    public function test_folios_distintos_marca_maquina_y_kg_contra_lo_recibido_en_ax(): void
-    {
-        $julios = collect([
-            ['folio' => '00507', 'maquina' => 'Mc Coy 2', 'kg' => 305.5],
-            ['folio' => '00507', 'maquina' => 'Mc Coy 2', 'kg' => 305.5],
-            ['folio' => '00509', 'maquina' => 'Mc Coy 2', 'kg' => 1796.39999], // redondeo del float: cuadra
-            ['folio' => '00600', 'maquina' => 'Mc Coy 1', 'kg' => 500.0],      // AX no lo recibió este mes
-            ['folio' => '00700', 'maquina' => 'Mc Coy 2', 'kg' => null],       // sin kg ni recepción: cuadra
-        ]);
-        $recibido = [
-            '00507' => ['loc' => 'MC3', 'kg' => 611.0],     // mismos kg, otra máquina
-            '00509' => ['loc' => 'MC2', 'kg' => 1796.4],
-            '00650' => ['loc' => 'KM1', 'kg' => 958.8],     // recibido sin julios en UrdProduccionUrdido
-        ];
-
-        $folios = CostoJulios::foliosDistintos($julios, $recibido);
-
-        $this->assertSame(['00650', '00600', '00507'], array_column($folios, 'folio')); // la mayor diferencia de kg primero
-        $this->assertSame(['folio' => '00507', 'maquina' => 'Mc Coy 2', 'maquinaAx' => 'Mc Coy 3', 'kgJulios' => 611.0, 'kgAx' => 611.0, 'dif' => 0.0, 'maquinaDistinta' => true], $folios[2]);
-        $this->assertSame(['', 'Karl Mayer', false], [$folios[0]['maquina'], $folios[0]['maquinaAx'], $folios[0]['maquinaDistinta']]);
-        $this->assertSame(-500.0, $folios[1]['dif']);
+        // Sin cuota real: no hay con qué comparar, no se inventa un cuadre.
+        $this->assertSame(['sin'], array_column(CostoJulios::veredicto(null, 0), 'estado'));
     }
 }
