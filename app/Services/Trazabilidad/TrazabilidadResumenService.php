@@ -33,7 +33,7 @@ class TrazabilidadResumenService
 
         $ordenes = (clone $query)
             ->whereNotNull('Orden')
-            ->where('Orden', '<>', '')
+            ->whereRaw('[Orden] <> CAST(? AS varchar(20))', [''])
             ->distinct()
             ->pluck('Orden')
             ->map(fn ($orden) => trim((string) $orden))
@@ -111,7 +111,7 @@ class TrazabilidadResumenService
     {
         return $query
             ->whereNotNull('NombreAlmacen')
-            ->where('NombreAlmacen', '<>', '')
+            ->whereRaw('[NombreAlmacen] <> CAST(? AS varchar(60))', [''])
             ->whereNotNull('Fecha')
             ->selectRaw('NombreAlmacen, CAST(Fecha AS date) as Fecha, SUM(Cantidad) as piezas, SUM(Peso) as kilos')
             ->groupByRaw('NombreAlmacen, CAST(Fecha AS date)')

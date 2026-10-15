@@ -85,9 +85,9 @@ class TrazabilidadProduccionService
     private function buildCrudo(callable $base): array
     {
         $rawRows = $base()
-            ->where('NombreAlmacen', 'Crudo')
+            ->whereRaw('[NombreAlmacen] = CAST(? AS varchar(60))', ['Crudo'])
             ->whereNotNull('Orden')
-            ->where('Orden', '<>', '')
+            ->whereRaw('[Orden] <> CAST(? AS varchar(20))', [''])
             ->selectRaw('
                 Orden,
                 Localidad,
@@ -469,11 +469,11 @@ class TrazabilidadProduccionService
     {
         $area = 'Rollos Teñido';
 
-        $rollosBase = fn () => $base()->where('NombreAlmacen', $area);
+        $rollosBase = fn () => $base()->whereRaw('[NombreAlmacen] = CAST(? AS varchar(60))', [$area]);
 
         $rawRows = $rollosBase()
             ->whereNotNull('Orden')
-            ->where('Orden', '<>', '')
+            ->whereRaw('[Orden] <> CAST(? AS varchar(20))', [''])
             ->selectRaw('
                 Orden,
                 Localidad,

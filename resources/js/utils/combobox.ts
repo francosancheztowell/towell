@@ -90,6 +90,9 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
         allowEmptyOption: false,
         // Múltiple: con algo elegido, el "Todos" junto a los chips confunde.
         hidePlaceholder: multiple,
+        // Casillas: la lista sigue abierta al elegir; el texto buscado ("1399") se borra
+        // para que no se quede junto al chip ni haya que borrarlo a mano.
+        clearAfterSelect: multiple && !!opciones.casillas,
         render: {
             ...plantillas(textos, cargar?.fallo),
             ...(opciones.chipConValor

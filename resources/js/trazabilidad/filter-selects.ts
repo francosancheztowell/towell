@@ -1,12 +1,6 @@
 import { combobox, comboboxDe, destruirCombobox } from '../utils/combobox.ts';
 import type { RemotoCombobox } from '../utils/combobox.ts';
 
-interface CommitHook {
-    component: { el: HTMLElement };
-    succeed: (callback: () => void) => void;
-    fail: (callback: () => void) => void;
-}
-
 export class FilterSelects {
     private readonly root: HTMLElement;
 
@@ -63,16 +57,23 @@ export class FilterSelects {
 
     /**
      * Livewire reemplaza los <select> al redibujar: Tom Select se retira antes de cada petición
-     * del componente y vuelve después, también si la petición falla (antes quedaba destruido).
+     * del componente y vuelve cuando terminan todas. onFinish y no el hook 'commit': en
+     * Livewire 4 ese hook no avisa si la respuesta viene con skip, si una petición más nueva
+     * la reemplaza (superseded) ni si falla la red, y los filtros se quedaban deshabilitados.
      */
     public bindToLivewire(component: HTMLElement): void {
-        const bind = (): void => window.Livewire?.hook('commit', ({ component: target, succeed, fail }: CommitHook) => {
-            if (target.el !== component) return;
+        let pendientes = 0;
+        const bind = (): void => void window.Livewire?.interceptMessage(({ message, onFinish }) => {
+            if (message.component.el !== component) return;
 
             // Deshabilitados mientras viaja la petición: un cambio en ese lapso se perdería.
-            this.destroy();
-            succeed(() => queueMicrotask(() => this.init()));
-            fail(() => this.init());
+            if (pendientes++ === 0) this.destroy();
+            let terminado = false;
+            onFinish(() => {
+                if (terminado) return;
+                terminado = true;
+                if (--pendientes === 0) this.init();
+            });
         });
 
         if (window.Livewire) {

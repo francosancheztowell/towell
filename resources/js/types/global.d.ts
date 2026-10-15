@@ -15,6 +15,11 @@ interface LivewireClient {
     dispatch(event: string, params?: Record<string, unknown>): void;
     on(event: string, callback: (...args: any[]) => void): () => void;
     hook(name: string, callback: (...args: any[]) => void): void;
+    /** Livewire 4: onFinish llega en todo final del mensaje (éxito tras el morph, skip, cancel, error, red). */
+    interceptMessage(callback: (ctx: {
+        message: { component: { el: HTMLElement } };
+        onFinish: (callback: () => void) => void;
+    }) => void): () => void;
 }
 
 // `var` (no `interface Window`): así sirven tanto `window.http` como `http` a secas,

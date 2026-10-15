@@ -75,8 +75,9 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringNotContainsString('wire:target', $filters);
         $this->assertStringContainsString('wire:loading', $filters);
         // Tom Select se rearma también cuando la petición falla.
-        $this->assertStringContainsString("hook('commit'", $selects);
-        $this->assertStringContainsString('fail(', $selects);
+        // onFinish: también llega con skip, superseded y fallo de red (el hook 'commit' no).
+        $this->assertStringContainsString('interceptMessage(', $selects);
+        $this->assertStringContainsString('onFinish(', $selects);
     }
 
     public function test_detail_panel_can_go_back_and_retry_after_an_error(): void

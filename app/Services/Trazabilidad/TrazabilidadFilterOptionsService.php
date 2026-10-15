@@ -30,7 +30,7 @@ class TrazabilidadFilterOptionsService
         $facet = fn (string $column, ?string $except): Collection => TrazaProduccion::query()
             ->filtrados($filters->toArray(), $except)
             ->whereNotNull($column)
-            ->where($column, '<>', '')
+            ->whereRaw('['.$column.'] <> CAST(? AS varchar(100))', [''])
             ->distinct()
             ->orderBy($column)
             ->pluck($column);
@@ -42,7 +42,7 @@ class TrazabilidadFilterOptionsService
         ) use ($filters): Collection {
             return TrazaProduccion::query()->filtrados($filters->toArray(), $except)
                 ->whereNotNull($codeColumn)
-                ->where($codeColumn, '<>', '')
+                ->whereRaw('['.$codeColumn.'] <> CAST(? AS varchar(100))', [''])
                 ->selectRaw(
                     "{$codeColumn} as codigo, "
                     ."MAX(NULLIF(LTRIM(RTRIM({$nameColumn})), '')) as nombre"
