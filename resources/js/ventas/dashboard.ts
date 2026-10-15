@@ -220,8 +220,11 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
         return;
     }
 
-    // De entrada (y al limpiar) se filtra el año más reciente.
-    const latestYear = allYears[0] ?? '';
+    // De entrada (y al limpiar) se filtran el año y el mes actuales (o el año más reciente si el actual no tiene datos).
+    const { anio: currentYear, mes: currentMonth } = mexicoToday();
+    const latestYear = allYears.includes(String(currentYear)) ? String(currentYear) : (allYears[0] ?? '');
+    // El valor del mes se toma de los datos cargados para no asumir su formato (con o sin cero inicial).
+    const currentMonthValue = records.find((record) => Number(record.mes) === currentMonth)?.mes ?? String(currentMonth);
     const loadedYears = new Set(allYears.slice(0, 1));
     const failedYears = new Set<string>();
     const loading = new Map<string, Promise<void>>();
@@ -254,6 +257,7 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
     const defaultFilters = () => {
         const filters = emptyFilters();
         if (latestYear) (filters.anio as Set<string>).add(latestYear);
+        (filters.mes as Set<string>).add(currentMonthValue);
         return filters;
     };
 
@@ -546,7 +550,8 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
 
     renderFilters();
     renderTables();
-    expandTo('analisis', 1);
+    // Al entrar, cada empresa (o año en Análisis) se muestra abierta.
+    PANELS.forEach((panel) => expandTo(panel, 1));
 
     // Resto de años en segundo plano, del más reciente al más antiguo. Las tablas no se repintan: solo
     // cambian las opciones de los filtros, y no mientras el usuario tiene un desplegable abierto.
