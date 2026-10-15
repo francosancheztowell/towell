@@ -139,6 +139,22 @@ class CostoJulios extends Component
     }
 
     /**
+     * Marca 'otroMes' en los folios que solo cambian de mes: todos sus julios contra lo que AX consumió de él
+     * en este mes y los vecinos cuadra, así que la diferencia se compensa sola. Los demás son errores de AX.
+     *
+     * @param  list<array{folio: string, maquina: string, kgJulios: float, kgAx: float, dif: float}>  $folios  de foliosSinCuadrar()
+     * @param  array<string, float>  $kgTotal  folio => kg de todos sus julios, de cualquier mes
+     * @param  array<string, float>  $axVecinos  folio => kg que AX consumió en el mes anterior y el siguiente
+     * @return list<array{folio: string, maquina: string, kgJulios: float, kgAx: float, dif: float, otroMes: bool}>
+     */
+    public static function marcarOtroMes(array $folios, array $kgTotal, array $axVecinos): array
+    {
+        return array_map(fn (array $f): array => $f + ['otroMes' => abs(
+            $f['kgAx'] + ($axVecinos[$f['folio']] ?? 0.0) - ($kgTotal[$f['folio']] ?? $f['kgJulios'])
+        ) < self::TOLERANCIA_KG], $folios);
+    }
+
+    /**
      * Veredicto del mes, lo primero que ve el contador. Hilo: los kg de los julios contra lo que AX consumió
      * de hilo (InvKardexURDID), deben ser iguales salvo TOLERANCIA_KG. Conversión: Σ julios contra la sábana,
      * con $5 de tolerancia por redondeo. Julios sin kg: el mes aún no se captura completo.
@@ -146,9 +162,10 @@ class CostoJulios extends Component
      *
      * @param  ?float  $kgConsumo  null = InvKardexURDID aún no tiene el mes
      * @param  array{julios: float, sab: float}|null  $sabana  null = no hay cuota real del mes
+     * @param  array{errores: int, otroMes: int}  $folios  folios que no cuadran: con error de AX y los que solo cambian de mes
      * @return list<array{estado: string, titulo: string, detalle: string}>
      */
-    public static function veredicto(float $kgJulios, ?float $kgConsumo, ?array $sabana, int $sinCosto, int $sinKg = 0, int $foliosSinCuadrar = 0): array
+    public static function veredicto(float $kgJulios, ?float $kgConsumo, ?array $sabana, int $sinCosto, int $sinKg = 0, array $folios = ['errores' => 0, 'otroMes' => 0]): array
     {
         $pesos = fn (float $v): string => ($v < 0 ? '-$' : '$').number_format(abs($v), 0);
         $puntos = [];
@@ -158,7 +175,7 @@ class CostoJulios extends Component
                 'detalle' => 'Sin kg no entran al costo por kg ni al cuadre del hilo; si el mes sigue abierto, los números aún no son finales.'];
         }
 
-        $puntos[] = self::puntoHilo($kgJulios, $kgConsumo, $foliosSinCuadrar);
+        $puntos[] = self::puntoHilo($kgJulios, $kgConsumo, $folios);
 
         if ($sabana === null) {
             $puntos[] = ['estado' => 'sin', 'titulo' => 'Sin cuota real del mes', 'detalle' => 'No hay sábana de AX con qué cuadrar la conversión.'];
@@ -181,24 +198,28 @@ class CostoJulios extends Component
     }
 
     /**
-     * Punto del hilo en el veredicto: cuadra si AX consumió lo que pesan los julios y ningún folio difiere.
+     * Punto del hilo en el veredicto: cuadra si AX consumió lo que pesan los julios, o si lo que difiere son
+     * solo folios que AX consumió en el mes vecino (se compensan); cualquier folio con error de AX no cuadra.
      *
+     * @param  array{errores: int, otroMes: int}  $folios
      * @return array{estado: string, titulo: string, detalle: string}
      */
-    private static function puntoHilo(float $kgJulios, ?float $kgConsumo, int $foliosSinCuadrar): array
+    private static function puntoHilo(float $kgJulios, ?float $kgConsumo, array $folios): array
     {
         if ($kgConsumo === null) {
             return ['estado' => 'sin', 'titulo' => 'Sin consumo de hilo de AX del mes',
                 'detalle' => 'El kardex de urdido (InvKardexURDID) aún no tiene el mes; el cuadre del hilo aparece cuando lo tenga.'];
         }
         $kg = fn (float $v): string => number_format($v, 0).' kg';
+        $cuenta = fn (int $n): string => number_format($n).' folio'.($n === 1 ? '' : 's');
         $dif = $kgConsumo - $kgJulios;
-        if (abs($dif) < self::TOLERANCIA_KG && $foliosSinCuadrar === 0) {
+        if ($folios['errores'] === 0 && (abs($dif) < self::TOLERANCIA_KG || $folios['otroMes'] > 0)) {
             return ['estado' => 'ok', 'titulo' => 'El hilo cuadra: AX consumió lo mismo que pesan los julios',
-                'detalle' => sprintf('Julios %s, consumo de las órdenes de urdido en AX %s.', $kg($kgJulios), $kg($kgConsumo))];
+                'detalle' => sprintf('Julios %s, consumo de las órdenes de urdido en AX %s%s.', $kg($kgJulios), $kg($kgConsumo),
+                    $folios['otroMes'] > 0 ? sprintf('; la diferencia son %s que AX consumió en el mes vecino y se compensan', $cuenta($folios['otroMes'])) : '')];
         }
-        $enFolios = $foliosSinCuadrar > 0
-            ? sprintf(' en %s folio%s, listados en "Hilo contra consumo de AX"', number_format($foliosSinCuadrar), $foliosSinCuadrar === 1 ? '' : 's')
+        $enFolios = $folios['errores'] > 0
+            ? sprintf(' por %s con error en AX, listados en "Hilo contra consumo de AX"', $cuenta($folios['errores']))
             : '';
 
         return ['estado' => 'fuera', 'titulo' => 'El hilo no cuadra con el consumo de AX',
@@ -455,13 +476,49 @@ class CostoJulios extends Component
      *
      * @return array<string, array{loc: string, kg: float}>
      */
-    private function consumoPorFolio(): array
+    private function consumoPorFolio(int $anio, int $mes): array
     {
         return rescue(fn () => Cache::remember(
-            sprintf('costos.consumo-hilo-urdido.%04d-%02d', $this->anio, $this->mes),
+            sprintf('costos.consumo-hilo-urdido.%04d-%02d', $anio, $mes),
             3600,
-            fn () => app(ConsumoHiloAxRepository::class)->porFolio($this->anio, $this->mes),
+            fn () => app(ConsumoHiloAxRepository::class)->porFolio($anio, $mes),
         ), [], report: false);
+    }
+
+    /**
+     * Folios que no cuadran, marcados con 'otroMes' si AX los consumió en el mes anterior o el siguiente
+     * (marcarOtroMes). null = AX no respondió: sin lista, compararía cada folio contra 0.
+     *
+     * @param  Collection<int, array<string, mixed>>  $julios
+     * @return list<array{folio: string, maquina: string, kgJulios: float, kgAx: float, dif: float, otroMes: bool}>|null
+     */
+    private function foliosQueNoCuadran(Collection $julios): ?array
+    {
+        $porFolio = $this->consumoPorFolio($this->anio, $this->mes);
+        if ($porFolio === []) {
+            return null;
+        }
+        $folios = self::foliosSinCuadrar($julios, $porFolio);
+        if ($folios === []) {
+            return [];
+        }
+        $nombres = array_column($folios, 'folio');
+
+        $axVecinos = [];
+        foreach ([-1, 1] as $paso) {
+            $vecino = mktime(0, 0, 0, $this->mes + $paso, 1, $this->anio);
+            if ($vecino > time()) {
+                continue; // el mes siguiente aún no existe en AX
+            }
+            foreach ($this->consumoPorFolio((int) date('Y', $vecino), (int) date('n', $vecino)) as $folio => $c) {
+                $axVecinos[$folio] = ($axVecinos[$folio] ?? 0.0) + $c['kg'];
+            }
+        }
+        $kgTotal = UrdProduccionUrdido::query()->whereIn('Folio', $nombres)->get(['Folio', 'KgNeto'])
+            ->groupBy(fn (UrdProduccionUrdido $j) => trim((string) $j->Folio))
+            ->map(fn (Collection $l) => (float) $l->sum('KgNeto'))->all();
+
+        return self::marcarOtroMes($folios, $kgTotal, array_intersect_key($axVecinos, array_flip($nombres)));
     }
 
     /**
@@ -521,9 +578,8 @@ class CostoJulios extends Component
         $cuadre = $this->cuadre($julios);
         $kardex = $this->kardex();
         $consumo = $this->consumo();
-        $porFolio = $this->consumoPorFolio();
-        // Sin respuesta de AX no hay lista: compararía cada folio contra 0.
-        $sinCuadrar = $porFolio === [] ? null : self::foliosSinCuadrar($julios, $porFolio);
+        $sinCuadrar = $this->foliosQueNoCuadran($julios);
+        $otroMes = count(array_filter($sinCuadrar ?? [], fn ($f) => $f['otroMes']));
         $sabana = $cuadre === null ? null : ['julios' => (float) array_sum(array_column($cuadre, 'julios')), 'sab' => (float) array_sum(array_column($cuadre, 'sab'))];
 
         return view('livewire.costos.costo-julios', [
@@ -547,7 +603,7 @@ class CostoJulios extends Component
                 $sabana,
                 $meses[$this->mes]['sinCosto'] ?? 0,
                 $julios->filter(fn ($j) => ! ($j['kg'] > 0))->count(),
-                count($sinCuadrar ?? []),
+                ['errores' => count($sinCuadrar ?? []) - $otroMes, 'otroMes' => $otroMes],
             ),
             'anios' => range(now()->year, 2025),
         ]);

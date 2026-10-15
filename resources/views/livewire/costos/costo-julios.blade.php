@@ -238,36 +238,47 @@
                     </table>
                     <p class="mt-1 text-caption text-slate-500">Diferencia = consumo AX − julios. $/kg kardex = importe ÷ kg del hilo que entró a la máquina (incluye la merma).</p>
 
-                    {{-- Folios que no cuadran (CostoJulios::foliosSinCuadrar): se corrigen en AX. --}}
+                    {{-- Folios que no cuadran (CostoJulios::foliosSinCuadrar): los errores de AX aparte de los consumidos en el mes vecino (marcarOtroMes). --}}
                     @if ($sinCuadrar === null)
                         <p class="mt-3 text-sm text-slate-500">No se pudo leer el consumo por folio de AX; la lista aparece cuando AX responda.</p>
                     @elseif ($sinCuadrar === [])
                         <p class="mt-3 text-sm text-emerald-700"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>Todos los folios cuadran con su consumo de AX.</p>
                     @else
-                        <h4 class="mt-4 text-sm font-semibold text-slate-800">Folios que no cuadran ({{ count($sinCuadrar) }})</h4>
-                        <p class="text-caption text-slate-500">Negativo: AX consumió menos hilo del que pesan los julios. Un folio que AX consumió en otro mes aparece también en ese mes con el signo contrario.</p>
-                        <table class="mt-1 w-full text-sm tabular-nums">
-                            <thead class="text-caption text-slate-500">
-                                <tr>
-                                    <th class="pb-1 text-start font-normal">Folio</th>
-                                    <th class="pb-1 text-start font-normal">Máquina</th>
-                                    <th class="pb-1 text-end font-normal">Kg julios</th>
-                                    <th class="pb-1 text-end font-normal">Kg consumo AX</th>
-                                    <th class="pb-1 text-end font-normal">Diferencia</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($sinCuadrar as $f)
-                                    <tr wire:key="cj-sincuadrar-{{ $f['folio'] }}">
-                                        <td class="py-1 font-medium">{{ $f['folio'] }}</td>
-                                        <td class="py-1">{{ $f['maquina'] }}</td>
-                                        <td class="py-1 text-end">{{ $num($f['kgJulios'], 1) }}</td>
-                                        <td class="py-1 text-end">{{ $num($f['kgAx'], 1) }}</td>
-                                        <td class="py-1 text-end font-semibold text-amber-800">{{ $num($f['dif'], 1) }}</td>
+                        @php
+                            $grupos = [
+                                ['folios' => array_values(array_filter($sinCuadrar, fn ($f) => ! $f['otroMes'])), 'titulo' => 'Errores en AX',
+                                    'nota' => 'Negativo: AX consumió menos hilo del que pesan los julios. Se corrigen en AX.', 'color' => 'text-amber-800'],
+                                ['folios' => array_values(array_filter($sinCuadrar, fn ($f) => $f['otroMes'])), 'titulo' => 'Consumidos en otro mes',
+                                    'nota' => 'AX los consumió en el mes anterior o el siguiente: sumando ese mes cuadran, no hay que corregir.', 'color' => 'text-slate-500'],
+                            ];
+                        @endphp
+                        @foreach ($grupos as $g)
+                            @continue($g['folios'] === [])
+                            <h4 class="mt-4 text-sm font-semibold text-slate-800">{{ $g['titulo'] }} ({{ count($g['folios']) }})</h4>
+                            <p class="text-caption text-slate-500">{{ $g['nota'] }}</p>
+                            <table class="mt-1 w-full text-sm tabular-nums">
+                                <thead class="text-caption text-slate-500">
+                                    <tr>
+                                        <th class="pb-1 text-start font-normal">Folio</th>
+                                        <th class="pb-1 text-start font-normal">Máquina</th>
+                                        <th class="pb-1 text-end font-normal">Kg julios</th>
+                                        <th class="pb-1 text-end font-normal">Kg consumo AX</th>
+                                        <th class="pb-1 text-end font-normal">Diferencia</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach ($g['folios'] as $f)
+                                        <tr wire:key="cj-sincuadrar-{{ $f['folio'] }}">
+                                            <td class="py-1 font-medium">{{ $f['folio'] }}</td>
+                                            <td class="py-1">{{ $f['maquina'] }}</td>
+                                            <td class="py-1 text-end">{{ $num($f['kgJulios'], 1) }}</td>
+                                            <td class="py-1 text-end">{{ $num($f['kgAx'], 1) }}</td>
+                                            <td class="py-1 text-end font-semibold {{ $g['color'] }}">{{ $num($f['dif'], 1) }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @endforeach
                     @endif
                 </div>
             </details>

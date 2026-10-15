@@ -47,17 +47,22 @@ class CostoJuliosTotalesTest extends TestCase
     public function test_veredicto_marca_hilo_y_sabana_fuera_y_cuenta_sin_costo(): void
     {
         // AX consumió 151 de 206 kg de julios: el hilo no cuadra; sábana con $5 o más de diferencia; 3 julios sin costo.
-        $fuera = CostoJulios::veredicto(206.0, 151.0, ['julios' => 1000.0, 'sab' => 1010.0], 3, 0, 2);
+        $fuera = CostoJulios::veredicto(206.0, 151.0, ['julios' => 1000.0, 'sab' => 1010.0], 3, 0, ['errores' => 2, 'otroMes' => 1]);
         $this->assertSame(['fuera', 'fuera', 'fuera'], array_column($fuera, 'estado'));
         $this->assertStringContainsString('-55 kg', $fuera[0]['detalle']);
-        $this->assertStringContainsString('en 2 folios', $fuera[0]['detalle']);
+        $this->assertStringContainsString('por 2 folios con error en AX', $fuera[0]['detalle']);
 
         // Kg iguales salvo redondeo y $4 de diferencia: cuadra; sin julios pendientes no hay tercer punto.
         $ok = CostoJulios::veredicto(299.9, 299.89999, ['julios' => 1000.0, 'sab' => 1004.0], 0);
         $this->assertSame(['ok', 'ok'], array_column($ok, 'estado'));
 
-        // El total puede cuadrar con folios que se compensan entre sí: si hay folios sin cuadrar, no cuadra.
-        $this->assertSame('fuera', CostoJulios::veredicto(100.0, 100.0, null, 0, 0, 2)[0]['estado']);
+        // El total puede cuadrar con folios que se compensan entre sí: si hay folios con error, no cuadra.
+        $this->assertSame('fuera', CostoJulios::veredicto(100.0, 100.0, null, 0, 0, ['errores' => 2, 'otroMes' => 0])[0]['estado']);
+
+        // Solo folios consumidos en el mes vecino: el mes difiere, pero no hay nada que corregir.
+        $vecino = CostoJulios::veredicto(1000.0, 1603.3, null, 0, 0, ['errores' => 0, 'otroMes' => 1])[0];
+        $this->assertSame('ok', $vecino['estado']);
+        $this->assertStringContainsString('1 folio que AX consumió en el mes vecino', $vecino['detalle']);
 
         // Julios sin kg (mes abierto o captura pendiente) van primero en el veredicto.
         $this->assertStringStartsWith('2 julios sin kg', CostoJulios::veredicto(0.0, null, null, 0, 2)[0]['titulo']);
@@ -88,5 +93,22 @@ class CostoJuliosTotalesTest extends TestCase
         $this->assertSame('Karl Mayer', $folios[1]['maquina']); // sin julios: la máquina sale de la localidad de AX
         $this->assertSame(958.8, $folios[1]['dif']);
         $this->assertSame([], CostoJulios::foliosSinCuadrar(collect([['folio' => '1', 'maquina' => 'X', 'kg' => 5.0]]), ['1' => ['loc' => 'MC1', 'kg' => 5.2]]));
+    }
+
+    public function test_marcar_otro_mes_separa_los_que_se_compensan_con_el_mes_vecino(): void
+    {
+        $folios = [
+            ['folio' => '00471', 'maquina' => 'Mc Coy 1', 'kgJulios' => 1234.1, 'kgAx' => 1837.4, 'dif' => 603.3], // abril + mayo
+            ['folio' => '00650', 'maquina' => 'Mc Coy 1', 'kgJulios' => 958.8, 'kgAx' => 0.0, 'dif' => -958.8],    // AX en junio
+            ['folio' => '00509', 'maquina' => 'Mc Coy 2', 'kgJulios' => 1796.4, 'kgAx' => 1616.8, 'dif' => -179.6], // AX al 90 %
+        ];
+        $kgTotal = ['00471' => 1837.4, '00650' => 958.8, '00509' => 1796.4];
+        $axVecinos = ['00650' => 958.8, '00509' => 0.0];
+
+        $marcados = CostoJulios::marcarOtroMes($folios, $kgTotal, $axVecinos);
+
+        $this->assertSame([true, true, false], array_column($marcados, 'otroMes'));
+        // Un folio sin total de julios usa los del mes (no inventa julios).
+        $this->assertFalse(CostoJulios::marcarOtroMes([$folios[2]], [], [])[0]['otroMes']);
     }
 }
