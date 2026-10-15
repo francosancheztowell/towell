@@ -46,24 +46,47 @@ class CostoJuliosTotalesTest extends TestCase
 
     public function test_veredicto_marca_hilo_y_sabana_fuera_y_cuenta_sin_costo(): void
     {
-        // 151 de 206 kg: merma 26.7 %, fuera; sábana con $5 o más de diferencia: no cuadra; 3 julios sin costo.
-        $fuera = CostoJulios::veredicto(151.0, 206.0, ['julios' => 1000.0, 'sab' => 1010.0], 3);
+        // AX consumió 151 de 206 kg de julios: el hilo no cuadra; sábana con $5 o más de diferencia; 3 julios sin costo.
+        $fuera = CostoJulios::veredicto(206.0, 151.0, ['julios' => 1000.0, 'sab' => 1010.0], 3, 0, 2);
         $this->assertSame(['fuera', 'fuera', 'fuera'], array_column($fuera, 'estado'));
-        $this->assertStringContainsString('Merma del hilo 26.7 %', $fuera[0]['titulo']);
+        $this->assertStringContainsString('-55 kg', $fuera[0]['detalle']);
+        $this->assertStringContainsString('en 2 folios', $fuera[0]['detalle']);
 
-        // Merma 3 % y $4 de redondeo: cuadra; sin julios pendientes no hay tercer punto.
-        $ok = CostoJulios::veredicto(97.0, 100.0, ['julios' => 1000.0, 'sab' => 1004.0], 0);
+        // Kg iguales salvo redondeo y $4 de diferencia: cuadra; sin julios pendientes no hay tercer punto.
+        $ok = CostoJulios::veredicto(299.9, 299.89999, ['julios' => 1000.0, 'sab' => 1004.0], 0);
         $this->assertSame(['ok', 'ok'], array_column($ok, 'estado'));
 
-        // Bordes del rango: 8 % cuadra, 9 % no; más hilo en julios que en el kardex (merma negativa) tampoco.
-        $this->assertFalse(CostoJulios::mermaFuera(CostoJulios::merma(92.0, 100.0)));
-        $this->assertTrue(CostoJulios::mermaFuera(CostoJulios::merma(91.0, 100.0)));
-        $this->assertTrue(CostoJulios::mermaFuera(CostoJulios::merma(101.0, 100.0)));
+        // El total puede cuadrar con folios que se compensan entre sí: si hay folios sin cuadrar, no cuadra.
+        $this->assertSame('fuera', CostoJulios::veredicto(100.0, 100.0, null, 0, 0, 2)[0]['estado']);
 
         // Julios sin kg (mes abierto o captura pendiente) van primero en el veredicto.
         $this->assertStringStartsWith('2 julios sin kg', CostoJulios::veredicto(0.0, null, null, 0, 2)[0]['titulo']);
 
-        // Sin kardex ni cuota real: no hay con qué comparar, no se inventa un cuadre.
+        // Sin consumo de AX ni cuota real: no hay con qué comparar, no se inventa un cuadre.
         $this->assertSame(['sin', 'sin'], array_column(CostoJulios::veredicto(50.0, null, null, 0), 'estado'));
+    }
+
+    public function test_folios_sin_cuadrar_compara_julios_del_folio_contra_su_consumo_de_ax(): void
+    {
+        $julios = collect([
+            ['folio' => '00345', 'maquina' => 'Mc Coy 3', 'kg' => 1140.25],
+            ['folio' => '00345', 'maquina' => 'Mc Coy 3', 'kg' => 1140.25],
+            ['folio' => '00350', 'maquina' => 'Mc Coy 1', 'kg' => 299.89999], // redondeo del float: cuadra
+            ['folio' => '00471', 'maquina' => 'Mc Coy 1', 'kg' => 603.3],     // AX lo consumió el mes siguiente
+            ['folio' => '00500', 'maquina' => 'Mc Coy 2', 'kg' => null],      // sin kg y sin consumo: cuadra
+        ]);
+        $consumo = [
+            '00345' => ['loc' => 'MC3', 'kg' => 1140.25],   // consumo incompleto: la mitad
+            '00350' => ['loc' => 'MC1', 'kg' => 299.9],
+            '00650' => ['loc' => 'KM1', 'kg' => 958.8],     // consumo de un folio sin julios este mes
+        ];
+
+        $folios = CostoJulios::foliosSinCuadrar($julios, $consumo);
+
+        $this->assertSame(['00345', '00650', '00471'], array_column($folios, 'folio')); // la mayor diferencia primero
+        $this->assertSame(['folio' => '00345', 'maquina' => 'Mc Coy 3', 'kgJulios' => 2280.5, 'kgAx' => 1140.25, 'dif' => -1140.25], $folios[0]);
+        $this->assertSame('Karl Mayer', $folios[1]['maquina']); // sin julios: la máquina sale de la localidad de AX
+        $this->assertSame(958.8, $folios[1]['dif']);
+        $this->assertSame([], CostoJulios::foliosSinCuadrar(collect([['folio' => '1', 'maquina' => 'X', 'kg' => 5.0]]), ['1' => ['loc' => 'MC1', 'kg' => 5.2]]));
     }
 }
