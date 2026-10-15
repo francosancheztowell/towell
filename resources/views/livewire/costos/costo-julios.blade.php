@@ -12,7 +12,7 @@
     $pct = fn (float $parte, float $total): string => $total > 0 ? number_format($parte / $total * 100, 1).'%' : '—';
     // Lo que necesita atención va primero.
     $puntos = collect($veredicto ?? [])->sortBy(fn ($p) => ['fuera' => 0, 'sin' => 1, 'ok' => 2][$p['estado']])->values();
-    $hiloFuera = collect($veredicto ?? [])->contains(fn ($p) => $p['estado'] === 'fuera' && str_contains($p['titulo'], 'hilo'));
+    $kgFuera = collect($veredicto ?? [])->contains(fn ($p) => $p['estado'] === 'fuera' && str_contains($p['titulo'], 'recibido'));
     $filtrando = $buscar !== '' || $maquina !== '';
     // Sin kg capturados (mes en curso) los % y el $/kg no son dato: el veredicto ya lo explica.
     $conKg = ($mesTotal['kg'] ?? 0) > 0;
@@ -178,24 +178,24 @@
             </section>
         </div>
 
-        {{-- Hilo: kg de los julios contra lo que consumieron de hilo sus órdenes en AX (InvKardexURDID), por máquina;
-             deben ser iguales. MP en pesos: la de fórmula contra el importe del kardex de MP. Plegado si cuadra,
-             abierto si no (el veredicto ya lo avisa). wire:key por mes: al cambiar de mes vuelve a su estado por defecto. --}}
-        @if ($consumo !== null || $kardex !== null)
+        {{-- Kg: los julios de UrdProduccionUrdido contra lo que AX recibió (InvKardexAJULURD), por máquina; deben ser
+             iguales. MP en pesos: la de fórmula contra el importe del kardex de MP. Plegado si cuadra, abierto si no
+             (el veredicto ya lo avisa). wire:key por mes: al cambiar de mes vuelve a su estado por defecto. --}}
+        @if ($recibido !== null || $kardex !== null)
             @php
-                $filasMp = collect(array_keys($consumo ?? $kardex))->mapWithKeys(fn ($m) => [$m => [
-                    'consumo' => $consumo[$m] ?? null, 'kardex' => $kardex[$m] ?? ['kg' => 0.0, 'imp' => 0.0],
+                $filasMp = collect(array_keys($recibido ?? $kardex))->mapWithKeys(fn ($m) => [$m => [
+                    'recibido' => $recibido[$m] ?? null, 'kardex' => $kardex[$m] ?? ['kg' => 0.0, 'imp' => 0.0],
                     'julios' => ['kg' => $porMaquina[$m]['kg'] ?? 0.0, 'mp' => $mpFormula[$m] ?? 0.0]]]);
-                $totalMp = ['consumo' => $consumo === null ? null : array_sum($consumo),
+                $totalMp = ['recibido' => $recibido === null ? null : array_sum($recibido),
                     'kardex' => ['kg' => $filasMp->sum('kardex.kg'), 'imp' => $filasMp->sum('kardex.imp')],
                     'julios' => ['kg' => $filasMp->sum('julios.kg'), 'mp' => $filasMp->sum('julios.mp')]];
             @endphp
-            <details wire:key="cj-kardex-{{ $anio }}-{{ $mes }}" wire:ignore.self @if ($hiloFuera) open @endif
+            <details wire:key="cj-kardex-{{ $anio }}-{{ $mes }}" wire:ignore.self @if ($kgFuera) open @endif
                      class="group rounded-xl border border-slate-200 bg-white">
                 <summary class="flex min-h-touch cursor-pointer list-none items-center gap-2 px-4 text-sm text-slate-500 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-xs transition-transform group-open:rotate-90" aria-hidden="true"></i>
-                    <span class="font-semibold text-slate-800">Hilo contra consumo de AX</span>
-                    <span class="text-caption">· lo que AX consumió de hilo en las órdenes de urdido debe ser lo que pesan los julios</span>
+                    <span class="font-semibold text-slate-800">Julios contra lo recibido en AX</span>
+                    <span class="text-caption">· lo que AX recibió de cada máquina debe ser lo que pesan los julios de UrdProduccionUrdido</span>
                 </summary>
                 <div class="overflow-x-auto px-4 pb-3">
                     <table class="w-full text-sm tabular-nums">
@@ -203,7 +203,7 @@
                             <tr>
                                 <th class="pb-1 text-start font-normal">Máquina</th>
                                 <th class="pb-1 text-end font-normal">Kg julios</th>
-                                <th class="pb-1 text-end font-normal">Kg consumo AX</th>
+                                <th class="pb-1 text-end font-normal">Kg recibido AX</th>
                                 <th class="pb-1 text-end font-normal">Diferencia</th>
                                 <th class="pb-1 text-end font-normal">MP fórmula</th>
                                 <th class="pb-1 text-end font-normal">MP kardex</th>
@@ -214,13 +214,13 @@
                         <tbody>
                             @foreach ([...$filasMp->all(), 'Total' => $totalMp] as $nombre => $f)
                                 @php
-                                    $difKg = $f['consumo'] === null ? null : $f['consumo'] - $f['julios']['kg'];
+                                    $difKg = $f['recibido'] === null ? null : $f['recibido'] - $f['julios']['kg'];
                                     $fuera = $difKg !== null && abs($difKg) >= $tolerancia;
                                 @endphp
                                 <tr class="{{ $nombre === 'Total' ? 'border-t border-slate-200 font-semibold' : '' }}">
                                     <td class="py-1">{{ $nombre }}</td>
                                     <td class="py-1 text-end">{{ $num($f['julios']['kg'], 1) }}</td>
-                                    <td class="py-1 text-end">{{ $num($f['consumo'], 1) }}</td>
+                                    <td class="py-1 text-end">{{ $num($f['recibido'], 1) }}</td>
                                     <td class="py-1 text-end {{ $fuera ? 'font-semibold text-amber-800' : '' }}">
                                         @if ($fuera)
                                             <i class="fa-solid fa-triangle-exclamation me-0.5 text-caption" aria-hidden="true"></i>
@@ -236,49 +236,40 @@
                             @endforeach
                         </tbody>
                     </table>
-                    <p class="mt-1 text-caption text-slate-500">Diferencia = consumo AX − julios. $/kg kardex = importe ÷ kg del hilo que entró a la máquina (incluye la merma).</p>
+                    <p class="mt-1 text-caption text-slate-500">Diferencia = recibido AX − julios. $/kg kardex = importe ÷ kg del hilo que entró a la máquina (incluye la merma).</p>
 
-                    {{-- Folios que no cuadran (CostoJulios::foliosSinCuadrar): los errores de AX aparte de los consumidos en el mes vecino (marcarOtroMes). --}}
-                    @if ($sinCuadrar === null)
-                        <p class="mt-3 text-sm text-slate-500">No se pudo leer el consumo por folio de AX; la lista aparece cuando AX responda.</p>
-                    @elseif ($sinCuadrar === [])
-                        <p class="mt-3 text-sm text-emerald-700"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>Todos los folios cuadran con su consumo de AX.</p>
+                    {{-- Folios distintos (CostoJulios::foliosDistintos): en otra máquina que la del programa o con otros kg. --}}
+                    @if ($distintos === null)
+                        <p class="mt-3 text-sm text-slate-500">No se pudo leer de AX lo recibido por folio; la lista aparece cuando AX responda.</p>
+                    @elseif ($distintos === [])
+                        <p class="mt-3 text-sm text-emerald-700"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>Cada folio está en su máquina y con los mismos kg que recibió AX.</p>
                     @else
-                        @php
-                            $grupos = [
-                                ['folios' => array_values(array_filter($sinCuadrar, fn ($f) => ! $f['otroMes'])), 'titulo' => 'Errores en AX',
-                                    'nota' => 'Negativo: AX consumió menos hilo del que pesan los julios. Se corrigen en AX.', 'color' => 'text-amber-800'],
-                                ['folios' => array_values(array_filter($sinCuadrar, fn ($f) => $f['otroMes'])), 'titulo' => 'Consumidos en otro mes',
-                                    'nota' => 'AX los consumió en el mes anterior o el siguiente: sumando ese mes cuadran, no hay que corregir.', 'color' => 'text-slate-500'],
-                            ];
-                        @endphp
-                        @foreach ($grupos as $g)
-                            @continue($g['folios'] === [])
-                            <h4 class="mt-4 text-sm font-semibold text-slate-800">{{ $g['titulo'] }} ({{ count($g['folios']) }})</h4>
-                            <p class="text-caption text-slate-500">{{ $g['nota'] }}</p>
-                            <table class="mt-1 w-full text-sm tabular-nums">
-                                <thead class="text-caption text-slate-500">
-                                    <tr>
-                                        <th class="pb-1 text-start font-normal">Folio</th>
-                                        <th class="pb-1 text-start font-normal">Máquina</th>
-                                        <th class="pb-1 text-end font-normal">Kg julios</th>
-                                        <th class="pb-1 text-end font-normal">Kg consumo AX</th>
-                                        <th class="pb-1 text-end font-normal">Diferencia</th>
+                        <h4 class="mt-4 text-sm font-semibold text-slate-800">Folios distintos de AX ({{ count($distintos) }})</h4>
+                        <p class="text-caption text-slate-500">Máquina distinta: corregir MaquinaId del folio en el programa de urdido. Kg distintos: revisar la captura del folio contra AX.</p>
+                        <table class="mt-1 w-full text-sm tabular-nums">
+                            <thead class="text-caption text-slate-500">
+                                <tr>
+                                    <th class="pb-1 text-start font-normal">Folio</th>
+                                    <th class="pb-1 text-start font-normal">Máquina programa</th>
+                                    <th class="pb-1 text-start font-normal">Máquina AX</th>
+                                    <th class="pb-1 text-end font-normal">Kg julios</th>
+                                    <th class="pb-1 text-end font-normal">Kg recibido AX</th>
+                                    <th class="pb-1 text-end font-normal">Diferencia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($distintos as $f)
+                                    <tr wire:key="cj-distinto-{{ $f['folio'] }}">
+                                        <td class="py-1 font-medium">{{ $f['folio'] }}</td>
+                                        <td class="py-1 {{ $f['maquinaDistinta'] ? 'font-semibold text-amber-800' : '' }}">{{ $f['maquina'] ?: '—' }}</td>
+                                        <td class="py-1 {{ $f['maquinaDistinta'] ? 'font-semibold text-amber-800' : '' }}">{{ $f['maquinaAx'] ?: '—' }}</td>
+                                        <td class="py-1 text-end">{{ $num($f['kgJulios'], 1) }}</td>
+                                        <td class="py-1 text-end">{{ $num($f['kgAx'], 1) }}</td>
+                                        <td class="py-1 text-end {{ abs($f['dif']) >= $tolerancia ? 'font-semibold text-amber-800' : '' }}">{{ abs($f['dif']) >= $tolerancia ? $num($f['dif'], 1) : '0' }}</td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($g['folios'] as $f)
-                                        <tr wire:key="cj-sincuadrar-{{ $f['folio'] }}">
-                                            <td class="py-1 font-medium">{{ $f['folio'] }}</td>
-                                            <td class="py-1">{{ $f['maquina'] }}</td>
-                                            <td class="py-1 text-end">{{ $num($f['kgJulios'], 1) }}</td>
-                                            <td class="py-1 text-end">{{ $num($f['kgAx'], 1) }}</td>
-                                            <td class="py-1 text-end font-semibold {{ $g['color'] }}">{{ $num($f['dif'], 1) }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        @endforeach
+                                @endforeach
+                            </tbody>
+                        </table>
                     @endif
                 </div>
             </details>
