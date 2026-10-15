@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\mecanicos\Catalogos\MecActividadesController;
+use App\Http\Controllers\mecanicos\MecReporteOtFechaController;
 use App\Http\Controllers\mecanicos\MecReportesController;
 use App\Http\Controllers\mecanicos\MecVerificaMaquinaController;
 use App\Http\Controllers\mecanicos\OrdenesTrabajo\ActualizarOrdenTrabajoController;
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\Route;
 | Nivel 2: 1103 Reportes               → /mecanicos/reportes
 | Nivel 3: 1103-1 OT Diarias           → /mecanicos/reportes/ot-diarias
 | Nivel 3: 1103-2 Estado de Máquina    → /mecanicos/reportes/estado-maquina
+| Nivel 3: 1103-3 OT x Fecha           → /mecanicos/reportes/ot-fecha
 | Nivel 2: 1104 Catálogos              → /mecanicos/catalogos
 | Nivel 3:      Actividades            → /mecanicos/catalogos/actividades
 */
@@ -63,6 +65,16 @@ Route::prefix('mecanicos/reportes')
         Route::post('/estado-maquina/excel', [MecReportesController::class, 'exportarExcelEstadoMaquina'])->name('estado-maquina.excel');
         Route::post('/estado-maquina/pdf', [MecReportesController::class, 'exportarPdfEstadoMaquina'])->name('estado-maquina.pdf');
         Route::post('/estado-maquina/telegram-imagen', [MecReportesController::class, 'telegramImagenEstadoMaquina'])->name('estado-maquina.telegram-imagen');
+    });
+
+Route::prefix('mecanicos/reportes')
+    ->as('mecanicos.reportes.')
+    ->middleware('module.permission:acceso,209') // OT x Fecha
+    ->group(function (): void {
+        Route::get('/ot-fecha', [MecReporteOtFechaController::class, 'index'])->name('ot-fecha');
+        Route::post('/ot-fecha/excel', [MecReporteOtFechaController::class, 'exportarExcel'])->name('ot-fecha.excel');
+        Route::post('/ot-fecha/pdf', [MecReporteOtFechaController::class, 'exportarPdf'])->name('ot-fecha.pdf');
+        Route::post('/ot-fecha/telegram-imagen', [MecReporteOtFechaController::class, 'telegramImagen'])->name('ot-fecha.telegram-imagen');
     });
 
 // Reportes nivel 2 (SYSRoles 1103 → Ruta=/mecanicos/reportes)

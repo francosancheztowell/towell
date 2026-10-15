@@ -4,6 +4,7 @@ namespace App\Models\Mecanicos;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $Id
@@ -17,7 +18,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool|null $FaltaRefacc
  * @property string|null $HoraInicial
  * @property string|null $HoraFinal
+ * @property int|null $TotalMinutos
  * @property int|null $Calificacion
+ * @property Carbon|null $Fecha
+ * @property string|null $comentarios
  */
 class MecOrdenTrabajoLineModel extends Model
 {
