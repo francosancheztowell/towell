@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -50,6 +51,14 @@ class UsuarioDuplicarTest extends TestCase
             $table->string('Ruta')->nullable();
             $table->timestamps();
         });
+        // duplicar() también copia las máquinas (SYSMaquinasAsignacion); aquí el origen no tiene.
+        Schema::connection('sqlsrv')->create('SYSMaquinasAsignacion', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->integer('idusuario');
+            $table->string('MaquinaId');
+            $table->boolean('Supervisor')->default(false);
+        });
+
         DB::table('SYSRoles')->insert([
             ['idrol' => 10, 'orden' => '10', 'modulo' => 'Tejido'],
             ['idrol' => 11, 'orden' => '11', 'modulo' => 'Urdido'],
@@ -112,7 +121,7 @@ class UsuarioDuplicarTest extends TestCase
         $this->grantModulo('Usuarios', $acciones, idRol: 59);
     }
 
-    private function duplicar(array $datos = []): \Illuminate\Testing\TestResponse
+    private function duplicar(array $datos = []): TestResponse
     {
         return $this->postJson(route('configuracion.usuarios.duplicar', self::ORIGEN), array_merge([
             'numero_empleado' => '5555',

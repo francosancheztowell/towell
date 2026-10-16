@@ -17,7 +17,8 @@
 
         {{-- session('error') y los errores de validación los muestra x-ui.flash del layout --}}
         <!-- Formulario -->
-        <form action="{{ $isEdit ? route('configuracion.usuarios.update', $usuario) : route('configuracion.usuarios.store') }}"
+        {{-- Solo alta: la edición vive en el componente Livewire Configuracion\EditarUsuario. --}}
+        <form action="{{ route('configuracion.usuarios.store') }}"
               method="POST"
               enctype="multipart/form-data"
               class="bg-white rounded-b-xl shadow-sm">

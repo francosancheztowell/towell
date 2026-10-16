@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Sistema\SYSMaquinaAsignacion;
 use App\Models\Sistema\SYSUsuariosRoles;
 use App\Models\Sistema\Usuario;
 use App\Repositories\UsuarioRepository;
@@ -12,6 +13,23 @@ use Illuminate\Support\Str;
 
 class UsuarioService
 {
+    /**
+     * Puestos que ofrece el formulario. Atadores, Marcas, Cortes, UrdEng y BPM comparan
+     * strtolower(puesto) contra 'supervisor' / 'atador': no renombrar esos dos.
+     */
+    public const PUESTOS = [
+        'Tejedor', 'Supervisor', 'Atador', 'Aux Atador', 'Engomado', 'Urdido', 'Mecánico',
+        'Eléctrico', 'Tramero', 'Desarrollador', 'Calidad', 'Contador', 'Planeación', 'Auxiliar',
+    ];
+
+    /** El puesto de la lista que corresponde a uno guardado ("Mecanico", "AUX ATADOR"…); si no hay, el mismo. */
+    public static function puestoDeLista(?string $puesto): ?string
+    {
+        $clave = fn (?string $p) => Str::lower(Str::ascii(trim((string) $p)));
+
+        return collect(self::PUESTOS)->first(fn ($p) => $clave($p) === $clave($puesto)) ?? $puesto;
+    }
+
     public function __construct(
         private UsuarioRepository $usuarioRepository,
         private PermissionService $permissionService
@@ -38,10 +56,9 @@ class UsuarioService
         // Crear usuario
         $usuario = $this->usuarioRepository->create($data);
 
-        // Guardar permisos si se proporcionan
-        if (! empty($permisos)) {
-            $this->permissionService->guardarPermisos($permisos, $usuario->idusuario);
-        }
+        // Siempre: el trigger tr_SYSUsuario_expand_roles inserta filas con valores por defecto,
+        // y el alta arranca sin permisos (se copian después desde la edición).
+        $this->permissionService->guardarPermisos($permisos, $usuario->idusuario);
 
         return $usuario;
     }
@@ -83,37 +100,58 @@ class UsuarioService
                     ->where('idusuario', $origen->idusuario)
             );
 
+            $maquinas = SYSMaquinaAsignacion::where('idusuario', $origen->idusuario)->get();
+            $this->guardarMaquinas($usuario->idusuario, $maquinas->pluck('MaquinaId')->all(), (bool) $maquinas->first()?->Supervisor);
+
             return $usuario;
         });
     }
 
     /**
-     * Actualizar usuario
+     * Actualizar usuario, permisos y máquinas en una transacción. Solo se tocan las columnas
+     * que llegan en $data: teléfono, correo y foto ya no están en el formulario y se conservan.
+     *
+     * @param  list<string>|null  $maquinas  MaquinaId asignadas; null = no tocar las máquinas
      */
-    public function update(int $id, array $data, ?UploadedFile $foto = null, array $permisos = []): bool
+    public function update(int $id, array $data, ?UploadedFile $foto = null, array $permisos = [], ?array $maquinas = null, bool $supervisor = false): bool
     {
-        // Procesar foto si se proporciona
         if ($foto) {
             $data['foto'] = $this->guardarFoto($foto);
         }
 
         // Hashear contraseña solo si se proporciona
-        if (isset($data['contrasenia']) && ! empty($data['contrasenia'])) {
+        if (! empty($data['contrasenia'])) {
             $data['contrasenia'] = Hash::make($data['contrasenia']);
         } else {
             unset($data['contrasenia']);
         }
 
-        // Actualizar usuario
-        $actualizado = $this->usuarioRepository->update($id, $data);
+        return DB::connection('sqlsrv')->transaction(function () use ($id, $data, $permisos, $maquinas, $supervisor) {
+            $actualizado = $this->usuarioRepository->update($id, $data);
 
-        // Guardar permisos desde el formulario (aunque estén en blanco)
-        $this->permissionService->guardarPermisos($permisos, $id);
+            // Guardar permisos desde el formulario (aunque estén en blanco)
+            $this->permissionService->guardarPermisos($permisos, $id);
 
-        if ($actualizado) {
+            if ($maquinas !== null) {
+                $this->guardarMaquinas($id, $maquinas, $supervisor);
+            }
+
+            return $actualizado;
+        });
+    }
+
+    /**
+     * Reemplaza las máquinas del usuario. Supervisor es uno solo para toda la asignación.
+     *
+     * @param  list<string>  $maquinas
+     */
+    public function guardarMaquinas(int $idusuario, array $maquinas, bool $supervisor): void
+    {
+        SYSMaquinaAsignacion::where('idusuario', $idusuario)->delete();
+
+        foreach (array_unique($maquinas) as $maquinaId) {
+            SYSMaquinaAsignacion::create(['idusuario' => $idusuario, 'MaquinaId' => $maquinaId, 'Supervisor' => $supervisor]);
         }
-
-        return $actualizado;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\UsuarioService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -29,7 +30,7 @@ class StoreUsuarioRequest extends FormRequest
             'telefono' => 'nullable|string|max:20',
             'turno' => 'nullable|string|max:10',
             'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,bmp,webp,svg,tiff,tif|max:10240',
-            'puesto' => 'nullable|string|max:100',
+            'puesto' => ['nullable', Rule::in(UsuarioService::PUESTOS)],
             'correo' => 'nullable|email|max:255',
         ];
     }

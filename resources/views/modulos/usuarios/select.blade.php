@@ -227,31 +227,13 @@
                         <label for="puesto_modal" class="block text-sm font-medium text-gray-700 mb-1">
                             Puesto
                         </label>
-                        <input type="text" id="puesto_modal" name="puesto"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                            placeholder="Ej: Supervisor">
-                    </div>
-
-                    <!-- Teléfono -->
-                    <div>
-                        <label for="telefono_modal" class="block text-sm font-medium text-gray-700 mb-1">
-                            Teléfono
-                        </label>
-                        <input type="tel" id="telefono_modal" name="telefono"
-                            inputmode="numeric" pattern="^\d{10}$" minlength="10" maxlength="10"
-                            oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                            placeholder="10 dígitos">
-                    </div>
-
-                    <!-- Correo -->
-                    <div class="md:col-span-2">
-                        <label for="correo_modal" class="block text-sm font-medium text-gray-700 mb-1">
-                            Correo Electrónico
-                        </label>
-                        <input type="email" id="correo_modal" name="correo"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                            placeholder="usuario@towell.com">
+                        <select id="puesto_modal" name="puesto"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                            <option value="">Selecciona el puesto</option>
+                            @foreach ($puestos as $puesto)
+                                <option value="{{ $puesto }}">{{ $puesto }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
                     <!-- Contraseña -->

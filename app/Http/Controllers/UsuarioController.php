@@ -78,9 +78,10 @@ class UsuarioController extends Controller
 
             $usuario = $this->usuarioService->create($data, $foto, $permisos);
 
+            // El alta arranca sin permisos: se sigue en la edición para copiarlos y asignar máquinas.
             return redirect()
-                ->route('configuracion.usuarios.select')
-                ->with('success', 'Usuario registrado correctamente');
+                ->route('configuracion.usuarios.edit', $usuario->idusuario)
+                ->with('success', 'Usuario registrado. Asigna sus permisos y máquinas.');
         } catch (\Exception $e) {
             Log::error('Error al crear usuario', ['error' => $e->getMessage()]);
 
@@ -133,6 +134,7 @@ class UsuarioController extends Controller
 
         return view('modulos.usuarios.select', [
             'usuarios' => $usuarios,
+            'puestos' => UsuarioService::PUESTOS,
         ]);
     }
 

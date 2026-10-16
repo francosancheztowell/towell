@@ -186,7 +186,7 @@ final class InlineMecanicosUsuariosTest extends TestCase
 
     /* ── Alta: POST normal (sin Accept JSON) ── */
 
-    public function test_alta_desde_el_modal_redirige_a_la_lista_y_el_flash_muestra_el_exito(): void
+    public function test_alta_desde_el_modal_sigue_en_la_edicion_y_el_flash_muestra_el_exito(): void
     {
         $this->withoutVite();
         $this->actuarComoAdmin();
@@ -200,17 +200,18 @@ final class InlineMecanicosUsuariosTest extends TestCase
                 'contrasenia' => 'secreta123',
             ]);
 
-        $res->assertRedirect(route('configuracion.usuarios.select'))
-            ->assertSessionHas('success', 'Usuario registrado correctamente');
-
         $nuevo = DB::table('dbo.SYSUsuario')->where('numero_empleado', '5555')->first();
         $this->assertNotNull($nuevo);
         $this->assertTrue(Hash::check('secreta123', $nuevo->contrasenia));
 
+        // El alta arranca sin permisos: sigue en la edición para copiarlos y asignar máquinas.
+        $res->assertRedirect(route('configuracion.usuarios.edit', $nuevo->idusuario))
+            ->assertSessionHas('success', 'Usuario registrado. Asigna sus permisos y máquinas.');
+
         // El <script> inline de éxito se quitó: ahora lo pinta x-ui.flash del layout, una vez.
         $html = $this->get(route('configuracion.usuarios.select'))->assertOk()->getContent();
         $this->assertStringContainsString('data-ui-flash', $html);
-        $this->assertSame(1, substr_count($html, 'Usuario registrado correctamente'));
+        $this->assertSame(1, substr_count($html, 'Usuario registrado. Asigna sus permisos y máquinas.'));
     }
 
     public function test_alta_con_numero_repetido_vuelve_a_la_lista_y_muestra_el_error_de_validacion(): void
