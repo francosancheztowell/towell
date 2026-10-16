@@ -55,3 +55,60 @@ export const expectedCompliance = (rows: PlanRow[], today: Today) => {
     });
     return total ? (dueByToday / total) * 100 : 0;
 };
+
+type KpiRow = { anio: string; mes: string; plan: { vn: number; kilos: number }; real: { vn: number; kilos: number } };
+
+export type ClosingKpis = {
+    /** P. de Mes y Vta R. al corte, en V.N. ($). */
+    plan: number;
+    real: number;
+    planKg: number;
+    /** Dif Neta Plan − Real: positiva = lo que falta vender. */
+    diferencia: number;
+    /** % de Avance: real ÷ plan × 100, y lo que se esperaría llevar hoy si se vendiera parejo. */
+    avance: number;
+    avanceEsperado: number;
+    /** Proyección de cierre a ritmo actual: real ÷ parte del mes transcurrida (mes cerrado = lo vendido). */
+    proyeccion: number;
+    proyeccionKg: number;
+    diasRestantes: number;
+    /** Ritmo requerido: V.N. por día natural que falta para llegar al plan; null si ya no quedan días. */
+    ritmo: number | null;
+};
+
+/** KPIs de cierre de Resumen General sobre los combos filtrados (uno o varios meses). */
+export const closingKpis = (rows: KpiRow[], today: Today): ClosingKpis => {
+    const months = new Map<string, { anio: number; mes: number; planVn: number; realVn: number; realKg: number }>();
+    let planKg = 0;
+    rows.forEach(({ anio, mes, plan, real }) => {
+        const key = `${anio}-${mes}`;
+        const month = months.get(key) ?? { anio: Number(anio), mes: Number(mes), planVn: 0, realVn: 0, realKg: 0 };
+        month.planVn += plan.vn || 0;
+        month.realVn += real.vn || 0;
+        month.realKg += real.kilos || 0;
+        planKg += plan.kilos || 0;
+        months.set(key, month);
+    });
+
+    let plan = 0; let real = 0; let due = 0; let proyeccion = 0; let proyeccionKg = 0; let diasRestantes = 0;
+    months.forEach(({ anio, mes, planVn, realVn, realKg }) => {
+        const fraction = elapsedFraction(anio, mes, today);
+        const days = new Date(anio, mes, 0).getDate();
+        plan += planVn;
+        real += realVn;
+        due += planVn * fraction;
+        // Un mes futuro (fracción 0) no tiene ritmo que extrapolar: se proyecta lo que ya trae.
+        proyeccion += fraction > 0 ? realVn / fraction : realVn;
+        proyeccionKg += fraction > 0 ? realKg / fraction : realKg;
+        diasRestantes += Math.round(days * (1 - fraction));
+    });
+
+    const diferencia = plan - real;
+    return {
+        plan, real, planKg, diferencia,
+        avance: plan ? (real / plan) * 100 : 0,
+        avanceEsperado: plan ? (due / plan) * 100 : 0,
+        proyeccion, proyeccionKg, diasRestantes,
+        ritmo: diasRestantes > 0 ? Math.max(0, diferencia) / diasRestantes : null,
+    };
+};

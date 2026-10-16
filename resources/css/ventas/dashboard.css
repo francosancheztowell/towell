@@ -305,15 +305,6 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .ph-kpi-progress { display: flex; align-items: center; gap: .4rem; color: var(--pvoc-muted); font-size: .75rem; font-weight: 700; }
 .ph-kpi-progress .ph-bar { flex: 1; }
 
-.ph-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
-.ph-search { display: flex; flex: 1 1 18rem; align-items: center; gap: .45rem; min-height: 2.5rem; border: 1px solid #c7d5e0; border-radius: .55rem; background: #fff; padding: 0 .6rem; color: var(--pvoc-muted); }
-.ph-search:focus-within { border-color: var(--ph-accent); box-shadow: 0 0 0 3px rgb(0 139 123 / 15%); }
-.ph-search input { flex: 1; min-width: 0; border: 0; background: transparent; padding: .4rem 0; color: var(--pvoc-ink); font-size: .85rem; outline: none; }
-.ph-depth { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid #c7d5e0; border-radius: .55rem; background: #fff; }
-.ph-depth-label { padding: 0 .6rem; color: var(--pvoc-muted); font-size: .75rem; font-weight: 700; white-space: nowrap; }
-.ph-depth button { min-height: 2.5rem; border: 0; border-left: 1px solid #e2e8f0; background: transparent; padding: 0 .75rem; color: #334155; font-size: .8rem; font-weight: 700; }
-.ph-depth button:hover { background: #f0fdfa; }
-.ph-depth button[aria-pressed="true"] { background: var(--ph-accent); color: #fff; }
 
 .ph-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
 .ph-filter-chip { display: inline-flex; align-items: center; gap: .3rem; min-height: 1.9rem; border: 1px solid #99d5cd; border-radius: 999px; background: #effaf8; padding: 0 .65rem; color: #035e54; font-size: .78rem; font-weight: 700; }
@@ -363,8 +354,23 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .ph-pct { display: inline-block; min-width: 2.8em; margin-left: .4em; color: #475569; font-size: .9em; font-weight: 700; text-align: right; }
 .ph-aviso { padding: .6rem .8rem !important; background: #fffbeb !important; color: #92400e; font-size: .85em; text-align: center; }
 
-@media (max-width: 760px) {
-    .ph-table thead th:first-child { min-width: 17rem; }
-    .ph-depth { width: 100%; }
-    .ph-depth button { flex: 1; padding: 0 .4rem; }
-}
+@media (max-width: 760px) { .ph-table thead th:first-child { min-width: 17rem; } }
+
+/* --- KPIs de cierre de Resumen General (renderKpis en dashboard.ts) --- */
+.pvoc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: .45rem; padding: .5rem .5rem .55rem; border-bottom: 1px solid var(--pvoc-border); background: #f8fafc; }
+.pvoc-kpis:empty { display: none; }
+.pvoc-kpi { display: flex; flex-direction: column; gap: .1rem; min-width: 0; border: 1px solid var(--pvoc-border); border-top: 3px solid #94a3b8; border-radius: .5rem; background: #fff; padding: .4rem .6rem .45rem; }
+.pvoc-kpi.is-plan { border-top-color: var(--pvoc-plan); }
+.pvoc-kpi.is-real { border-top-color: var(--pvoc-real); }
+.pvoc-kpi.is-good { border-top-color: #15803d; }
+.pvoc-kpi.is-warning { border-top-color: #b45309; }
+.pvoc-kpi-label { color: var(--pvoc-muted); font-size: .74rem; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.pvoc-kpi-value { overflow: hidden; color: var(--pvoc-ink); font-size: 1.2rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.pvoc-kpi.is-good .pvoc-kpi-value { color: #15803d; }
+.pvoc-kpi.is-warning .pvoc-kpi-value { color: #b45309; }
+.pvoc-kpi-note { color: var(--pvoc-muted); font-size: .75rem; }
+/* Barra de avance con una marca en lo esperado a hoy. */
+.pvoc-kpi-bar { position: relative; display: block; height: .4rem; margin: .15rem 0 .1rem; border-radius: 999px; background: #e2e8f0 linear-gradient(90deg, currentcolor var(--pvoc-kpi-pct, 0%), transparent 0) no-repeat; color: var(--pvoc-plan); }
+.pvoc-kpi.is-good .pvoc-kpi-bar { color: #15803d; }
+.pvoc-kpi.is-warning .pvoc-kpi-bar { color: #b45309; }
+.pvoc-kpi-bar::after { position: absolute; top: -.2rem; bottom: -.2rem; left: var(--pvoc-kpi-mark, 0%); width: 2px; background: #1e293b; content: ""; }

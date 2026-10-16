@@ -1,4 +1,4 @@
-// Pedidos Históricos (Ventas > Compara): decodificación del payload, filtros, búsqueda y árbol
+// Pedidos Históricos (Ventas > Compara): decodificación del payload, filtros y árbol
 // Empresa > Tipo > Cliente > OC con los artículos como hojas.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -57,14 +57,7 @@ test('filtros vacíos dejan pasar todo; uno con valores exige coincidencia', () 
     filtros.empresa.add('TEXTIL')
     assert.equal(matchesLine(towel!, filtros), false)
     assert.ok(matchesLine(textil!, filtros))
-    assert.ok(matchesLine(towel!, filtros, '', 'empresa'), 'el propio filtro se ignora al calcular sus opciones')
-})
-
-test('la búsqueda ignora acentos y mayúsculas y exige todas las palabras', () => {
-    const [fila] = decodePedidos(payload([linea({ nombre: 'TOALLA ALGODON' })]))
-    assert.ok(matchesLine(fila!, sinFiltros(), 'algodón'))
-    assert.ok(matchesLine(fila!, sinFiltros(), 'gran 6100157353'))
-    assert.equal(matchesLine(fila!, sinFiltros(), 'gran rosa'), false)
+    assert.ok(matchesLine(towel!, filtros, 'empresa'), 'el propio filtro se ignora al calcular sus opciones')
 })
 
 test('el árbol agrupa Empresa > Tipo > Cliente > OC con Towel primero y suma cada nivel', () => {
@@ -91,7 +84,7 @@ test('el árbol agrupa Empresa > Tipo > Cliente > OC con Towel primero y suma ca
     assert.deepEqual(sumLines([]), { cantidad: 0, entregado: 0, pendiente: 0, importe: 0 })
 })
 
-test('abrir hasta un nivel y los botones invierten nodos sueltos', () => {
+test('los niveles abiertos de entrada y las flechas invierten nodos sueltos', () => {
     const toggled = new Set<string>()
     assert.ok(isOpen({ id: '/TOWEL', depth: 0 }, 2, toggled))
     assert.equal(isOpen({ id: '/TOWEL/CE/X', depth: 2 }, 2, toggled), false)

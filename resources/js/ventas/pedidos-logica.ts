@@ -66,20 +66,9 @@ export const FILTER_KEYS = ['anio', 'mes', 'empresa', 'tipo', 'cliente', 'estatu
 export type FilterKey = typeof FILTER_KEYS[number];
 export type Filters = Record<FilterKey, Set<string>>;
 
-/** Minúsculas y sin acentos: "Algodón" encuentra "ALGODON". */
-export const normalize = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
-const SEARCH_FIELDS: TextField[] = ['cliente', 'oc', 'articulo', 'nombre', 'codigo', 'color', 'colorId', 'talla'];
-
-/** Nada seleccionado en un filtro = todos. La búsqueda exige todas sus palabras en algún campo. */
-export const matchesLine = (line: PedidoLinea, filters: Filters, search = '', except?: FilterKey) => {
-    const passes = FILTER_KEYS.every((key) => key === except || !filters[key].size || filters[key].has(line[key]));
-    if (!passes) return false;
-    const words = normalize(search).split(/\s+/).filter(Boolean);
-    if (!words.length) return true;
-    const haystack = normalize(SEARCH_FIELDS.map((field) => line[field]).join(' '));
-    return words.every((word) => haystack.includes(word));
-};
+/** Nada seleccionado en un filtro = todos; except ignora un filtro (para calcular sus propias opciones). */
+export const matchesLine = (line: PedidoLinea, filters: Filters, except?: FilterKey) =>
+    FILTER_KEYS.every((key) => key === except || !filters[key].size || filters[key].has(line[key]));
 
 export const sumLines = (lines: PedidoLinea[]): Totals => lines.reduce((acc, line) => {
     acc.cantidad += line.cantidad;
@@ -139,9 +128,6 @@ export const buildTree = (lines: PedidoLinea[], depth = 0, parentId = ''): TreeN
         });
 };
 
-/**
- * Un nodo está abierto si su profundidad es menor que "Abrir hasta" (openDepth), salvo que el
- * usuario lo haya invertido con su botón (toggled). Cambiar "Abrir hasta" borra esas inversiones.
- */
+/** Un nodo está abierto si su profundidad es menor que openDepth, salvo que el usuario lo haya invertido con su flecha (toggled). */
 export const isOpen = (node: Pick<TreeNode, 'id' | 'depth'>, openDepth: number, toggled: Set<string>) =>
     (node.depth < openDepth) !== toggled.has(node.id);

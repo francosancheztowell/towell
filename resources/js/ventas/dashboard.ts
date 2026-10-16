@@ -4,7 +4,7 @@ import { HISTORY_SECTIONS, mountVentasHistoricas } from './ventas-historicas';
 import { mountPedidosHistoricos } from './pedidos-historicos';
 import { createMultiSelect } from './multi-select';
 import { bindRowSelection, clearRowSelection } from './row-selection';
-import { PANEL_LAYOUT, columnCount, expectedCompliance, mexicoToday, rowClass, type Panel, type Series } from './compara';
+import { PANEL_LAYOUT, closingKpis, columnCount, expectedCompliance, mexicoToday, rowClass, type Panel, type Series } from './compara';
 import { bindColumnResize, colgroupHtml, columnKeys, createWidthStore, resizeHandle, tableAttributes } from './column-resize';
 import { bindLabelScroll, labelScrollBar } from './label-scroll';
 import { bindSidebar } from './sidebar';
@@ -438,9 +438,32 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
     /** Barra de scroll de los nombres de cada tabla (label-scroll.ts). */
     const labelScrolls = {} as Record<Panel, () => void>;
 
+    /** Tarjetas de cierre de Resumen General: en V.N. ($) salvo la proyección por Kg. */
+    const kpiContainer = root.querySelector<HTMLElement>('[data-pvoc-kpis]');
+    const renderKpis = (items: PvRecord[]) => {
+        if (!kpiContainer) return;
+        const k = closingKpis(items, today);
+        const money = (value: number) => `$${formatNumber(value)}`;
+        const ahead = k.diferencia <= 0;
+        const card = (label: string, value: string, note: string, modifier = '', extra = '') =>
+            `<div class="pvoc-kpi${modifier}"><span class="pvoc-kpi-label">${label}</span><span class="pvoc-kpi-value">${value}</span>${extra}<span class="pvoc-kpi-note">${note}</span></div>`;
+        const bar = `<span class="pvoc-kpi-bar" style="--pvoc-kpi-pct:${Math.min(100, k.avance).toFixed(1)}%;--pvoc-kpi-mark:${Math.min(100, k.avanceEsperado).toFixed(1)}%" aria-hidden="true"></span>`;
+        kpiContainer.replaceChildren(fragment([
+            card('P. de Mes', money(k.plan), `${formatNumber(k.planKg)} kg plan`, ' is-plan'),
+            card('Vta R. al corte', money(k.real), `Al ${String(today.dia).padStart(2, '0')}/${String(today.mes).padStart(2, '0')}/${today.anio}`, ' is-real'),
+            card('Dif Neta Plan − Real', money(Math.abs(k.diferencia)), ahead ? 'Sobre el plan' : 'Por vender', ahead ? ' is-good' : ' is-warning'),
+            card('% de Avance', `${k.avance.toFixed(1)}%`, `Esperado a hoy: ${k.avanceEsperado.toFixed(1)}%`, k.avance >= k.avanceEsperado ? ' is-good' : ' is-warning', bar),
+            card('Proyección de Cierre', money(k.proyeccion), k.plan ? `${((k.proyeccion / k.plan) * 100).toFixed(1)}% del plan` : 'Sin plan'),
+            card('Proyección de Cierre x Kg', `${formatNumber(k.proyeccionKg)} kg`, k.planKg ? `${((k.proyeccionKg / k.planKg) * 100).toFixed(1)}% del plan` : 'Sin plan en kg'),
+            card('Ritmo Requerido', k.ritmo === null ? '—' : `${money(k.ritmo)}/día`,
+                k.ritmo === null ? 'Periodo cerrado' : `${k.diasRestantes} ${k.diasRestantes === 1 ? 'día restante' : 'días restantes'}`, ' is-plan'),
+        ].join('')));
+    };
+
     const renderTable = (panel: Panel) => {
         today = mexicoToday();
         const filtered = filteredRecords();
+        if (panel === 'summary') renderKpis(filtered);
         const rows = buildTree(filtered, TABLES[panel].levels()).map((node) => renderNode(node, 0, panel)).join('');
         tableContainer(panel).innerHTML = `${tableHeader(panel)}${rows || `<tr><td colspan="${visibleColumnCount(panel)}" class="pvoc-empty">No hay datos para los filtros seleccionados.</td></tr>`}
             <tr class="pvoc-row-total"><td class="pvoc-label"><span class="pvoc-label-text">Total general</span></td>${numberCells(filtered, panel)}</tr></tbody></table>`;
