@@ -7,11 +7,10 @@ use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\ManFallasParos;
-use App\Models\Sistema\SysDepartamento;
-use App\Models\Tejedores\TelTelaresOperador;
 use App\Services\Mantenimiento\ParosCatalogoService;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
 use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -34,14 +33,14 @@ class ParosController extends Controller
 
     /**
      * Vista de nuevo paro con el departamento del usuario preseleccionado.
-     * La lista de departamentos viaja en la página: se ahorra una petición al abrirla.
+     * La lista (departamentos de sus máquinas asignadas) viaja en la página: se ahorra una petición.
      */
     public function nuevoParo()
     {
         return view('modulos.mantenimiento.nuevo-paro.index', [
             // El usuario autenticado ya es la fila de dbo.SYSUsuario: no se vuelve a consultar.
             'areaUsuario' => Auth::user()->area ?? null,
-            'departamentos' => $this->catalogo->departamentos(),
+            'departamentos' => $this->catalogo->departamentos(Auth::user()),
         ]);
     }
 
@@ -66,7 +65,7 @@ class ParosController extends Controller
                 ], 401);
             }
 
-            [$datos, $falla] = $this->validarAlta($request, $usuario->numero_empleado ?? null);
+            [$datos, $falla] = $this->validarAlta($request, $usuario);
             $ahora = now();
 
             $paro = DB::connection('sqlsrv')->transaction(function () use ($datos, $falla, $usuario, $ahora): ManFallasParos {
@@ -145,16 +144,16 @@ class ParosController extends Controller
      *
      * @return array{0: array{depto: string, maquina: string, falla_id: int|string, orden_trabajo?: string|null, obs?: string|null}, 1: CatParosFallas}
      */
-    private function validarAlta(Request $request, ?string $numeroEmpleado): array
+    private function validarAlta(Request $request, Authenticatable $usuario): array
     {
         // Largos alineados con las columnas de ManFallasParos.
         // Mensajes en español: la app corre con APP_LOCALE=en y el front muestra
         // este texto tal cual al operador.
         $datos = $request->validate([
             // Closure y no Rule::in: la lista se consulta solo si el campo llegó, y no al armar las reglas.
-            'depto' => ['bail', 'required', 'string', 'max:15', function (string $atributo, mixed $valor, \Closure $falla): void {
-                if (! in_array($valor, $this->catalogo->departamentos(), true)) {
-                    $falla('Ese departamento no puede reportar paros.');
+            'depto' => ['bail', 'required', 'string', 'max:15', function (string $atributo, mixed $valor, \Closure $falla) use ($usuario): void {
+                if (! $this->catalogo->puedeReportarEn((string) $valor, $usuario)) {
+                    $falla('No tienes máquinas asignadas en ese departamento.');
                 }
             }],
             'maquina' => 'required|string|max:15',
@@ -172,9 +171,9 @@ class ParosController extends Controller
             'obs.max' => 'Las observaciones no pueden pasar de 255 caracteres.',
         ]);
 
-        if (! $this->catalogo->esMaquinaDe($datos['depto'], $datos['maquina'], $numeroEmpleado)) {
+        if (! $this->catalogo->esMaquinaDe($datos['depto'], $datos['maquina'], $usuario)) {
             throw ValidationException::withMessages([
-                'maquina' => 'Esa máquina no pertenece al departamento elegido.',
+                'maquina' => 'Esa máquina no está asignada a tu usuario en el departamento elegido.',
             ]);
         }
 
@@ -192,13 +191,14 @@ class ParosController extends Controller
     /**
      * Lista de paros para el reporte de solicitudes.
      *
-     * Sin query: solo paros del departamento del usuario (`area`).
+     * Sin query: los paros de sus máquinas asignadas (SYSMaquinasAsignacion); sin asignación,
+     * o en Atadores/Calidad, los del departamento del usuario (`area`).
      * `alcance=todos`: todos los departamentos.
-     * `depto={nombre}`: solo ese departamento (debe existir en SysDepartamentos).
+     * `depto={nombre}`: solo ese departamento.
+     * Quien tiene máquinas asignadas nunca ve paros de otras, en ningún modo: por máquina y no
+     * por `Depto`, así salen también los históricos guardados como "Tejedores".
      * `incluir_finalizados=1`: incluye paros cerrados de los últimos `dias` (30 por
      * defecto, máx. 365). Sin él solo se devuelven los `Activo`, que son pocos.
-     * Usuarios con área Tejedores: además solo ven paros cuyo `MaquinaId` está en `TelTelaresOperador` para su `numero_empleado`
-     * (salvo que filtren explícitamente otro departamento; con `alcance=todos` solo se acotan filas `Depto` Tejedores).
      */
     public function index(Request $request): JsonResponse
     {
@@ -229,28 +229,19 @@ class ParosController extends Controller
                 $query->where('Estatus', 'Activo');
             }
 
-            if ($alcance === 'todos') {
-                // Sin filtro por departamento
-            } elseif ($deptoReq !== '') {
-                $departamentoValido = SysDepartamento::query()
-                    ->where('Depto', $deptoReq)
-                    ->exists();
+            $usuario = Auth::user();
+            $asignadas = $this->catalogo->esPorArea($usuario) ? [] : $this->catalogo->maquinasAsignadas($usuario);
 
-                if ($departamentoValido) {
-                    $query->where('Depto', $deptoReq);
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
-            } else {
-                $areaUsuario = $this->areaUsuarioAutenticado();
-                if ($areaUsuario !== '') {
-                    $query->where('Depto', $areaUsuario);
-                } else {
-                    $query->whereRaw('1 = 0');
-                }
+            if ($asignadas !== []) {
+                $query->whereIn('MaquinaId', $asignadas);
             }
 
-            $this->aplicarRestriccionTelaresOperadorSiCorresponde($query, $alcance, $deptoReq);
+            if ($deptoReq !== '' && $alcance !== 'todos') {
+                $query->where('Depto', $deptoReq);
+            } elseif ($alcance !== 'todos' && $asignadas === []) {
+                $areaUsuario = trim((string) ($usuario->area ?? ''));
+                $areaUsuario !== '' ? $query->where('Depto', $areaUsuario) : $query->whereRaw('1 = 0');
+            }
 
             $paros = $query->get([
                 'Id',
@@ -297,6 +288,13 @@ class ParosController extends Controller
                 ], 404);
             }
 
+            if (! $this->catalogo->puedeVerParo((string) $paro->MaquinaId, Auth::user())) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Ese paro es de una máquina que no tienes asignada.',
+                ], 403);
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => $paro,
@@ -304,89 +302,5 @@ class ParosController extends Controller
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Error al obtener paro/falla', 'No se pudo cargar el paro.', context: ['id' => $id]);
         }
-    }
-
-    /**
-     * Área (departamento) del usuario en sesión; debe coincidir con ManFallasParos.Depto.
-     */
-    private function areaUsuarioAutenticado(): string
-    {
-        // Usuario ya es dbo.SYSUsuario: releer `area` de la misma fila era una consulta extra.
-        return trim((string) (Auth::user()->area ?? ''));
-    }
-
-    /**
-     * Usuario del área Tejedores: en reporte de paros solo deben verse solicitudes de sus telares (TelTelaresOperador).
-     */
-    private function usuarioEsAreaTejedores(): bool
-    {
-        return strcasecmp($this->areaUsuarioAutenticado(), 'Tejedores') === 0;
-    }
-
-    /**
-     * Telares (NoTelarId) asignados al usuario actual en TelTelaresOperador.
-     *
-     * @return list<string|int>
-     */
-    private function idsTelaresAsignadosOperadorActual(): array
-    {
-        $numeroEmpleado = Auth::user()?->numero_empleado;
-        if ($numeroEmpleado === null || trim((string) $numeroEmpleado) === '') {
-            return [];
-        }
-
-        return TelTelaresOperador::query()
-            ->where('numero_empleado', $numeroEmpleado)
-            ->whereNotNull('NoTelarId')
-            ->distinct()
-            ->pluck('NoTelarId')
-            ->map(fn ($id) => is_string($id) ? trim($id) : $id)
-            ->filter(fn ($id) => $id !== null && $id !== '')
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * Si el usuario es de Tejedores, limita ManFallasParos.MaquinaId a los NoTelarId asignados en TelTelaresOperador.
-     *
-     * No aplica cuando elige otro departamento en el filtro. Con alcance=todos solo acota filas con Depto Tejedores.
-     */
-    private function aplicarRestriccionTelaresOperadorSiCorresponde($query, string $alcance, string $deptoReq): void
-    {
-        if (! $this->usuarioEsAreaTejedores()) {
-            return;
-        }
-
-        $telares = $this->idsTelaresAsignadosOperadorActual();
-
-        if ($alcance === 'todos') {
-            if ($telares === []) {
-                $query->whereRaw('UPPER(LTRIM(RTRIM(Depto))) <> ?', ['TEJEDORES']);
-
-                return;
-            }
-
-            $query->where(function ($q) use ($telares) {
-                $q->whereRaw('UPPER(LTRIM(RTRIM(Depto))) <> ?', ['TEJEDORES'])
-                    ->orWhereIn('MaquinaId', $telares);
-            });
-
-            return;
-        }
-
-        $consultaSoloTejedores = $deptoReq === '' || strcasecmp($deptoReq, 'Tejedores') === 0;
-
-        if (! $consultaSoloTejedores) {
-            return;
-        }
-
-        if ($telares === []) {
-            $query->whereRaw('1 = 0');
-
-            return;
-        }
-
-        $query->whereIn('MaquinaId', $telares);
     }
 }

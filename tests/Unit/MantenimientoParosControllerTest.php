@@ -48,6 +48,13 @@ class MantenimientoParosControllerTest extends TestCase
             $table->string('Nombre')->nullable();
             $table->string('Departamento');
         });
+
+        $schema->create('SYSMaquinasAsignacion', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->integer('idusuario');
+            $table->string('MaquinaId');
+            $table->boolean('Supervisor')->default(false);
+        });
     }
 
     public function test_maquinas_de_calidad_incluye_tejido_urdido_y_engomado(): void
@@ -60,39 +67,11 @@ class MantenimientoParosControllerTest extends TestCase
         $this->actingAs($usuario, 'web');
         $this->grantModulo('Solicitudes');
 
-        \DB::connection('sqlsrv')->table('TelTelaresOperador')->insert([
-            [
-                'numero_empleado' => '1001',
-                'nombreEmpl' => 'Usuario Uno',
-                'NoTelarId' => 'T-01',
-                'Turno' => '1',
-                'SalonTejidoId' => 'Smith',
-                'Supervisor' => 0,
-            ],
-            [
-                'numero_empleado' => '2002',
-                'nombreEmpl' => 'Usuario Dos',
-                'NoTelarId' => 'T-02',
-                'Turno' => '2',
-                'SalonTejidoId' => 'Jacquard',
-                'Supervisor' => 0,
-            ],
-            [
-                'numero_empleado' => '3003',
-                'nombreEmpl' => 'Usuario Tres',
-                'NoTelarId' => 'T-03',
-                'Turno' => '3',
-                'SalonTejidoId' => 'KarlMayer',
-                'Supervisor' => 1,
-            ],
-            [
-                'numero_empleado' => '1001',
-                'nombreEmpl' => 'Usuario Uno',
-                'NoTelarId' => 'T-01',
-                'Turno' => '1',
-                'SalonTejidoId' => 'Smith',
-                'Supervisor' => 0,
-            ],
+        // Los telares salen del catálogo (salones de URDCatalogoMaquina::DEPARTAMENTOS_TELARES), no de TelTelaresOperador.
+        \DB::connection('sqlsrv')->table('URDCatalogoMaquinas')->insert([
+            ['MaquinaId' => 'T-01', 'Nombre' => 'T-01', 'Departamento' => 'Smith'],
+            ['MaquinaId' => 'T-02', 'Nombre' => 'T-02', 'Departamento' => 'Jacquard'],
+            ['MaquinaId' => 'T-03', 'Nombre' => 'T-03', 'Departamento' => 'Karl Mayer'],
         ]);
         \DB::connection('sqlsrv')->table('URDCatalogoMaquinas')->insert([
             [

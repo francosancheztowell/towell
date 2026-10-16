@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mantenimiento;
 use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
+use App\Services\Mantenimiento\ParosCatalogoService;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
 use App\Services\Mecanicos\CalificacionParoService;
 use App\Support\Http\Concerns\HandlesApiErrors;
@@ -29,6 +30,7 @@ class ParosCierreController extends Controller
         int $id,
         ParoTelegramNotifier $notifier,
         CalificacionParoService $calificaciones,
+        ParosCatalogoService $catalogo,
     ): JsonResponse {
         try {
             $paro = ManFallasParos::find($id);
@@ -38,6 +40,13 @@ class ParosCierreController extends Controller
                     'success' => false,
                     'error' => 'Paro no encontrado',
                 ], 404);
+            }
+
+            if (! $catalogo->puedeVerParo((string) $paro->MaquinaId, Auth::user())) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Ese paro es de una máquina que no tienes asignada.',
+                ], 403);
             }
 
             // Solo se cierran paros activos: recerrar uno ya terminado pisaría

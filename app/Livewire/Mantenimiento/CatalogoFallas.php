@@ -7,6 +7,7 @@ namespace App\Livewire\Mantenimiento;
 use App\Livewire\Concerns\ConTabla;
 use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\CatTipoFalla;
+use App\Services\Mantenimiento\ParosCatalogoService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -190,11 +191,18 @@ class CatalogoFallas extends Component
         return view('livewire.mantenimiento.catalogo-fallas', [
             'filas' => $this->paginar($filas),
             'tiposFalla' => CatTipoFalla::query()->orderBy('TipoFallaId')->pluck('TipoFallaId'),
+            // Los de URDCatalogoMaquinas (+ Atadores, Calidad, Tejido) y los que ya tienen fallas
+            // (URDIDO, ENGOMADO…), para poder editar filas viejas sin cambiarles el departamento.
             'departamentos' => CatParosFallas::query()
                 ->whereNotNull('Departamento')
                 ->distinct()
-                ->orderBy('Departamento')
-                ->pluck('Departamento'),
+                ->pluck('Departamento')
+                ->map(fn ($d): string => trim((string) $d))
+                ->merge(app(ParosCatalogoService::class)->departamentosDelCatalogo())
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values(),
             'puedeCrear' => userCan('crear', self::MODULO),
             'puedeModificar' => userCan('modificar', self::MODULO),
             'puedeEliminar' => userCan('eliminar', self::MODULO),

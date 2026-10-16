@@ -1,82 +1,72 @@
-# Paros: acceso por usuario a máquinas (SYSUsuariosMaquinas)
+# Paros: departamentos de URDCatalogoMaquinas + asignación usuario→máquina
 
-Fecha: 2026-10-12 · Estado: **plan, sin código**
+Fecha: 2026-10-16 (reemplaza la versión del 2026-10-12) · Estado: **plan cerrado, sin código**
 
 ## Objetivo
-Detalle por usuario: cada uno ve en `/mantenimiento/nuevo-paro` (y en el reporte y en finalizar paro)
-solo los departamentos y máquinas que tiene asignados. Ejemplo: "solo Costura" → no ve nada más.
-A futuro, es la tabla principal de acceso usuario→máquina (el "TelTelaresOperador general"),
-pensada para que otros módulos la reutilicen.
+1. Nuevo paro / Reporte / Finalizar paro listan departamentos de `URDCatalogoMaquinas`, no de `SysDepartamentos`.
+2. Tabla `SYSMaquinasAsignacion`: plantilla usuario→máquina que reemplazará a `TelTelaresOperador` más adelante.
+3. Formulario de usuario más simple, con la sección de máquinas dentro.
 
-## Hechos medidos (BD ProdTowel, 2026-10-12)
-- Los 15 departamentos (Corte Bata, Costura, Crudo, Engomado, Itema, Jacquard, Karl Mayer, Mat Prim,
-  Prod Term, Rasurado, Secado, Smith, Tejido, Tintoreria, Urdido) son `URDCatalogoMaquinas.Departamento`
-  (132 máquinas; PK `MaquinaId` nvarchar(20), `Id` identity único).
-- Hoy nuevo-paro lista `SysDepartamentos` (Atadores, Calidad, Engomado, Urdido, Tejedores,
-  Desarrolladores, Supervisores): **Costura y los demás no aparecen**.
-- `ParosCatalogoService::maquinas()` solo consulta `URDCatalogoMaquinas` para Urdido y Engomado;
-  Tejido sale de `TelTelaresOperador` y Atadores de `AtaMaquinas`.
-- `CatParosFallas` solo tiene fallas de Atadores, Calidad, ENGOMADO, Tejido y URDIDO. Todos usan los
-  mismos tipos: **Electrico / Mecanico / Tiempo Muerto** (Calidad tiene su propio tipo, Calidad).
+## Decisiones (grill 2026-10-16)
+| # | Tema | Decisión |
+|---|---|---|
+| 1 | Naturaleza de la tabla | Plantilla (reemplazará a TelTelaresOperador) |
+| 1b | Clave | `idusuario` (INT, FK). Los 32 empleados de TelTelaresOperador tienen usuario; `numero_empleado` sin duplicados |
+| 2 | Turno | **No va** |
+| 3 | Supervisor | `bit NOT NULL DEFAULT 0` por fila |
+| 4 | Dónde se asigna | Sección dentro del formulario de usuario |
+| 5 | Teléfono, Correo, Foto | Se quitan del formulario (los datos guardados se conservan: `update` no debe pisarlos con null) |
+| 6 | Puesto | Select con constante de 14 valores + `UPDATE` de "desrrollador" → "desarrollador" |
+| 7 | Área del usuario | Sigue de `SysDepartamentos` (esTejedor, Gate admin, BPM dependen de ella) |
+| 8 | Atadores y Calidad | Casos especiales por área, igual que hoy (AtaMaquinas / todo) |
+| 9 | Usuario sin asignación | Backfill único desde TelTelaresOperador; sin fallback. Sin filas = lista vacía + aviso |
+| 10 | Supervisor en la UI | Una casilla para toda la sección (se guarda igual en todas sus filas) |
+| 11 | Fallas de deptos nuevos | Solo las propias de `CatParosFallas` (+ Calidad en todos, como hoy). Sin catálogo "General" |
+| 12 | Reporte / Finalizar | Filtro por `MaquinaId ∈ asignadas` (cubre el histórico guardado como "Tejedores"). Atadores/Calidad por área. `alcance=todos` se queda |
+| 13 | Permisos en alta | Selector "Copiar permisos de…" (permisos + máquinas), alta arranca desmarcada; se conservan Seleccionar/Deseleccionar todos |
+| — | Duplicar usuario | Copia también máquinas y Supervisor |
 
-## Decisiones tomadas
-| Tema | Decisión |
-|---|---|
-| Almacenamiento | Tabla nueva, una fila por usuario-máquina |
-| Pantallas | Nuevo paro, Reporte de paros, Finalizar paro |
-| Dónde se asigna | Formulario de usuario (Configuración › Usuarios) |
-| Tejido / TelTelaresOperador | Conviven por ahora; la tabla nueva será la principal más adelante |
-| Usuario sin asignación | Mismo comportamiento de hoy |
-| Fallas de los departamentos nuevos | "Conectar con los paros que tenemos" → ver Fase 3 (falta confirmar) |
-
-## Fase 1 — Tabla y modelo
+## Fase 1 — Tabla, modelo, backfill
 ```sql
-CREATE TABLE dbo.SYSUsuariosMaquinas (
-    Id         INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SYSUsuariosMaquinas PRIMARY KEY,
-    idusuario  INT           NOT NULL,
-    MaquinaId  NVARCHAR(20)  NOT NULL,
-    CONSTRAINT UX_SYSUsuariosMaquinas UNIQUE (idusuario, MaquinaId),
-    CONSTRAINT FK_SYSUsuariosMaquinas_Usuario FOREIGN KEY (idusuario) REFERENCES dbo.SYSUsuario(idusuario) ON DELETE CASCADE,
-    CONSTRAINT FK_SYSUsuariosMaquinas_Maquina FOREIGN KEY (MaquinaId) REFERENCES dbo.URDCatalogoMaquinas(MaquinaId) ON UPDATE CASCADE
+CREATE TABLE dbo.SYSMaquinasAsignacion (
+    Id         INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_SYSMaquinasAsignacion PRIMARY KEY,
+    idusuario  INT          NOT NULL,
+    MaquinaId  NVARCHAR(20) NOT NULL,
+    Supervisor BIT          NOT NULL CONSTRAINT DF_SYSMaquinasAsignacion_Supervisor DEFAULT 0,
+    CONSTRAINT UX_SYSMaquinasAsignacion UNIQUE (idusuario, MaquinaId),
+    CONSTRAINT FK_SYSMaquinasAsignacion_Usuario FOREIGN KEY (idusuario) REFERENCES dbo.SYSUsuario(idusuario) ON DELETE CASCADE,
+    CONSTRAINT FK_SYSMaquinasAsignacion_Maquina FOREIGN KEY (MaquinaId) REFERENCES dbo.URDCatalogoMaquinas(MaquinaId) ON UPDATE CASCADE
 );
 ```
-- No lleva columna de departamento: se deriva de `URDCatalogoMaquinas` (una sola fuente de verdad).
-- Modelo `App\Models\Sistema\SYSUsuarioMaquina`; relación `Usuario::maquinas()` (belongsToMany a `URDCatalogoMaquina`).
-- Migración con `Schema::hasTable` como guarda (patrón del repo); compatible con SQL 2008 R2.
-- Pendiente revisar: que el FK a `URDCatalogoMaquinas` no choque con el flujo de renombrar máquinas en `CatalogoMaquinas` (Livewire).
+- Departamento se deriva de `URDCatalogoMaquinas` (no se guarda).
+- Backfill: `TelTelaresOperador` JOIN `SYSUsuario` (numero_empleado) JOIN `URDCatalogoMaquinas` (NoTelarId) → `DISTINCT idusuario, MaquinaId, MAX(Supervisor)`.
+  El telar Jacquard que no está en el catálogo se omite (quitado a propósito por el owner).
+- Modelo `App\Models\Sistema\SYSMaquinaAsignacion`; `Usuario::maquinasAsignadas()`.
+- Revisar que el FK no choque con renombrar máquinas en `CatalogoMaquinas` (ON UPDATE CASCADE lo cubre si renombra la PK).
 
-## Fase 2 — Reglas en `ParosCatalogoService`
-- `asignadas(Usuario): Collection|null` → `null` si no tiene filas (= comportamiento actual).
-- `departamentosDe(Usuario)`: con asignación → `DISTINCT Departamento` de sus máquinas; sin asignación → `departamentos()` de hoy.
-- `maquinas(depto, usuario)`: con asignación → solo sus máquinas de ese depto (desde `URDCatalogoMaquinas`); sin asignación → lógica actual (Tejido sigue con `TelTelaresOperador`).
-- Se conecta en: `ParosController::nuevoParo`, `validarAlta` (store: 422 si el depto o la máquina no le corresponden),
-  `ParosCatalogoController::departamentos|maquinas|ordenTrabajo`, listado del reporte y cierre (`ParosCierreController`).
-- Reporte/finalizar: con asignación, `whereIn('MaquinaId', asignadas)` sustituye al filtro por `area` (Tejedores conserva su filtro por TelTelaresOperador).
+## Fase 2 — ParosCatalogoService
+- `departamentos(Usuario)`: área Atadores → [Atadores]; área Calidad → [Calidad]; resto → `DISTINCT Departamento` de sus máquinas asignadas.
+- `maquinas(depto, Usuario)`: Atadores/Calidad como hoy; resto → sus asignadas de ese depto.
+- `catalogoDepartamentos`: Jacquard/Itema/Smith/Karl Mayer/Tejido → Tejido; demás → su propio nombre.
+- Conectar en `ParosController::nuevoParo|validarAlta` (422 si no le corresponde), `ParosCatalogoController`, reporte y `ParosCierreController`.
+- Reporte/finalizar: `whereIn('MaquinaId', asignadas)` sustituye `Depto = area` y el filtro TelTelaresOperador de Tejedores.
+- Combo de Departamento en Catálogo de Fallas: 15 de `URDCatalogoMaquinas` + Atadores + Calidad.
 
-## Fase 3 — Fallas para los departamentos nuevos (FALTA CONFIRMAR)
-Propuesta: `catalogoDepartamentos()` ya hace este mapeo (Jacquard/Itema/Smith/Karl Mayer → "Tejido"). Se extiende:
-- Jacquard, Itema, Smith, Karl Mayer, Tejido → fallas **Tejido** (ya existe).
-- Urdido → URDIDO, Engomado → ENGOMADO (ya existe).
-- Costura, Corte Bata, Crudo, Secado, Tintoreria, Rasurado, Prod Term, Mat Prim → su propio `Departamento` en
-  `CatParosFallas` si tiene fallas capturadas; **si no tiene ninguna, usan un catálogo "General"** (Electrico / Mecanico /
-  Tiempo Muerto, mismos tipos que el resto) que se captura una vez en el Catálogo de Fallas.
-- Calidad sigue apareciendo en todos.
-- El combo de Departamento en `CatalogoFallas` (Livewire) debe listar los 15 de `URDCatalogoMaquinas` + General + Calidad + Atadores.
+## Fase 3 — Formulario de usuario
+- Visibles: Área, No. empleado, Nombre, Puesto (select), Turno, Contraseña. Fuera: Teléfono, Correo, Foto.
+- "Copiar permisos de…" arriba de permisos (reusa la lógica de `UsuarioService::duplicar`); alta sin nada marcado; Seleccionar/Deseleccionar todos se quedan.
+- Sección "Máquinas": departamento (casilla = todas) → máquinas; una casilla Supervisor. Vacío = no reporta paros (se avisa).
+- Guardado en la misma transacción que el usuario. Código en `resources/js/modulos/usuarios/...` (TS, sin JS inline nuevo).
 
-## Fase 4 — Pantalla de asignación (formulario de usuario)
-- Sección "Máquinas para paros" agrupada por departamento: casilla de departamento (marca todas sus máquinas) + máquinas sueltas.
-- Vacío = sin restricción (se avisa con un texto).
-- Se guarda dentro de la misma transacción que el usuario (`UsuarioService::create/update`); `duplicar` también copia las máquinas.
-- TS en `resources/js/modulos/usuarios/...` (sin JS inline, por el ratchet).
+## Fase 4 — Tests (feature, sqlite)
+1. Asignado Costura → departamentos [Costura], máquinas las suyas.
+2. Sin asignación → lista vacía.
+3. Atadores / Calidad → igual que hoy.
+4. `store` con máquina ajena → 422.
+5. Reporte/finalizar filtran por MaquinaId (incluye paro histórico con Depto "Tejedores").
+6. Update de usuario sin teléfono/correo/foto en el request no los borra.
+7. Duplicar copia máquinas y Supervisor.
 
-## Fase 5 — Tests (feature, sqlite)
-1. Sin asignación → misma lista que hoy.
-2. Asignado Costura (todas) → departamentos = [Costura]; máquinas = las 37.
-3. Asignado CVERT1+CVERT2 → solo esas dos.
-4. `store` con depto/máquina ajena → 422.
-5. Reporte y finalizar filtran por las máquinas asignadas.
-6. Departamento sin fallas propias → recibe las de General.
-
-## Fuera de alcance (por ahora)
-- Migrar `TelTelaresOperador` a la tabla nueva (siguiente paso para que sea la principal).
-- Unificar `SysDepartamentos` con los departamentos de `URDCatalogoMaquinas`.
+## Fuera de alcance
+- Migrar los otros consumidores de TelTelaresOperador (Mecánicos, BPM, Desarrolladores, Notificar montado).
+- Unificar `SysDepartamentos` con los departamentos de máquina.

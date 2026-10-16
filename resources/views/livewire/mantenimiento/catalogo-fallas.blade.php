@@ -57,7 +57,12 @@
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <flux:input wire:model="form.TipoFallaId" label="Tipo de falla" required autofocus autocomplete="off" />
-                    <flux:input wire:model="form.Departamento" label="Departamento" required autocomplete="off" />
+                    <flux:select wire:model="form.Departamento" label="Departamento" required>
+                        <flux:select.option value="">Selecciona…</flux:select.option>
+                        @foreach ($departamentos as $departamento)
+                            <flux:select.option :value="$departamento">{{ $departamento }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
                     <flux:input wire:model="form.Falla" label="Falla" required autocomplete="off" />
                     <flux:input wire:model="form.Abreviado" label="Abreviado" autocomplete="off" />
                     <flux:input wire:model="form.Seccion" label="Sección" autocomplete="off" />

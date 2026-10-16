@@ -204,9 +204,10 @@ function iniciar(): void {
         const departamentos = cfg!.departamentos ?? [];
         soloPlaceholder(selDepto, 'Seleccione un departamento');
         departamentos.forEach((d) => selDepto.add(new Option(d, d)));
-        if (departamentos.length === 0) errorCarga('depto', 'No hay departamentos disponibles para reportar paros.');
+        if (departamentos.length === 0) errorCarga('depto', 'No tienes máquinas asignadas: pide a Sistemas que te las asigne en tu usuario.');
 
-        const propio = departamentoDelArea(departamentos, cfg!.areaUsuario);
+        // Con un solo departamento (el caso común: sus máquinas son de un salón) se elige solo.
+        const propio = departamentoDelArea(departamentos, cfg!.areaUsuario) ?? (departamentos.length === 1 ? departamentos[0] : null);
         if (propio) {
             selDepto.value = propio;
             void cargarMaquinas(propio);

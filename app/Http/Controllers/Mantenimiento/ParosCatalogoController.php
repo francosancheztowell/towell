@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Mantenimiento;
 
 use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\CatParosFallas;
-use App\Models\Sistema\SysDepartamento;
 use App\Services\Mantenimiento\ParosCatalogoService;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Http\JsonResponse;
@@ -21,36 +20,24 @@ class ParosCatalogoController extends Controller
 
     public function __construct(private readonly ParosCatalogoService $catalogo) {}
 
-    /**
-     * Departamentos que pueden reportar un paro (sin los que no operan máquinas, ver
-     * ParosCatalogoService::DEPARTAMENTOS_EXCLUIDOS). Es la misma lista para todos: el área
-     * propia la preselecciona la vista con `areaUsuario`.
-     */
+    /** Departamentos en los que el usuario puede reportar: los de sus máquinas asignadas. */
     public function departamentos(): JsonResponse
     {
         try {
-            return response()->json(['success' => true, 'data' => $this->catalogo->departamentos()]);
+            return response()->json(['success' => true, 'data' => $this->catalogo->departamentos(Auth::user())]);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Error al obtener departamentos de mantenimiento', 'No se pudieron cargar los departamentos.');
         }
     }
 
     /**
-     * Todos los departamentos del catálogo (SysDepartamentos) para filtros en reportes de paros.
-     * Sin exclusiones: el combo Área lista todas las áreas aunque los datos vengan filtrados por backend.
+     * Departamentos para el combo Área del reporte: los de URDCatalogoMaquinas más Atadores,
+     * Calidad y Tejido. La vista les suma los `Depto` de los paros cargados (históricos).
      */
     public function departamentosCatalogoFiltros(): JsonResponse
     {
         try {
-            $departamentos = SysDepartamento::query()
-                ->orderBy('Depto')
-                ->pluck('Depto')
-                ->map(fn ($d) => trim((string) $d))
-                ->filter(fn ($d) => $d !== '')
-                ->values()
-                ->all();
-
-            return response()->json(['success' => true, 'data' => $departamentos]);
+            return response()->json(['success' => true, 'data' => $this->catalogo->departamentosDelCatalogo()]);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Error al obtener catálogo de departamentos para filtros', 'No se pudieron cargar los departamentos.');
         }
@@ -59,19 +46,7 @@ class ParosCatalogoController extends Controller
     public function maquinas(string $departamento): JsonResponse
     {
         try {
-            $maquinas = $this->catalogo->maquinas($departamento, Auth::user()->numero_empleado ?? null);
-
-            // 422 y no 401: la sesión es válida, solo falta el dato. Un 401 haría que
-            // window.http avisara "sesión expirada" y recargara la pantalla.
-            if ($maquinas === null) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Tu usuario no tiene número de empleado: no se pueden listar tus telares.',
-                    'data' => [],
-                ], 422);
-            }
-
-            return response()->json(['success' => true, 'data' => $maquinas]);
+            return response()->json(['success' => true, 'data' => $this->catalogo->maquinas($departamento, Auth::user())]);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Error al obtener máquinas de mantenimiento', 'No se pudieron cargar las máquinas.', context: ['departamento' => $departamento]);
         }

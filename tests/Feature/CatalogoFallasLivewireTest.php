@@ -41,6 +41,11 @@ class CatalogoFallasLivewireTest extends TestCase
         $schema->create('CatTipoFalla', function (Blueprint $table) {
             $table->string('TipoFallaId')->primary();
         });
+        // El combo de Departamento suma los de URDCatalogoMaquinas (ParosCatalogoService::departamentosDelCatalogo).
+        $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
+            $table->string('MaquinaId')->primary();
+            $table->string('Departamento')->nullable();
+        });
     }
 
     public function test_sin_permiso_de_acceso_devuelve_403(): void

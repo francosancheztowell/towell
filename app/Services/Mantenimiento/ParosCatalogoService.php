@@ -6,73 +6,92 @@ namespace App\Services\Mantenimiento;
 
 use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Mantenimiento\CatParosFallas;
-use App\Models\Sistema\SysDepartamento;
-use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Sistema\SYSMaquinaAsignacion;
 use App\Models\Urdido\URDCatalogoMaquina;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * Reglas de catálogo del alta de paros: qué departamentos pueden reportar, qué máquinas
- * ofrece cada uno y qué fallas le aplican. Lo usan el combo en cascada (ParosCatalogoController)
- * y la validación de `store`, para que lo que se acepta sea exactamente lo que se ofrece.
+ * Reglas de catálogo de paros: qué departamentos puede reportar cada usuario, qué máquinas
+ * ofrece cada uno y qué fallas le aplican. Lo usan el combo en cascada (ParosCatalogoController),
+ * la validación de `store` y el listado, para que lo que se acepta sea exactamente lo que se ofrece.
+ *
+ * Los departamentos salen de URDCatalogoMaquinas a través de SYSMaquinasAsignacion: cada quien
+ * ve los departamentos de sus máquinas asignadas. Atadores y Calidad no están en ese catálogo
+ * y se ofrecen por área, como antes (.planning/paros_acceso_maquinas_plan.md).
  */
 final class ParosCatalogoService
 {
-    /**
-     * Departamentos del catálogo que no operan máquinas: no se ofrecen ni se aceptan al
-     * reportar. Trama sí tiene telares asignados, pero no reporta paros desde esta pantalla.
-     */
-    public const DEPARTAMENTOS_EXCLUIDOS = ['Mantenimiento', 'Sistemas', 'Contabilidad', 'Directivos', 'Planeacion', 'Trama'];
+    /** Áreas que reportan sin asignación: su departamento de paros es el área misma. */
+    private const DEPARTAMENTOS_POR_AREA = ['ATADORES' => 'Atadores', 'CALIDAD' => 'Calidad'];
 
-    /** Departamentos de tejido: comparten el catálogo de fallas "Tejido". */
-    private const DEPARTAMENTOS_TEJIDO = ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH', 'TEJEDORES', 'TRMA', 'TRAMA', 'DESARROLLADORES', 'SUPERVISORES'];
+    /** Salones de telares: comparten el catálogo de fallas "Tejido". */
+    private const DEPARTAMENTOS_TEJIDO = ['JACQUARD', 'ITEMA', 'SMITH', 'KARL MAYER'];
 
-    /** Estos reciben todos sus telares sin filtrar por salón. */
-    private const DEPARTAMENTOS_CON_TELARES_PROPIOS = ['TEJEDORES', 'TRAMA', 'DESARROLLADORES', 'SUPERVISORES'];
+    /** @var array<int, list<string>> MaquinaId asignadas por idusuario, una consulta por petición. */
+    private array $asignadas = [];
 
     /**
-     * Departamentos que pueden reportar un paro, en orden alfabético.
+     * Departamentos en los que el usuario puede reportar, en orden alfabético.
      *
      * @return list<string>
      */
-    public function departamentos(): array
+    public function departamentos(?Authenticatable $usuario): array
     {
-        $excluidos = array_map('mb_strtoupper', self::DEPARTAMENTOS_EXCLUIDOS);
+        $porArea = self::DEPARTAMENTOS_POR_AREA[$this->areaDe($usuario)] ?? null;
 
-        return SysDepartamento::query()
-            ->orderBy('Depto')
-            ->pluck('Depto')
+        return URDCatalogoMaquina::query()
+            ->whereIn('MaquinaId', $this->maquinasAsignadas($usuario))
+            ->distinct()
+            ->pluck('Departamento')
             ->map(fn ($d): string => trim((string) $d))
-            ->filter(fn (string $d): bool => $d !== '' && ! in_array(mb_strtoupper($d), $excluidos, true))
+            ->filter()
+            ->when($porArea !== null, fn (Collection $c) => $c->push($porArea))
+            ->unique()
+            ->sort()
             ->values()
             ->all();
     }
 
     /**
-     * Máquinas que ofrece un departamento.
+     * MaquinaId asignadas al usuario en SYSMaquinasAsignacion.
      *
-     * - Urdido / Engomado: catálogo URDCatalogoMaquina.
-     * - Atadores: catálogo AtaMaquinasModel.
-     * - Calidad: todos los telares, más las máquinas de Urdido y Engomado.
-     * - El resto: los telares asignados al empleado en TelTelaresOperador.
-     *
-     * @return Collection<int, mixed>|null Cada fila es array con: MaquinaId, Nombre, Departamento y, en Calidad, DepartamentoOrigen.
+     * @return list<string>
      */
-    public function maquinas(string $departamento, ?string $numeroEmpleado): ?Collection
+    public function maquinasAsignadas(?Authenticatable $usuario): array
     {
-        $depUpper = strtoupper(trim($departamento));
-
-        if (in_array($depUpper, ['URDIDO', 'ENGOMADO'], true)) {
-            return URDCatalogoMaquina::where('Departamento', $departamento)
-                ->orderBy('MaquinaId')
-                ->get(['MaquinaId', 'Nombre', 'Departamento'])
-                ->map(fn (URDCatalogoMaquina $m): array => [
-                    'MaquinaId' => (string) $m->getAttribute('MaquinaId'),
-                    'Nombre' => (string) $m->Nombre,
-                    'Departamento' => (string) $m->Departamento,
-                ])
-                ->values();
+        // getKey y no getAuthIdentifier: en algunos modelos de usuario el identificador de sesión es numero_empleado.
+        $id = $usuario instanceof Model ? (int) $usuario->getKey() : 0;
+        if ($id === 0) {
+            return [];
         }
+
+        return $this->asignadas[$id] ??= SYSMaquinaAsignacion::query()
+            ->where('idusuario', $id)
+            ->pluck('MaquinaId')
+            ->map(fn ($m): string => trim((string) $m))
+            ->all();
+    }
+
+    /**
+     * Máquinas que el usuario puede elegir en un departamento.
+     *
+     * - Atadores: catálogo AtaMaquinasModel.
+     * - Calidad: todos los telares más Urdido y Engomado.
+     * - El resto: sus máquinas asignadas de ese departamento.
+     *
+     * Nunca más de lo que permite `departamentos()`: un departamento ajeno da lista vacía.
+     *
+     * @return Collection<int, mixed> Cada fila: MaquinaId, Nombre, Departamento y, en Calidad, DepartamentoOrigen.
+     */
+    public function maquinas(string $departamento, ?Authenticatable $usuario): Collection
+    {
+        if (! $this->puedeReportarEn($departamento, $usuario)) {
+            return collect();
+        }
+
+        $depUpper = mb_strtoupper(trim($departamento));
 
         if ($depUpper === 'ATADORES') {
             return AtaMaquinasModel::orderBy('MaquinaId')
@@ -85,49 +104,66 @@ final class ParosCatalogoService
             return $this->maquinasParaCalidad($departamento);
         }
 
-        if ($numeroEmpleado === null || trim($numeroEmpleado) === '') {
-            return null;
-        }
-
-        $query = TelTelaresOperador::query()->where('numero_empleado', $numeroEmpleado);
-
-        // El resto (Sistemas, Contabilidad, Directivos…) no tiene telares asignados:
-        // recibe una lista vacía, que es la respuesta correcta.
-        if (! in_array($depUpper, self::DEPARTAMENTOS_CON_TELARES_PROPIOS, true)) {
-            $query->whereIn('SalonTejidoId', [$departamento]);
-        }
-
-        return $query
-            ->select('NoTelarId as MaquinaId')
-            ->whereNotNull('NoTelarId')
-            ->distinct()
-            ->orderBy('NoTelarId')
-            ->get()
-            ->map(fn ($m): array => $this->fila((string) $m->getAttribute('MaquinaId'), $departamento))
+        return URDCatalogoMaquina::query()
+            ->where('Departamento', $departamento)
+            ->whereIn('MaquinaId', $this->maquinasAsignadas($usuario))
+            ->orderBy('MaquinaId')
+            ->get(['MaquinaId', 'Nombre', 'Departamento'])
+            ->map(fn (URDCatalogoMaquina $m): array => [
+                'MaquinaId' => trim((string) $m->getAttribute('MaquinaId')),
+                'Nombre' => trim((string) $m->Nombre) ?: trim((string) $m->getAttribute('MaquinaId')),
+                'Departamento' => (string) $m->Departamento,
+            ])
             ->values();
     }
 
-    /** ¿Esa máquina está entre las que ofrece el departamento a este empleado? */
-    public function esMaquinaDe(string $departamento, string $maquina, ?string $numeroEmpleado): bool
+    public function puedeReportarEn(string $departamento, ?Authenticatable $usuario): bool
+    {
+        return in_array(trim($departamento), $this->departamentos($usuario), true);
+    }
+
+    /** ¿Esa máquina está entre las que el departamento ofrece a este usuario? */
+    public function esMaquinaDe(string $departamento, string $maquina, ?Authenticatable $usuario): bool
     {
         $buscada = mb_strtoupper(trim($maquina));
 
         return $buscada !== ''
-            && ($this->maquinas($departamento, $numeroEmpleado) ?? collect())
+            && $this->maquinas($departamento, $usuario)
                 ->contains(fn (array $m): bool => mb_strtoupper(trim($m['MaquinaId'])) === $buscada);
+    }
+
+    /**
+     * ¿Puede ver o cerrar un paro de esa máquina? Quien tiene máquinas asignadas, solo las suyas.
+     * Sin asignación no se restringe por máquina (Mantenimiento y supervisores atienden todo);
+     * Atadores y Calidad van por área.
+     */
+    public function puedeVerParo(string $maquinaId, ?Authenticatable $usuario): bool
+    {
+        $asignadas = $this->maquinasAsignadas($usuario);
+
+        return $asignadas === []
+            || $this->esPorArea($usuario)
+            || in_array(mb_strtoupper(trim($maquinaId)), array_map('mb_strtoupper', $asignadas), true);
+    }
+
+    /** Área Atadores o Calidad: su acceso a paros es por área, no por máquina. */
+    public function esPorArea(?Authenticatable $usuario): bool
+    {
+        return isset(self::DEPARTAMENTOS_POR_AREA[$this->areaDe($usuario)]);
     }
 
     /**
      * Departamentos de CatParosFallas que aplican al departamento elegido.
      *
-     * - Los de tejido reutilizan el catálogo "Tejido".
+     * - Los salones de telares reutilizan el catálogo "Tejido".
      * - Calidad consulta "Calidad" y también "Tejido" por compatibilidad con catálogos anteriores.
+     * - El resto, solo el suyo: sin fallas capturadas no hay qué reportar (decisión del owner).
      *
      * @return list<string>
      */
     public function catalogoDepartamentos(string $departamento): array
     {
-        $depUpper = strtoupper(trim($departamento));
+        $depUpper = mb_strtoupper(trim($departamento));
 
         if (in_array($depUpper, self::DEPARTAMENTOS_TEJIDO, true)) {
             return ['Tejido'];
@@ -152,6 +188,31 @@ final class ParosCatalogoService
         return false;
     }
 
+    /**
+     * Departamentos con los que se puede capturar una falla o filtrar el reporte: los de
+     * URDCatalogoMaquinas más Atadores, Calidad y Tejido (catálogo compartido de los salones).
+     *
+     * @return list<string>
+     */
+    public function departamentosDelCatalogo(): array
+    {
+        return URDCatalogoMaquina::query()
+            ->distinct()
+            ->pluck('Departamento')
+            ->map(fn ($d): string => trim((string) $d))
+            ->filter()
+            ->merge(['Atadores', 'Calidad', 'Tejido'])
+            ->unique(fn (string $d): string => mb_strtoupper($d))
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    private function areaDe(?Authenticatable $usuario): string
+    {
+        return $usuario instanceof Model ? mb_strtoupper(trim((string) $usuario->getAttribute('area'))) : '';
+    }
+
     /** @return array{MaquinaId: string, Nombre: string, Departamento: string} */
     private function fila(string $maquinaId, string $departamento): array
     {
@@ -159,44 +220,31 @@ final class ParosCatalogoService
     }
 
     /**
+     * Telares (salones de URDCatalogoMaquina::DEPARTAMENTOS_TELARES), Urdido y Engomado.
+     *
      * @return Collection<int, mixed>
      */
     private function maquinasParaCalidad(string $departamento): Collection
     {
-        $telares = TelTelaresOperador::query()
-            ->select('NoTelarId as MaquinaId')
-            ->whereNotNull('NoTelarId')
-            ->distinct()
-            ->get()
-            ->map(function ($item) use ($departamento): array {
-                $maquinaId = trim((string) $item->getAttribute('MaquinaId'));
+        $ordenGrupos = ['Tejido' => 0, 'Urdido' => 1, 'Engomado' => 2];
 
-                return $this->fila($maquinaId, $departamento) + ['DepartamentoOrigen' => 'Tejido'];
-            });
-
-        $urdidoEngomado = URDCatalogoMaquina::query()
-            ->whereIn('Departamento', ['Urdido', 'Engomado'])
+        return URDCatalogoMaquina::query()
+            ->whereIn('Departamento', [...URDCatalogoMaquina::DEPARTAMENTOS_TELARES, 'Urdido', 'Engomado'])
             ->get(['MaquinaId', 'Nombre', 'Departamento'])
             ->map(function (URDCatalogoMaquina $item) use ($departamento): array {
                 $maquinaId = trim((string) $item->getAttribute('MaquinaId'));
-                $origen = strcasecmp(trim((string) $item->Departamento), 'Engomado') === 0 ? 'Engomado' : 'Urdido';
+                $origen = trim((string) $item->Departamento);
 
                 return [
                     'MaquinaId' => $maquinaId,
                     'Nombre' => trim((string) $item->Nombre) ?: $maquinaId,
                     'Departamento' => $departamento,
-                    'DepartamentoOrigen' => $origen,
+                    'DepartamentoOrigen' => in_array($origen, ['Urdido', 'Engomado'], true) ? $origen : 'Tejido',
                 ];
-            });
-
-        $ordenGrupos = ['Tejido' => 0, 'Urdido' => 1, 'Engomado' => 2];
-
-        return $telares
-            ->concat($urdidoEngomado)
+            })
             ->filter(fn (array $maquina): bool => $maquina['MaquinaId'] !== '')
-            ->unique(fn (array $maquina): string => mb_strtoupper($maquina['MaquinaId']))
             ->sort(function (array $left, array $right) use ($ordenGrupos): int {
-                $grupo = ($ordenGrupos[$left['DepartamentoOrigen']] ?? 99) <=> ($ordenGrupos[$right['DepartamentoOrigen']] ?? 99);
+                $grupo = $ordenGrupos[$left['DepartamentoOrigen']] <=> $ordenGrupos[$right['DepartamentoOrigen']];
 
                 return $grupo !== 0 ? $grupo : strnatcasecmp($left['MaquinaId'], $right['MaquinaId']);
             })

@@ -48,6 +48,10 @@ class FluxLivewireOperacionTest extends TestCase
         $schema->create('CatTipoFalla', function (Blueprint $table) {
             $table->string('TipoFallaId')->primary();
         });
+        $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
+            $table->string('MaquinaId')->primary();
+            $table->string('Departamento')->nullable();
+        });
         DB::connection('sqlsrv')->table('CatTipoFalla')->insert([['TipoFallaId' => 'ELECTRICO'], ['TipoFallaId' => 'MECANICO']]);
 
         $this->actingAs($this->createUsuario(), 'web');

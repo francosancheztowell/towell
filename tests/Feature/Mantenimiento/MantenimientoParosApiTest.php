@@ -32,7 +32,6 @@ class MantenimientoParosApiTest extends TestCase
 
         $schema = Schema::connection('sqlsrv');
 
-        $this->createTablaDbo('SysDepartamentos', ['Id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'Depto' => 'TEXT']);
         $this->createTablaDbo('ManFallasParos', [
             'Id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'Folio' => 'TEXT', 'Estatus' => 'TEXT', 'Fecha' => 'TEXT', 'Hora' => 'TEXT', 'Depto' => 'TEXT',
@@ -71,11 +70,11 @@ class MantenimientoParosApiTest extends TestCase
         $schema->create('AtaMaquinas', function (Blueprint $table) {
             $table->string('MaquinaId')->primary();
         });
-        $schema->create('TelTelaresOperador', function (Blueprint $table) {
+        $schema->create('SYSMaquinasAsignacion', function (Blueprint $table) {
             $table->increments('Id');
-            $table->string('numero_empleado')->nullable();
-            $table->string('NoTelarId')->nullable();
-            $table->string('SalonTejidoId')->nullable();
+            $table->integer('idusuario');
+            $table->string('MaquinaId');
+            $table->boolean('Supervisor')->default(false);
         });
         $schema->create('UrdProgramaUrdido', function (Blueprint $table) {
             $table->increments('Id');
@@ -84,10 +83,6 @@ class MantenimientoParosApiTest extends TestCase
             $table->string('Status')->nullable();
             $table->date('FechaProg')->nullable();
         });
-
-        foreach (['Engomado', 'Tejedores', 'Urdido'] as $depto) {
-            DB::table('dbo.SysDepartamentos')->insert(['Depto' => $depto]);
-        }
 
         // La propagación a órdenes de Mecánicos no es de este módulo.
         $this->app->instance(CalificacionParoService::class, new class extends CalificacionParoService
@@ -105,6 +100,17 @@ class MantenimientoParosApiTest extends TestCase
         $this->actingAs($usuario, 'web');
 
         return $usuario;
+    }
+
+    /** Asigna máquinas al usuario; las que no estén en el catálogo se dan de alta en $depto. */
+    private function asignar(User $usuario, array $maquinas, string $depto = 'Urdido'): void
+    {
+        foreach ($maquinas as $maquina) {
+            if (! DB::table('URDCatalogoMaquinas')->where('MaquinaId', $maquina)->exists()) {
+                $this->maquinaUrdido($maquina, $depto);
+            }
+            DB::table('SYSMaquinasAsignacion')->insert(['idusuario' => $usuario->getKey(), 'MaquinaId' => $maquina]);
+        }
     }
 
     private function falla(string $tipo = 'MECANICO', string $depto = 'Urdido', string $falla = 'Rotura'): int
@@ -128,67 +134,79 @@ class MantenimientoParosApiTest extends TestCase
         ], $datos));
     }
 
-    public function test_departamentos_lista_todos(): void
+    public function test_departamentos_son_los_de_sus_maquinas_asignadas(): void
     {
-        $this->entrar();
+        $this->maquinaUrdido('KM9', 'Costura');
+        $usuario = $this->entrar(['area' => 'Tejedores']);
+        $this->asignar($usuario, ['205', '206'], 'Jacquard');
+        $this->asignar($usuario, ['MC1'], 'Urdido');
 
         $this->getJson(route('api.mantenimiento.departamentos'))
             ->assertOk()
-            ->assertExactJson(['success' => true, 'data' => ['Engomado', 'Tejedores', 'Urdido']]);
+            ->assertExactJson(['success' => true, 'data' => ['Jacquard', 'Urdido']]);
     }
 
-    /** BUG-025: el usuario 6 ya no está limitado a Urdido y Engomado. */
-    public function test_departamentos_no_distingue_al_usuario_6(): void
+    /** Sin asignación no reporta en ningún lado; Atadores y Calidad entran por área. */
+    public function test_sin_asignacion_no_hay_departamentos_salvo_atadores_y_calidad(): void
     {
-        DB::table('SYSUsuario')->insert(['idusuario' => 6, 'nombre' => 'Seis', 'contrasenia' => 'x', 'area' => 'Urdido']);
-        $this->actingAs(User::findOrFail(6), 'web');
+        $this->maquinaUrdido('MC1');
+        $this->entrar(['area' => 'Tejedores']);
+        $this->getJson(route('api.mantenimiento.departamentos'))->assertJsonPath('data', []);
+        $this->get(route('mantenimiento.nuevo-paro'))->assertOk()->assertSee('"departamentos":[]', false);
 
-        $this->getJson(route('api.mantenimiento.departamentos'))
-            ->assertOk()
-            ->assertJsonPath('data', ['Engomado', 'Tejedores', 'Urdido']);
+        $this->entrar(['area' => 'Atadores']);
+        $this->getJson(route('api.mantenimiento.departamentos'))->assertJsonPath('data', ['Atadores']);
+
+        $calidad = $this->entrar(['area' => 'Calidad']);
+        $this->asignar($calidad, ['MC1']);
+        $this->getJson(route('api.mantenimiento.departamentos'))->assertJsonPath('data', ['Calidad', 'Urdido']);
     }
 
-    public function test_catalogo_de_filtros_quita_vacios(): void
+    public function test_catalogo_de_filtros_son_los_departamentos_de_maquinas(): void
     {
-        DB::table('dbo.SysDepartamentos')->insert(['Depto' => '  ']);
+        $this->maquinaUrdido('MC1');
+        $this->maquinaUrdido('CVERT1', 'Costura');
+        $this->maquinaUrdido('X', '  ');
         $this->entrar();
 
         $this->getJson(route('api.mantenimiento.departamentos.catalogo-filtros'))
             ->assertOk()
-            ->assertJsonPath('data', ['Engomado', 'Tejedores', 'Urdido']);
+            ->assertJsonPath('data', ['Atadores', 'Calidad', 'Costura', 'Tejido', 'Urdido']);
     }
 
-    public function test_maquinas_por_departamento(): void
+    public function test_maquinas_son_solo_las_asignadas_del_departamento(): void
     {
-        DB::table('URDCatalogoMaquinas')->insert([
-            ['MaquinaId' => 'MC1', 'Nombre' => 'Urdidora 1', 'Departamento' => 'Urdido'],
-            ['MaquinaId' => 'WP2', 'Nombre' => 'West Point 2', 'Departamento' => 'Engomado'],
-        ]);
+        $this->maquinaUrdido('CVERT3', 'Costura');
         DB::table('AtaMaquinas')->insert(['MaquinaId' => 'AT1']);
-        DB::table('TelTelaresOperador')->insert([
-            ['numero_empleado' => '1001', 'NoTelarId' => '205', 'SalonTejidoId' => 'Jacquard'],
-            ['numero_empleado' => '1001', 'NoTelarId' => '201', 'SalonTejidoId' => 'Smith'],
-            ['numero_empleado' => '9999', 'NoTelarId' => '300', 'SalonTejidoId' => 'Smith'],
-        ]);
-        $this->entrar();
+        $usuario = $this->entrar();
+        $this->asignar($usuario, ['CVERT1', 'CVERT2'], 'Costura');
 
-        $this->getJson(route('api.mantenimiento.maquinas', 'Urdido'))->assertJsonPath('data.0.MaquinaId', 'MC1')->assertJsonCount(1, 'data');
-        $this->getJson(route('api.mantenimiento.maquinas', 'Atadores'))->assertJsonPath('data.0.Nombre', 'AT1');
-        $this->getJson(route('api.mantenimiento.maquinas', 'Tejedores'))
+        $this->getJson(route('api.mantenimiento.maquinas', 'Costura'))
+            ->assertOk()
             ->assertJsonPath('data', [
-                ['MaquinaId' => '201', 'Nombre' => '201', 'Departamento' => 'Tejedores'],
-                ['MaquinaId' => '205', 'Nombre' => '205', 'Departamento' => 'Tejedores'],
+                ['MaquinaId' => 'CVERT1', 'Nombre' => 'CVERT1', 'Departamento' => 'Costura'],
+                ['MaquinaId' => 'CVERT2', 'Nombre' => 'CVERT2', 'Departamento' => 'Costura'],
             ]);
-        $this->getJson(route('api.mantenimiento.maquinas', 'Smith'))->assertJsonPath('data.0.MaquinaId', '201')->assertJsonCount(1, 'data');
+        // Departamento ajeno o área que no le toca: lista vacía, no las de otros.
+        $this->getJson(route('api.mantenimiento.maquinas', 'Urdido'))->assertJsonPath('data', []);
+        $this->getJson(route('api.mantenimiento.maquinas', 'Atadores'))->assertJsonPath('data', []);
+
+        $this->entrar(['area' => 'Atadores']);
+        $this->getJson(route('api.mantenimiento.maquinas', 'Atadores'))->assertJsonPath('data.0.MaquinaId', 'AT1');
     }
 
-    /** 422, no 401: un 401 dispara "sesión expirada" en window.http y recarga la pantalla. */
-    public function test_maquinas_de_tejido_sin_numero_de_empleado_es_422(): void
+    public function test_calidad_ve_telares_urdido_y_engomado_del_catalogo(): void
     {
-        $this->entrar(['numero_empleado' => null]);
+        $this->maquinaUrdido('MC1');
+        $this->maquinaUrdido('WP2', 'Engomado');
+        $this->maquinaUrdido('205', 'Jacquard');
+        $this->maquinaUrdido('CVERT1', 'Costura');
+        $this->entrar(['area' => 'Calidad']);
 
-        $this->getJson(route('api.mantenimiento.maquinas', 'Tejedores'))
-            ->assertStatus(422)->assertJsonPath('success', false)->assertJsonPath('data', []);
+        $this->assertSame(
+            ['205' => 'Tejido', 'MC1' => 'Urdido', 'WP2' => 'Engomado'],
+            collect($this->getJson(route('api.mantenimiento.maquinas', 'Calidad'))->json('data'))->pluck('DepartamentoOrigen', 'MaquinaId')->all()
+        );
     }
 
     public function test_tipos_de_falla_y_fallas_del_catalogo(): void
@@ -227,8 +245,7 @@ class MantenimientoParosApiTest extends TestCase
     public function test_store_crea_el_paro_con_datos_del_catalogo_y_folio(): void
     {
         $fallaId = $this->falla();
-        $this->maquinaUrdido();
-        $this->entrar(['nombre' => 'Operador Uno', 'numero_empleado' => '555']);
+        $this->asignar($this->entrar(['nombre' => 'Operador Uno', 'numero_empleado' => '555']), ['MC1']);
 
         $this->postJson(route('api.mantenimiento.paros.store'), [
             'depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $fallaId, 'orden_trabajo' => 'U100', 'obs' => 'ruido',
@@ -244,9 +261,8 @@ class MantenimientoParosApiTest extends TestCase
     public function test_store_rechaza_duplicado_activo_validacion_y_falla_inexistente(): void
     {
         $fallaId = $this->falla();
-        $this->maquinaUrdido();
         $this->paro(['MaquinaId' => 'MC1', 'TipoFallaId' => 'MECANICO']);
-        $this->entrar();
+        $this->asignar($this->entrar(), ['MC1']);
 
         $this->postJson(route('api.mantenimiento.paros.store'), ['depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $fallaId])
             ->assertStatus(422)->assertJsonStructure(['error', 'errors' => ['falla_id']]);
@@ -260,37 +276,24 @@ class MantenimientoParosApiTest extends TestCase
         $this->assertSame(1, ManFallasParos::count());
     }
 
-    public function test_departamentos_sin_maquinas_no_se_ofrecen(): void
-    {
-        foreach (['Mantenimiento', 'Sistemas', 'Contabilidad', 'Directivos', 'Planeacion', 'Trama'] as $depto) {
-            DB::table('dbo.SysDepartamentos')->insert(['Depto' => $depto]);
-        }
-        $this->entrar();
-
-        $this->getJson(route('api.mantenimiento.departamentos'))->assertJsonPath('data', ['Engomado', 'Tejedores', 'Urdido']);
-        // La pantalla recibe la misma lista en la página, sin pedirla.
-        $this->get(route('mantenimiento.nuevo-paro'))->assertOk()->assertSee('"departamentos":["Engomado","Tejedores","Urdido"]', false);
-        // Los reportes sí ven todas las áreas.
-        $this->assertContains('Sistemas', $this->getJson(route('api.mantenimiento.departamentos.catalogo-filtros'))->json('data'));
-    }
-
     public function test_store_valida_que_departamento_maquina_y_falla_sean_coherentes(): void
     {
-        DB::table('dbo.SysDepartamentos')->insert(['Depto' => 'Sistemas']);
         $urdido = $this->falla('MECANICO', 'Urdido');
         $engomado = $this->falla('MECANICO', 'Engomado', 'Gomas');
         $calidad = $this->falla('CALIDAD', 'Calidad', 'Mancha');
-        $this->maquinaUrdido('MC1');
-        $this->maquinaUrdido('WP2', 'Engomado');
-        $this->entrar();
+        $this->maquinaUrdido('MC2');
+        $usuario = $this->entrar();
+        $this->asignar($usuario, ['MC1']);
+        $this->asignar($usuario, ['WP2'], 'Engomado');
         $url = route('api.mantenimiento.paros.store');
 
-        // Departamento que no reporta paros.
-        $this->postJson($url, ['depto' => 'Sistemas', 'maquina' => 'MC1', 'falla_id' => $urdido])
-            ->assertStatus(422)->assertJsonPath('errors.depto.0', 'Ese departamento no puede reportar paros.');
-        // Máquina de otro departamento, e inventada.
+        // Departamento sin máquinas asignadas.
+        $this->postJson($url, ['depto' => 'Costura', 'maquina' => 'MC1', 'falla_id' => $urdido])
+            ->assertStatus(422)->assertJsonPath('errors.depto.0', 'No tienes máquinas asignadas en ese departamento.');
+        // Máquina de otro departamento, del departamento pero no asignada, e inventada.
         $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'WP2', 'falla_id' => $urdido])
-            ->assertStatus(422)->assertJsonPath('errors.maquina.0', 'Esa máquina no pertenece al departamento elegido.');
+            ->assertStatus(422)->assertJsonPath('errors.maquina.0', 'Esa máquina no está asignada a tu usuario en el departamento elegido.');
+        $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'MC2', 'falla_id' => $urdido])->assertStatus(422);
         $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'XX9', 'falla_id' => $urdido])->assertStatus(422);
         // Falla del catálogo de otro departamento.
         $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $engomado])
@@ -306,8 +309,7 @@ class MantenimientoParosApiTest extends TestCase
     public function test_store_no_afirma_telegram_si_no_hay_a_quien_avisar(): void
     {
         $fallaId = $this->falla();
-        $this->maquinaUrdido();
-        $this->entrar();
+        $this->asignar($this->entrar(), ['MC1']);
 
         $this->postJson(route('api.mantenimiento.paros.store'), ['depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $fallaId])
             ->assertOk()
@@ -334,19 +336,32 @@ class MantenimientoParosApiTest extends TestCase
         $this->assertSame(['A', 'C'], $folios('?incluir_finalizados=1'));
     }
 
-    public function test_index_de_tejedores_solo_ve_sus_telares(): void
+    /** Con máquinas asignadas solo ve las suyas, en cualquier modo, aunque el Depto guardado sea el viejo. */
+    public function test_index_con_asignacion_solo_ve_sus_maquinas(): void
     {
-        DB::table('TelTelaresOperador')->insert(['numero_empleado' => '1001', 'NoTelarId' => '205', 'SalonTejidoId' => 'Jacquard']);
         $this->paro(['Folio' => 'T1', 'Depto' => 'Tejedores', 'MaquinaId' => '205']);
+        $this->paro(['Folio' => 'J1', 'Depto' => 'Jacquard', 'MaquinaId' => '205']);
         $this->paro(['Folio' => 'T2', 'Depto' => 'Tejedores', 'MaquinaId' => '300']);
         $this->paro(['Folio' => 'E1', 'Depto' => 'Engomado', 'MaquinaId' => 'WP2']);
-        $this->entrar(['area' => 'Tejedores']);
+        $this->asignar($this->entrar(['area' => 'Tejedores']), ['205'], 'Jacquard');
 
-        $this->getJson(route('api.mantenimiento.paros.index'))->assertJsonCount(1, 'data')->assertJsonPath('data.0.Folio', 'T1');
-        $this->assertSame(
-            ['E1', 'T1'],
-            collect($this->getJson(route('api.mantenimiento.paros.index').'?alcance=todos')->json('data'))->pluck('Folio')->sort()->values()->all()
-        );
+        $folios = fn (string $query) => collect($this->getJson(route('api.mantenimiento.paros.index').$query)->assertOk()->json('data'))->pluck('Folio')->sort()->values()->all();
+
+        $this->assertSame(['J1', 'T1'], $folios(''));
+        $this->assertSame(['J1', 'T1'], $folios('?alcance=todos'));
+        $this->assertSame(['J1'], $folios('?depto=Jacquard'));
+    }
+
+    public function test_show_y_finalizar_rechazan_paro_de_maquina_ajena(): void
+    {
+        $ajeno = $this->paro(['MaquinaId' => '300']);
+        $propio = $this->paro(['Folio' => 'PF00002', 'MaquinaId' => '205']);
+        $this->asignar($this->entrar(), ['205'], 'Jacquard');
+
+        $this->getJson(route('api.mantenimiento.paros.show', $ajeno))->assertForbidden();
+        $this->putJson(route('api.mantenimiento.paros.finalizar', $ajeno), ['atendio' => 'X', 'calidad' => 3])->assertForbidden();
+        $this->getJson(route('api.mantenimiento.paros.show', $propio))->assertOk();
+        $this->assertSame('Activo', ManFallasParos::findOrFail($ajeno)->Estatus);
     }
 
     public function test_show_y_404(): void
@@ -402,7 +417,7 @@ class MantenimientoParosApiTest extends TestCase
         DB::flushQueryLog();
         DB::enableQueryLog();
         $this->getJson(route('api.mantenimiento.paros.index'))->assertOk()->assertJsonCount(0, 'data');
-        $this->assertCount(1, DB::getQueryLog());
+        $this->assertSame([], collect(DB::getQueryLog())->pluck('query')->filter(fn ($q) => str_contains($q, 'SYSUsuario'))->all());
 
         $this->entrar(['area' => 'Urdido']);
         DB::flushQueryLog();
@@ -417,18 +432,18 @@ class MantenimientoParosApiTest extends TestCase
         Schema::connection('sqlsrv')->drop('CatParosFallas');
         DB::connection()->statement('DROP TABLE dbo.ManFallasParos');
         DB::connection()->statement('DROP TABLE dbo.ManOperadoresMantenimiento');
-        DB::connection()->statement('DROP TABLE dbo.SysDepartamentos');
+        Schema::connection('sqlsrv')->drop('URDCatalogoMaquinas');
 
         $urls = [
             route('api.mantenimiento.departamentos.catalogo-filtros'),
             route('api.mantenimiento.tipos-falla', 'Urdido'),
             route('api.mantenimiento.fallas', 'Urdido'),
-            route('api.mantenimiento.maquinas', 'Tejedores').'?x=1',
+            route('api.mantenimiento.maquinas', 'Urdido').'?x=1',
             route('api.mantenimiento.paros.index').'?alcance=todos',
             route('api.mantenimiento.paros.show', 1),
             route('api.mantenimiento.operadores'),
         ];
-        Schema::connection('sqlsrv')->drop('TelTelaresOperador');
+        Schema::connection('sqlsrv')->drop('SYSMaquinasAsignacion');
 
         foreach ($urls as $url) {
             $respuesta = $this->getJson($url)->assertStatus(500);
