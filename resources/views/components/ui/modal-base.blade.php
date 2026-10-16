@@ -3,7 +3,7 @@
 
   @prop string $id              ID del <dialog> (el JS lo busca con getElementById)
   @prop string $title           Título del header (queda ligado con aria-labelledby)
-  @prop string $size            'sm'|'md'|'lg'|'xl' (default 'md')
+  @prop string $size            'sm'|'md'|'lg'|'xl'|'2xl' (default 'md'; '2xl' para tablas de desglose anchas)
   @prop string $onclose         JS que cierra el modal (botón ×, y Esc vía el runtime).
                                 Default: poner `hidden` y restaurar el scroll del body.
   @prop bool   $closeOnBackdrop Cerrar al hacer clic fuera del panel (default false)
@@ -22,6 +22,7 @@ $maxWidth = match($size) {
     'sm' => 'max-w-sm',
     'lg' => 'max-w-2xl',
     'xl' => 'max-w-4xl',
+    '2xl' => 'max-w-6xl',
     default => 'max-w-lg',
 };
 $closeJs = $onclose ?? "document.getElementById('{$id}').classList.add('hidden'); document.body.style.overflow = '';";
