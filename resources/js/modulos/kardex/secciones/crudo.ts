@@ -148,7 +148,7 @@ export function montarCrudo(raiz: HTMLElement, d: DatosKardex): void {
 
     raiz.querySelector('[data-kardex-crudo-kpis]')?.replaceChildren(
         tarjetasKpi([
-            { titulo: 'Producción tejida del mes', valor: kg(T.kg), unidad: 'kg', detalle: `${kg0(T.pz)} piezas · cuadra al centavo con KdxCrudo (${kg(refProd)})` },
+            { titulo: 'Producción tejida del mes', valor: kg(d.kpis.crudoKg), unidad: 'kg', detalle: `${kg0(d.kpis.crudoPz)} piezas · KdxCrudo sin rasurado (libro)` },
             { titulo: 'Segundas', valor: kg(T.segKg), unidad: 'kg', detalle: `${kg0(T.segPz)} piezas (${porcentaje(T.segKg, T.kg)} del peso) · top telares: ${porSegundas.map((t) => `${t.telar} (${kg0(t.segKg)} kg)`).join(' · ')}` },
             { titulo: 'Telares y artículos', valor: `${kg0(T.nTel)} · ${kg0(T.nArts)}`, detalle: 'telares activos · artículos tejidos' },
             { titulo: 'Retazo a mermas', valor: kg(T.retazoKg), unidad: 'kg', detalle: 'hoja Retazo del archivo (A-MERMAS)' },

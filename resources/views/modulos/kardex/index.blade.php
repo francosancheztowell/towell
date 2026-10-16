@@ -15,12 +15,18 @@
 @endphp
 
 @section('content')
-<div class="mx-auto max-w-[1500px] space-y-4 px-4 py-4 md:px-6" data-kardex>
+<div class="mx-auto max-w-[1500px] space-y-4 px-4 py-4 md:px-6" data-kardex
+     data-url-periodos="{{ route('kardex.datos.periodos') }}" data-url-libro="{{ route('kardex.datos.libro') }}">
 
     <div class="flex flex-wrap items-center gap-3">
+        <label class="flex items-center gap-2 text-sm font-semibold text-ink">Mes
+            <select data-kardex-periodo-select disabled
+                    class="min-h-touch rounded-md border border-line bg-white px-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                <option>Cargando…</option>
+            </select>
+        </label>
         <p class="text-sm text-ink-muted" data-kardex-periodo></p>
-        <x-ui.badge tone="warning" icon="fa-flask" class="ms-auto">Datos simulados</x-ui.badge>
-        <x-ui.badge tone="success" dot>Conciliado vs ERP</x-ui.badge>
+        <x-ui.badge tone="info" icon="fa-book" class="ms-auto"><span data-kardex-fuente>Cargando libro…</span></x-ui.badge>
     </div>
 
     {{-- Pestañas --}}
@@ -42,7 +48,8 @@
         <div data-kardex-kpis></div>
         <section class="rounded-xl border border-line bg-surface p-4 shadow-sm md:p-5">
             <h2 class="mb-2 text-sm font-bold uppercase tracking-wide text-blue-900">Flujo de la cadena (kg)</h2>
-            <p class="mb-2 text-caption text-ink-muted">Pasa el cursor sobre una caja o flecha para resaltar su recorrido; haz clic para ver el detalle.</p>
+            <p class="mb-2 text-caption text-ink-muted">Pasa el cursor sobre una caja o flecha para resaltar su recorrido; haz clic para ver el detalle.
+                Urdido, julios, tejido y crudo salen del libro; materia prima, pretejidos y goma todavía son simulados.</p>
             <div data-kardex-flujo></div>
             <div class="mt-3 rounded-r-lg border-l-4 border-primary bg-primary-soft px-4 py-3 text-sm leading-relaxed text-slate-700">
                 Todas las flechas son <b>netas</b> (envío − devolución), por eso cuadran con las columnas del libro. Dentro de cada caja:
@@ -53,7 +60,7 @@
             </div>
         </section>
         <section class="rounded-xl border border-line bg-surface p-4 shadow-sm md:p-5">
-            <h2 class="text-sm font-bold uppercase tracking-wide text-blue-900">Producción diaria por proceso (kg por día)</h2>
+            <h2 class="flex flex-wrap items-center gap-2 text-sm font-bold uppercase tracking-wide text-blue-900">Producción diaria por proceso (kg por día) <x-ui.badge tone="warning">Simulado</x-ui.badge></h2>
             <div class="mt-2 flex flex-wrap gap-4 text-caption text-ink-muted">
                 <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-[#2a78d6]"></span>Urdido (julios urdidos)</span>
                 <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-[#eb6834]"></span>Engomado (julios tela)</span>
@@ -75,6 +82,7 @@
     {{-- 3. Qué se tejió (Crudo) --}}
     <div role="tabpanel" id="kardex-panel-crudo" aria-labelledby="kardex-tab-crudo" class="space-y-4" hidden>
         <div data-kardex-crudo-kpis></div>
+        <x-ui.alert type="warning" :dismissible="false" message="El detalle por artículo, telar y segundas es simulado: sale del archivo de Entradas a Crudo, que todavía no se carga. Del libro vienen la producción del mes y la columna «kg KdxCrudo»." />
         <h2 class="text-sm font-bold uppercase tracking-wide text-blue-900">Artículos tejidos — piezas, kg, tamaños, telares y segundas</h2>
         <div class="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface p-3">
             <label class="flex flex-col gap-1 text-caption font-semibold text-ink-muted">Buscar
@@ -108,6 +116,7 @@
 
     {{-- 4. Cuadre 3 fuentes --}}
     <div role="tabpanel" id="kardex-panel-cuadre" aria-labelledby="kardex-tab-cuadre" class="space-y-4" hidden>
+        <x-ui.alert type="warning" :dismissible="false" message="Simulado: el cuadre necesita el respaldo del inventario del ERP y el archivo de movimientos del mes." />
         <h2 class="text-sm font-bold uppercase tracking-wide text-blue-900">Verificación de la base: hojas Kdx del libro vs archivo de movimientos (kg)</h2>
         <div data-kardex-verificacion></div>
         <div class="rounded-r-lg border-l-4 border-primary bg-primary-soft px-4 py-3 text-sm text-slate-700">
@@ -164,6 +173,7 @@
 
     {{-- 5. Correspondencia E↔S --}}
     <div role="tabpanel" id="kardex-panel-correspondencia" aria-labelledby="kardex-tab-correspondencia" class="space-y-4" hidden>
+        <x-ui.alert type="warning" :dismissible="false" message="Simulado: la correspondencia E↔S necesita el archivo de movimientos del mes." />
         <div data-kardex-corresp-kpis></div>
         <div class="rounded-r-lg border-l-4 border-primary bg-primary-soft px-4 py-3 text-sm text-slate-700" data-kardex-corresp-encabezado></div>
         <h2 class="text-sm font-bold uppercase tracking-wide text-blue-900">Traspasos entre almacenes — lo que salió del origen vs lo que entró al destino (kg)</h2>

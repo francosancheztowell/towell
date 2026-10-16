@@ -1,11 +1,15 @@
 /**
  * Kardex Materia Prima y Producción en Proceso (/kardex). Vista: resources/views/modulos/kardex/index.blade.php.
  * Cada pestaña se monta la primera vez que se abre (las gráficas necesitan su panel visible).
- * Datos: simulados (./datos-simulados.ts) hasta conectar el backend.
+ * Datos: el libro del mes (/kardex/datos/libro) sobre los simulados (./datos-simulados.ts) para lo
+ * que el libro todavía no trae (MP, pretejidos, detalle de crudo, cuadre ERP, correspondencia).
  */
 import Chart from 'chart.js/auto';
 import { onReady, qsa } from '../../utils/dom.ts';
+import { http } from '../../utils/http.ts';
+import { notify } from '../../utils/notifications.ts';
 import { datosSimulados } from './datos-simulados.ts';
+import { aplicarLibro, type LibroKardex, type Periodo } from './libro.ts';
 import { montarCorrespondencia } from './secciones/correspondencia.ts';
 import { montarCrudo } from './secciones/crudo.ts';
 import { montarCuadre } from './secciones/cuadre.ts';
@@ -21,10 +25,55 @@ const MONTAJES: Record<string, (raiz: HTMLElement, d: DatosKardex) => void> = {
     correspondencia: montarCorrespondencia,
 };
 
-function iniciar(): void {
+const NOMBRE_MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+/** Mes pedido en la URL (?anio=2026&mes=8) si está entre los disponibles; si no, el más reciente. */
+function periodoElegido(periodos: Periodo[]): Periodo | undefined {
+    const q = new URLSearchParams(location.search);
+    const anio = Number(q.get('anio'));
+    const mes = Number(q.get('mes'));
+
+    return periodos.find((p) => p.anio === anio && p.mes === mes) ?? periodos[0];
+}
+
+/** Libro del mes mezclado con lo simulado; si el backend falla, solo lo simulado. */
+async function cargarDatos(raiz: HTMLElement): Promise<DatosKardex> {
+    const select = raiz.querySelector<HTMLSelectElement>('[data-kardex-periodo-select]');
+    const fuente = raiz.querySelector<HTMLElement>('[data-kardex-fuente]');
+    try {
+        const { periodos } = await http.get<{ periodos: Periodo[] }>(raiz.dataset.urlPeriodos ?? '');
+        const periodo = periodoElegido(periodos);
+        if (!periodo) throw new Error('Sin meses con libro');
+        if (select) {
+            select.replaceChildren(
+                ...periodos.map((p) => {
+                    const op = new Option(`${NOMBRE_MES[p.mes - 1] ?? p.mes} ${p.anio}`, `${p.anio}-${p.mes}`);
+                    op.selected = p === periodo;
+                    return op;
+                }),
+            );
+            select.disabled = false;
+            select.addEventListener('change', () => {
+                const [anio, mes] = select.value.split('-');
+                location.search = new URLSearchParams({ anio: anio ?? '', mes: mes ?? '' }).toString();
+            });
+        }
+        const libro = await http.get<LibroKardex>(raiz.dataset.urlLibro ?? '', { params: periodo });
+        if (fuente) fuente.textContent = 'Libro (hojas Kdx) · resto simulado';
+
+        return aplicarLibro(datosSimulados, libro);
+    } catch {
+        notify.warning('No se pudo cargar el libro del Kardex: se muestran datos simulados.');
+        if (fuente) fuente.textContent = 'Datos simulados';
+
+        return datosSimulados;
+    }
+}
+
+async function iniciar(): Promise<void> {
     const raiz = document.querySelector<HTMLElement>('[data-kardex]');
     if (!raiz) return;
-    const datos = datosSimulados;
+    const datos = await cargarDatos(raiz);
 
     Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
     Chart.defaults.color = '#64748b';
@@ -70,4 +119,4 @@ function iniciar(): void {
     if (inicial) activar(inicial);
 }
 
-onReady(iniciar);
+onReady(() => void iniciar());

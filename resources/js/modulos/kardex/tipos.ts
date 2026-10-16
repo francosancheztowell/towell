@@ -45,6 +45,8 @@ export interface SeccionKardex {
     encabezados: string[];
     renglones: Renglon[];
     total: Renglon | null;
+    /** No viene del libro (MP y pretejidos todavía no se conectan). */
+    simulado?: boolean;
 }
 
 export interface ArticuloKardex {
@@ -193,4 +195,10 @@ export interface DatosKardex {
     columnasKdx: ColumnasKdx[];
     correspondencia: Correspondencia;
     crudo: Crudo;
+    /** Inicial y final del libro por almacén, cuando la página ya cargó el libro del mes. */
+    libro?: {
+        nodos: Record<string, { inicial: number; final: number }>;
+        aristas: Record<string, number>;
+        crudoKg: number;
+    };
 }

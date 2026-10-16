@@ -30,6 +30,9 @@ const ICONO: Record<string, string> = {
     pteitema: 'fa-scissors',
 };
 
+const marcaSimulado = (s: SeccionKardex): HTMLElement | null =>
+    s.simulado ? h('span', { class: 'rounded bg-amber-300 px-2 py-0.5 text-caption font-semibold uppercase text-amber-950' }, 'Simulado') : null;
+
 const icono = (clave: string): HTMLElement => h('i', { class: `fas ${ICONO[clave] ?? 'fa-box'} opacity-90`, 'aria-hidden': 'true' });
 
 const celda = (v: Celda | undefined, negrita = false): HTMLElement => {
@@ -208,7 +211,7 @@ function tarjetaPretejido(d: DatosKardex, s: SeccionKardex): HTMLElement {
     const boton = h(
         'button',
         { type: 'button', class: 'block w-full overflow-hidden rounded-xl border border-line bg-surface text-left shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary' },
-        encabezadoAlmacen(ALMACEN_SECCION[s.clave] ?? '', icono(s.clave), h('span', {}, s.titulo), chip(`Saldo ${kg(valores[iSaldo] as number)} kg`)),
+        encabezadoAlmacen(ALMACEN_SECCION[s.clave] ?? '', icono(s.clave), h('span', {}, s.titulo), marcaSimulado(s), chip(`Saldo ${kg(valores[iSaldo] as number)} kg`)),
         h('div', { class: 'divide-y divide-slate-100' }, ...renglones),
     );
     boton.addEventListener('click', () => modalArticulos(d, s, '*'));
@@ -243,6 +246,7 @@ export function montarKardexAlmacen(raiz: HTMLElement, d: DatosKardex): void {
                     h('i', { class: `fas fa-chevron-down text-xs transition-transform ${cerrada ? '-rotate-90' : ''}`, 'aria-hidden': 'true' }),
                     icono(s.clave),
                     h('span', {}, s.titulo),
+                    marcaSimulado(s),
                     chip(`${s.clave === 'mp' ? 'Final' : 'Saldo'} ${typeof saldo === 'number' ? kg(saldo) : '—'} kg`),
                 ),
             );

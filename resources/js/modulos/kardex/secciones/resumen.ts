@@ -2,19 +2,26 @@
 import Chart from 'chart.js/auto';
 import { montarDiagramaFlujo, type AristaFlujo, type NodoFlujo } from '../../../componentes/diagrama-flujo/index.ts';
 import { ejemploKardex, type DatosAristaKardex } from '../../../componentes/diagrama-flujo/ejemplo-kardex.ts';
+import { esSimulado, flujoConLibro } from '../libro.ts';
 import { estadoCuadre } from '../logica.ts';
 import type { DatosKardex } from '../tipos.ts';
-import { abrirModal, claseNumero, kg, kg0, tabla, tarjetasKpi } from '../ui.ts';
+import { abrirModal, claseNumero, kg, kg0, tabla, tarjetasKpi, type Kpi } from '../ui.ts';
 
 export const COLORES_PROCESO = { urdido: '#2a78d6', engomado: '#eb6834', tejido: '#1baf7a' } as const;
 
-function detalleNodo(d: DatosKardex, nodo: NodoFlujo): void {
+function resumenNodo(d: DatosKardex, nodo: NodoFlujo): Kpi[] {
+    const libro = d.libro?.nodos[nodo.id];
+    if (libro) {
+        return [
+            { titulo: 'Inicial (libro)', valor: kg(libro.inicial), unidad: 'kg' },
+            { titulo: 'Final (libro)', valor: kg(libro.final), unidad: 'kg' },
+            { titulo: 'Variación', valor: kg(libro.final - libro.inicial), unidad: 'kg' },
+        ];
+    }
     const c = d.cuadre.find((x) => x.alm === nodo.id);
-    const articulos = (d.articulos[nodo.id] ?? []).slice(0, 10);
     const estado = c ? estadoCuadre(c.finalErp, c.metaLibro) : null;
-    abrirModal({
-        titulo: `${nodo.id} · ${nodo.subtitulo ?? ''}`,
-        resumen: c
+
+    return c
             ? [
                   { titulo: 'Inicial', valor: kg(c.inicial), unidad: 'kg' },
                   { titulo: 'Entradas', valor: kg(c.entradas), unidad: 'kg' },
@@ -22,7 +29,14 @@ function detalleNodo(d: DatosKardex, nodo: NodoFlujo): void {
                   { titulo: 'Final ERP', valor: kg(c.finalErp), unidad: 'kg' },
                   { titulo: 'Meta libro', valor: kg(c.metaLibro), unidad: 'kg', detalle: estado?.texto ?? '' },
               ]
-            : [{ titulo: 'Producción del mes', valor: nodo.valor ?? '—' }],
+            : [{ titulo: 'Producción del mes', valor: nodo.valor ?? '—' }];
+}
+
+function detalleNodo(d: DatosKardex, nodo: NodoFlujo): void {
+    const articulos = (d.articulos[nodo.id] ?? []).slice(0, 10);
+    abrirModal({
+        titulo: `${nodo.id} · ${nodo.subtitulo ?? ''}${esSimulado(nodo.datos) ? ' (simulado)' : ''}`,
+        resumen: resumenNodo(d, nodo),
         cuerpo: articulos.length
             ? tabla(
                   [
@@ -43,7 +57,7 @@ function detalleArista(arista: AristaFlujo): void {
     const datos = arista.datos as DatosAristaKardex | undefined;
     const desglose = datos?.desglose ?? [];
     abrirModal({
-        titulo: `${arista.de} → ${arista.a}`,
+        titulo: `${arista.de} → ${arista.a}${esSimulado(arista.datos) ? ' (simulado)' : ''}`,
         resumen: [{ titulo: 'Flujo neto', valor: kg0(desglose.reduce((a, x) => a + x.kg, 0)), unidad: 'kg', detalle: 'envío − devolución' }],
         cuerpo: tabla([{ titulo: 'Concepto', texto: true, celda: (x) => x.concepto }, { titulo: 'kg', celda: (x) => kg(x.kg) }], desglose),
     });
@@ -81,19 +95,21 @@ export function montarResumen(raiz: HTMLElement, d: DatosKardex): void {
     const k = d.kpis;
     raiz.querySelector('[data-kardex-kpis]')?.replaceChildren(
         tarjetasKpi([
-            { titulo: 'Consumo MP + MPBB', valor: kg0(k.consumoMp + k.consumoMpbb), unidad: 'kg', detalle: `MP ${kg0(k.consumoMp)} · MPBB ${kg0(k.consumoMpbb)} (neto de devoluciones)` },
-            { titulo: 'Producción julios urdidos', valor: kg0(k.julUrd), unidad: 'kg', detalle: 'urdidoras MC1–MC3 y KM1 → A-JUL/URD' },
-            { titulo: 'Producción julios tela', valor: kg0(k.julTela), unidad: 'kg', detalle: 'engomadoras WP → A-JUL/TELA' },
-            { titulo: 'Producción de tejido', valor: kg(k.crudoKg), unidad: 'kg', detalle: `${kg0(k.crudoPz)} piezas · archivo de crudo = KdxCrudo al centavo (sin rasurado)` },
+            { titulo: 'Consumo MP + MPBB', valor: kg0(k.consumoMp + k.consumoMpbb), unidad: 'kg', detalle: `MP ${kg0(k.consumoMp)} · MPBB ${kg0(k.consumoMpbb)} (neto de devoluciones)${d.libro ? ' · simulado' : ''}` },
+            { titulo: 'Producción julios urdidos', valor: kg0(k.julUrd), unidad: 'kg', detalle: 'entradas de MC1–MC3 y KM1 a A-JUL/URD' },
+            { titulo: 'Producción julios tela', valor: kg0(k.julTela), unidad: 'kg', detalle: 'entradas de las engomadoras WP a A-JUL/TELA' },
+            { titulo: 'Producción de tejido', valor: kg(k.crudoKg), unidad: 'kg', detalle: `${kg0(k.crudoPz)} piezas · KdxCrudo sin rasurado` },
         ]),
     );
 
     const flujo = raiz.querySelector<HTMLElement>('[data-kardex-flujo]');
     if (flujo) {
-        montarDiagramaFlujo(flujo, ejemploKardex, {
+        const marca = (datos: unknown): string => (esSimulado(datos) ? '\n(simulado)' : '');
+        montarDiagramaFlujo(flujo, d.libro ? flujoConLibro(ejemploKardex, d.libro) : ejemploKardex, {
             onNodo: (n) => detalleNodo(d, n),
             onArista: detalleArista,
-            tooltipArista: (a) => `${a.de} → ${a.a}\n${a.etiqueta} kg · clic para el desglose`,
+            tooltipNodo: (n) => [n.titulo, n.subtitulo, n.valor, n.nota].filter(Boolean).join('\n') + marca(n.datos),
+            tooltipArista: (a) => `${a.de} → ${a.a}\n${a.etiqueta} kg · clic para el desglose${marca(a.datos)}`,
         });
     }
 
