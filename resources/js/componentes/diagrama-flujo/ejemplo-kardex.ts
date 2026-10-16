@@ -3,7 +3,8 @@ import type { AristaFlujo, DiagramaFlujo, NodoFlujo } from './tipos.ts';
 
 /**
  * Fixture estático del flujo de almacenes del Kardex de agosto 2026
- * (Kardex_Materia_Prima_y_Produccion_en_Proceso_Agosto_2026.html, flow()). Solo para la galería.
+ * (Kardex_Materia_Prima_y_Produccion_en_Proceso_Agosto_2026.html, flow()). Lo usan la galería y el
+ * módulo Kardex (resources/js/modulos/kardex) mientras sus datos son simulados.
  */
 
 export interface DatosNodoKardex {
