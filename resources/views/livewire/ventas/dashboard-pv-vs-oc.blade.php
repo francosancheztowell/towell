@@ -41,6 +41,8 @@
             <div class="pvoc-subpanel" role="region" aria-label="Resumen General" data-pvoc-subpanel="resumen">
                 <div class="pvoc-card-header">
                 </div>
+                {{-- KPIs de cierre (closingKpis en compara.ts) sobre los mismos filtros que la tabla. --}}
+                <div class="pvoc-kpis" data-pvoc-kpis aria-live="polite"></div>
                 <div class="pvoc-table-scroll" data-pvoc-table="summary">@include('livewire.ventas.partials.cargando')</div>
             </div>
 
@@ -100,19 +102,6 @@
 
             <div class="ph-head">
                 <div class="ph-kpis" data-ph-kpis aria-live="polite"></div>
-                <div class="ph-toolbar">
-                    <label class="ph-search">
-                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                        <input type="search" data-ph-search placeholder="Buscar cliente, OC, artículo, color o código…" aria-label="Buscar en pedidos" autocomplete="off">
-                    </label>
-                    <div class="ph-depth" data-ph-depth role="group" aria-label="Abrir el árbol hasta">
-                        <span class="ph-depth-label">Abrir hasta</span>
-                        <button type="button" data-ph-depth-value="1" aria-pressed="false">Tipo</button>
-                        <button type="button" data-ph-depth-value="2" aria-pressed="true">Cliente</button>
-                        <button type="button" data-ph-depth-value="3" aria-pressed="false">OC</button>
-                        <button type="button" data-ph-depth-value="4" aria-pressed="false">Artículo</button>
-                    </div>
-                </div>
                 <div class="ph-chips" data-ph-chips></div>
             </div>
             <div class="pvoc-table-scroll ph-scroll" data-ph-table>@include('livewire.ventas.partials.cargando')</div>

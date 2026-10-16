@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-    PANEL_LAYOUT, columnCount, elapsedFraction, expectedCompliance, mexicoToday, rowClass,
+    PANEL_LAYOUT, closingKpis, columnCount, elapsedFraction, expectedCompliance, mexicoToday, rowClass,
 } from '../../resources/js/ventas/compara.ts';
 
 test('VtasR. vs PlanVtas shows Plan and Real without the Pedido column', () => {
@@ -64,4 +64,37 @@ test('expectedCompliance = plan pieces due by today ÷ total plan pieces × 100'
 test('mexicoToday uses the America/Mexico_City date, not UTC', () => {
     // 2026-10-15 03:00 UTC is still 2026-10-14 in Mexico City.
     assert.deepEqual(mexicoToday(new Date('2026-10-15T03:00:00Z')), { anio: 2026, mes: 10, dia: 14 });
+});
+
+// KPIs de Resumen General: en pesos (V.N.) salvo la proyección por Kg; días naturales del mes.
+const kpiRow = (mes: string, planVn: number, realVn: number, planKg = 0, realKg = 0) =>
+    ({ anio: '2026', mes, plan: { vn: planVn, kilos: planKg }, real: { vn: realVn, kilos: realKg } });
+
+test('closingKpis: plan, real al corte, diferencia, avance, proyección y ritmo del mes en curso', () => {
+    // 16 de octubre (31 días): van 16, faltan 15.
+    const kpis = closingKpis([kpiRow('10', 1000, 400, 300, 120), kpiRow('10', 2100, 500, 0, 30)], { anio: 2026, mes: 10, dia: 16 });
+    assert.equal(kpis.plan, 3100);
+    assert.equal(kpis.real, 900);
+    assert.equal(kpis.diferencia, 2200);
+    assert.equal(kpis.avance.toFixed(2), (900 / 3100 * 100).toFixed(2));
+    assert.equal(kpis.avanceEsperado.toFixed(2), (16 / 31 * 100).toFixed(2));
+    assert.equal(kpis.proyeccion.toFixed(4), (900 / (16 / 31)).toFixed(4));
+    assert.equal(kpis.proyeccionKg.toFixed(4), (150 / (16 / 31)).toFixed(4));
+    assert.equal(kpis.planKg, 300);
+    assert.equal(kpis.diasRestantes, 15);
+    assert.equal(kpis.ritmo!.toFixed(4), (2200 / 15).toFixed(4));
+});
+
+test('closingKpis: un mes cerrado proyecta lo vendido y no pide ritmo', () => {
+    const kpis = closingKpis([kpiRow('9', 1000, 1200)], { anio: 2026, mes: 10, dia: 16 });
+    assert.equal(kpis.proyeccion, 1200);
+    assert.equal(kpis.diferencia, -200);
+    assert.equal(kpis.diasRestantes, 0);
+    assert.equal(kpis.ritmo, null);
+});
+
+test('closingKpis: sin plan el avance es 0 y una meta ya superada pide ritmo 0', () => {
+    assert.equal(closingKpis([kpiRow('10', 0, 50)], { anio: 2026, mes: 10, dia: 16 }).avance, 0);
+    assert.equal(closingKpis([kpiRow('10', 100, 150)], { anio: 2026, mes: 10, dia: 16 }).ritmo, 0);
+    assert.equal(closingKpis([], { anio: 2026, mes: 10, dia: 16 }).plan, 0);
 });

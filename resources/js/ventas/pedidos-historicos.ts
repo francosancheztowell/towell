@@ -5,20 +5,20 @@
  * en cada nivel de grupo; las columnas son solo las medidas, que todas las filas tienen.
  * Se pinta con nodos (textContent), no con innerHTML: los textos vienen de la base.
  */
-import { debounce, formatNumber } from '../utils/format';
+import { formatNumber } from '../utils/format';
 import { http } from '../utils/http';
 import { createMultiSelect, type MultiSelect } from './multi-select';
 import { bindRowSelection } from './row-selection';
 import {
-    ESTATUS, FILTER_KEYS, LEVELS, LEVEL_LABELS, buildTree, decodePedidos, isOpen, matchesLine, monthName, progress, sumLines,
+    ESTATUS, FILTER_KEYS, LEVEL_LABELS, buildTree, decodePedidos, isOpen, matchesLine, monthName, progress, sumLines,
     type FilterKey, type Filters, type PedidoLinea, type PedidosPayload, type Totals, type TreeNode,
 } from './pedidos-logica';
 
 /** Más filas que esto vuelven lenta la tabla en tablet; se avisa para acotar con filtros o búsqueda. */
 const MAX_ROWS = 2500;
-/** Con una búsqueda que deja pocas líneas se abre todo el árbol para ver los artículos encontrados. */
-const SEARCH_OPEN_ALL = 400;
 const COLUMNS = 6;
+/** Niveles abiertos al entrar (Empresa y Tipo): se ven los clientes de cada tipo, como en el Excel. */
+const OPEN_DEPTH = 2;
 
 const LEVEL_ICONS: Record<TreeNode['level'], string> = {
     empresa: 'fa-industry', tipo: 'fa-tag', cliente: 'fa-building', oc: 'fa-file-lines',
@@ -119,8 +119,6 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
         chips: root.querySelector<HTMLElement>('[data-ph-chips]')!,
         table: root.querySelector<HTMLElement>('[data-ph-table]')!,
         slicers: root.querySelector<HTMLElement>('[data-ph-slicers]')!,
-        search: root.querySelector<HTMLInputElement>('[data-ph-search]')!,
-        depth: root.querySelector<HTMLElement>('[data-ph-depth]')!,
     };
 
     const loaded = new Map<string, PedidoLinea[]>();
@@ -132,7 +130,8 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
     values.anio.push(...years);
     values.estatus.push(ESTATUS.pendiente, ESTATUS.completo);
 
-    const state = { search: '', openDepth: 2, toggled: new Set<string>() };
+    /** Nodos que el usuario abrió o cerró con su flecha. */
+    const state = { toggled: new Set<string>() };
 
     // --- Datos por año -------------------------------------------------------
 
@@ -168,7 +167,7 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
 
     const syncPickers = (lines: PedidoLinea[]) => FILTER_KEYS.forEach((key) => {
         if (key === 'anio') return pickers.anio.sync();
-        pickers[key].setAvailable(new Set(lines.filter((line) => matchesLine(line, filters, '', key)).map((line) => line[key])));
+        pickers[key].setAvailable(new Set(lines.filter((line) => matchesLine(line, filters, key)).map((line) => line[key])));
     });
 
     const renderChips = () => {
@@ -195,13 +194,12 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
     };
 
     const treeRows = (lines: PedidoLinea[]) => {
-        const openDepth = state.search && lines.length <= SEARCH_OPEN_ALL ? LEVELS.length : state.openDepth;
         const rows: HTMLElement[] = [];
         let truncated = false;
         const push = (row: () => HTMLElement) => { if (rows.length < MAX_ROWS) rows.push(row()); else truncated = true; };
 
         const walk = (nodes: TreeNode[]) => nodes.forEach((node) => {
-            const open = isOpen(node, openDepth, state.toggled);
+            const open = isOpen(node, OPEN_DEPTH, state.toggled);
             push(() => groupRow(node, open));
             if (!open || truncated) return;
             if (node.level === 'oc') node.lines.forEach((line, i) => push(() => articleRow(line, `${node.id}#${i}`, node.depth + 1)));
@@ -216,7 +214,7 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
         const pending = missingYears();
         const failedYears = wantedYears().filter((year) => failed.has(year));
         const notices = [
-            truncated && `Se muestran las primeras ${formatNumber(MAX_ROWS, 0)} filas. Filtra o busca para acotar, o abre menos niveles.`,
+            truncated && `Se muestran las primeras ${formatNumber(MAX_ROWS, 0)} filas. Usa Filtrar para acotar o cierra algunos niveles.`,
             pending.length > 0 && `Cargando ${pending.join(', ')}…`,
             failedYears.length > 0 && `No se pudieron cargar los pedidos de ${failedYears.join(', ')}.`,
         ].filter((text): text is string => Boolean(text)).map((text) => messageRow(text, 'ph-aviso'));
@@ -237,13 +235,11 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
 
     const render = () => {
         const base = allLines();
-        const filtered = base.filter((line) => matchesLine(line, filters, state.search));
+        const filtered = base.filter((line) => matchesLine(line, filters));
         syncPickers(base);
         renderChips();
         renderKpis(filtered);
         renderTable(filtered);
-        elements.depth.querySelectorAll<HTMLElement>('[data-ph-depth-value]').forEach((button) =>
-            button.setAttribute('aria-pressed', String(Number(button.dataset.phDepthValue) === state.openDepth)));
         const count = FILTER_KEYS.filter((key) => filters[key].size).length;
         root.closest('[data-ventas-pvoc-dashboard]')?.dispatchEvent(new CustomEvent('pvoc:filtros', { detail: { tab: 'pedidos', count } }));
     };
@@ -268,22 +264,12 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
         render();
     });
 
-    elements.depth.addEventListener('click', (event) => {
-        const button = (event.target as Element).closest<HTMLElement>('[data-ph-depth-value]');
-        if (!button) return;
-        state.openDepth = Number(button.dataset.phDepthValue);
-        state.toggled.clear();
-        render();
-    });
-
     elements.chips.addEventListener('click', (event) => {
         const chipButton = (event.target as Element).closest<HTMLElement>('[data-ph-chip]');
         if (!chipButton) return;
         filters[chipButton.dataset.phChip as FilterKey]?.delete(chipButton.dataset.phValue ?? '');
         void update();
     });
-
-    elements.search.addEventListener('input', debounce(() => { state.search = elements.search.value.trim(); render(); }, 250));
 
     root.querySelector('[data-ph-clear-all]')?.addEventListener('click', () => {
         FILTER_KEYS.forEach((key) => filters[key].clear());
