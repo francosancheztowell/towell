@@ -49,6 +49,18 @@ class TrazabilidadFiltersTest extends TestCase
         $this->assertFalse($filters->hasAny());
         $this->assertNull($filters->flogUnico());
 
+        // Varios años y meses: lista ordenada sin repetidos ni inválidos.
+        $varios = TrazabilidadFilters::fromArray(['anio' => ['2026', '2025', '26', '2026'], 'mes' => '03,1,13']);
+        $this->assertSame('2025,2026', $varios->anio);
+        $this->assertSame('1,3', $varios->mes);
+        $this->assertSame([2025, 2026], $varios->anios());
+        $this->assertSame([1, 3], $varios->meses());
+        $this->assertSame([
+            ['2025-01-01', '2025-02-01'], ['2025-03-01', '2025-04-01'],
+            ['2026-01-01', '2026-02-01'], ['2026-03-01', '2026-04-01'],
+        ], $varios->rangos());
+        $this->assertSame([['2026-01-01', '2027-01-01']], TrazabilidadFilters::fromArray(['anio' => '2026'])->rangos());
+
         // Mes sin año no aplica.
         $this->assertSame('', TrazabilidadFilters::fromArray(['mes' => '5'])->mes);
         // Lista, rango o comodín: no hay un Flog único.

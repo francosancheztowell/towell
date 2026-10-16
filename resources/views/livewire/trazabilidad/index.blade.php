@@ -66,10 +66,10 @@
 
                 <div class="flex min-w-0 flex-col gap-1">
                     <flux:label for="filtro-anio">Año</flux:label>
-                    <select id="filtro-anio" class="filtro-select" data-livewire-filter="anio">
-                        <option value="">Todos</option>
+                    {{-- Solo los años y meses con movimiento; varios a la vez. --}}
+                    <select id="filtro-anio" class="filtro-select" multiple data-livewire-filter="anio">
                         @foreach ($opcionesAnio as $option)
-                            <option value="{{ $option }}" @selected($anio === (string) $option)>{{ $option }}</option>
+                            <option value="{{ $option }}" @selected(in_array((string) $option, explode(',', $anio), true))>{{ $option }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -77,11 +77,10 @@
                 <div class="flex min-w-0 flex-col gap-1">
                     <flux:label for="filtro-mes">Mes</flux:label>
                     {{-- Mes solo con año: sin año no hay un periodo que acotar. --}}
-                    <select id="filtro-mes" class="filtro-select" data-livewire-filter="mes" @if ($anio === '') data-bloqueado @endif
+                    <select id="filtro-mes" class="filtro-select" multiple data-livewire-filter="mes" @if ($anio === '') data-bloqueado @endif
                             @if ($anio === '') title="Elige un año primero" @endif>
-                        <option value="">{{ $anio === '' ? 'Elige año' : 'Todos' }}</option>
-                        @foreach ($meses as $numero => $nombre)
-                            <option value="{{ $numero + 1 }}" @selected($mes === (string) ($numero + 1))>{{ $nombre }}</option>
+                        @foreach ($opcionesMes as $numero)
+                            <option value="{{ $numero }}" @selected(in_array((string) $numero, explode(',', $mes), true))>{{ $meses[$numero] }}</option>
                         @endforeach
                     </select>
                 </div>

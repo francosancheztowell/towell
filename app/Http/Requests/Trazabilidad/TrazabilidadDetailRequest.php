@@ -23,8 +23,9 @@ final class TrazabilidadDetailRequest extends FormRequest
             'tamano' => ['nullable', 'string', 'max:2000'],
             'cliente' => ['nullable', 'array', 'max:100'],
             'cliente.*' => ['string', 'max:100'],
-            'anio' => ['nullable', 'digits:4'],
-            'mes' => ['nullable', 'integer', 'between:1,12'],
+            // Años y meses: lista con comas ('2025,2026'); el VO descarta lo que no sea válido.
+            'anio' => ['nullable', 'string', 'max:100'],
+            'mes' => ['nullable', 'string', 'max:100'],
             // Detalle Flog con varios Flogs: cuál mostrar.
             'ver' => ['nullable', 'string', 'max:25'],
         ];

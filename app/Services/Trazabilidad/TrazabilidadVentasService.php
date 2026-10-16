@@ -7,6 +7,7 @@ namespace App\Services\Trazabilidad;
 use App\Models\Trazabilidad\TrazaProduccion;
 use App\Models\Ventas\TwHistVtasModel;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Throwable;
@@ -31,12 +32,13 @@ class TrazabilidadVentasService
     /**
      * @param  list<string>  $flogs
      * @param  array{desde: string, pares: list<array{0: string, 1: string}>}|null  $stock  ver stock()
+     * @param  list<array{0: string, 1: string}>  $rangos  Solo facturas con fecha en estos rangos [desde, hasta) (TrazabilidadFilters::rangos()); vacío = todas.
      * @return array{cantidades: array<string, float>, importes: array<string, float>, clientes: list<array<string, mixed>>, totalClientes: int, ultima: ?string, stockDesde: ?string}|null null = sin Flog o sin conexión
      */
-    public function resumen(array $flogs, ?array $stock = null): ?array
+    public function resumen(array $flogs, ?array $stock = null, array $rangos = []): ?array
     {
-        return $this->conCache('resumen_v2', $flogs, $stock, fn (array $flogs): array => [
-            ...self::resumir($this->consultar($flogs, $stock)),
+        return $this->conCache('resumen_v2', $flogs, [$stock, $rangos], fn (array $flogs): array => [
+            ...self::resumir($this->consultar($flogs, $stock, $rangos)),
             'stockDesde' => $stock ? Carbon::parse($stock['desde'])->format('d/m/Y') : null,
         ]);
     }
@@ -46,12 +48,13 @@ class TrazabilidadVentasService
      *
      * @param  list<string>  $flogs
      * @param  array{desde: string, pares: list<array{0: string, 1: string}>}|null  $stock  ver stock()
+     * @param  list<array{0: string, 1: string}>  $rangos  ver resumen()
      * @return array<string, mixed>|null null = sin Flog o sin conexión
      */
-    public function detalle(array $flogs, ?array $stock = null): ?array
+    public function detalle(array $flogs, ?array $stock = null, array $rangos = []): ?array
     {
-        return $this->conCache('detalle_v4', $flogs, $stock, fn (array $flogs): array => self::armarDetalle(
-            $this->consultarLineas($flogs, $stock),
+        return $this->conCache('detalle_v4', $flogs, [$stock, $rangos], fn (array $flogs): array => self::armarDetalle(
+            $this->consultarLineas($flogs, $stock, $rangos),
             $this->producidoTerminado($flogs),
         ));
     }
@@ -92,7 +95,7 @@ class TrazabilidadVentasService
     /**
      * @param  list<string>  $flogs
      */
-    private function conCache(string $tipo, array $flogs, ?array $stock, callable $calcular): ?array
+    private function conCache(string $tipo, array $flogs, array $stock, callable $calcular): ?array
     {
         $flogs = array_values(array_unique(array_filter(array_map('trim', $flogs))));
         if ($flogs === []) {
@@ -120,10 +123,10 @@ class TrazabilidadVentasService
     /**
      * @param  list<string>  $flogs
      */
-    private function consultar(array $flogs, ?array $stock): Collection
+    private function consultar(array $flogs, ?array $stock, array $rangos): Collection
     {
         // ponytail: lee del índice IX_TwHistoricosVentas_IdFlog (13–39 ms medido); caché de 10 min encima.
-        return $this->porLotes($flogs, $stock, fn ($query) => $query
+        return $this->porLotes($flogs, $stock, $rangos, fn ($query) => $query
             // selectRaw: agregados con alias que lee resumir().
             ->selectRaw('CUSTNAME AS cliente, UNITID AS unidad, CURRENCYCODE AS moneda,
                 SUM(QTY) AS cantidad, SUM(AMOUNTNETO) AS importe, MAX(FECHAFACTURA) AS ultima')
@@ -135,9 +138,9 @@ class TrazabilidadVentasService
      *
      * @param  list<string>  $flogs
      */
-    private function consultarLineas(array $flogs, ?array $stock): Collection
+    private function consultarLineas(array $flogs, ?array $stock, array $rangos): Collection
     {
-        return $this->porLotes($flogs, $stock, fn ($query) => $query
+        return $this->porLotes($flogs, $stock, $rangos, fn ($query) => $query
             // selectRaw: agregados con alias que lee armarDetalle().
             ->selectRaw('INVOICEID AS folio, FECHAFACTURA AS fecha, PURCHASEORDERID AS oc, CUSTNAME AS cliente,
                 TIPODOCUMENTO AS tipo, CURRENCYCODE AS moneda, UNITID AS unidad,
@@ -150,35 +153,91 @@ class TrazabilidadVentasService
      * a juntar por cliente y por factura, así que partir en consultas no cuenta doble.
      *
      * @param  list<string>  $flogs
+     * @param  list<array{0: string, 1: string}>  $rangos
      */
-    private function porLotes(array $flogs, ?array $stock, callable $armar): Collection
+    private function porLotes(array $flogs, ?array $stock, array $rangos, callable $armar): Collection
     {
         $filas = collect();
+        // Año/mes de la pantalla: solo las facturas de esos periodos.
+        $armar = static fn (Builder $query) => $armar($query->where(function ($q) use ($rangos): void {
+            foreach ($rangos as [$desde, $hasta]) {
+                $q->orWhere(fn ($r) => $r->where('FECHAFACTURA', '>=', $desde)->where('FECHAFACTURA', '<', $hasta));
+            }
+        }));
 
         foreach (array_chunk($flogs, 1000) as $lote) {
             $filas = $filas->concat($armar(TwHistVtasModel::query()->toBase()->whereIn('IDFLOG', $lote))->get());
         }
 
-        // De 500 en 500 pares: 2 parámetros por par y SQL Server admite 2100.
-        foreach (array_chunk($stock['pares'] ?? [], 500) as $pares) {
-            $query = TwHistVtasModel::query()->toBase()
-                ->where(fn ($q) => $q->whereNull('IDFLOG')->orWhere('IDFLOG', ''))
-                ->where('FECHAFACTURA', '>=', $stock['desde'])
-                ->where(function ($q) use ($pares): void {
-                    // Los kits facturan varios artículos en un renglón: ITEMID '7216,7217' (3.46 M pza,
-                    // 33 códigos) y tamaño 'MB,UNI'. Se busca el código dentro de la lista, no igual.
-                    // '!' escapa los comodines de LIKE que traiga el código.
-                    $enLista = static fn (string $valor): string => '%,'.strtr($valor, ['!' => '!!', '%' => '!%', '_' => '!_', '[' => '![']).',%';
-                    foreach ($pares as [$articulo, $tamano]) {
-                        $q->orWhere(fn ($par) => $par
-                            ->whereRaw("',' + ITEMID + ',' LIKE ? ESCAPE '!'", [$enLista($articulo)])
-                            ->whereRaw("',' + INVENTSIZEID + ',' LIKE ? ESCAPE '!'", [$enLista($tamano)]));
-                    }
-                });
+        if ($stock === null) {
+            return $filas;
+        }
+
+        // De 500 en 500 combinaciones: 2 parámetros cada una y SQL Server admite 2100.
+        foreach (array_chunk($this->combosStock($stock), 500) as $combos) {
+            $query = $this->sinFlog($stock['desde'])->where(function ($q) use ($combos): void {
+                foreach ($combos as [$articulo, $tamano]) {
+                    $q->orWhere(fn ($par) => $par->where('ITEMID', $articulo)->where('INVENTSIZEID', $tamano));
+                }
+            });
             $filas = $filas->concat($armar($query)->get());
         }
 
         return $filas;
+    }
+
+    /** Renglones de factura sin Flog (stock) desde una fecha. */
+    private function sinFlog(string $desde): Builder
+    {
+        return TwHistVtasModel::query()->toBase()
+            ->where(fn ($q) => $q->whereNull('IDFLOG')->orWhere('IDFLOG', ''))
+            ->where('FECHAFACTURA', '>=', $desde);
+    }
+
+    /**
+     * Combinaciones ITEMID + INVENTSIZEID sin Flog que contienen alguno de los pares.
+     *
+     * Los kits facturan varios artículos en un renglón: ITEMID '7216,7217' y tamaño 'MB,UNI';
+     * el par cuenta si su código está dentro de la lista. Antes era un OR de hasta 500 pares
+     * con ',' + ITEMID + ',' LIKE '%,x,%': con un año o un mes (200+ pares) la consulta no
+     * usaba índice y tardaba minutos, y la pantalla se quedaba trabajando. Las combinaciones
+     * distintas sin Flog son pocas (350 desde 2025): se traen y se emparejan aquí.
+     *
+     * @param  array{desde: string, pares: list<array{0: string, 1: string}>}  $stock
+     * @return list<array{0: string, 1: string}>
+     */
+    private function combosStock(array $stock): array
+    {
+        $clave = static fn (string $articulo, string $tamano): string => mb_strtolower(trim($articulo))."\0".mb_strtolower(trim($tamano));
+        $pares = [];
+        foreach ($stock['pares'] as [$articulo, $tamano]) {
+            $pares[$clave($articulo, $tamano)] = true;
+        }
+
+        /** @var list<array{0: string, 1: string}> $combos */
+        $combos = Cache::remember(
+            self::CACHE_PREFIX.'_combos_'.app()->environment().'_'.$stock['desde'],
+            self::CACHE_TTL,
+            fn (): array => $this->sinFlog($stock['desde'])
+                ->whereNotNull('ITEMID')
+                ->whereNotNull('INVENTSIZEID')
+                ->distinct()
+                ->get(['ITEMID', 'INVENTSIZEID'])
+                ->map(static fn (object $f): array => [(string) $f->ITEMID, (string) $f->INVENTSIZEID])
+                ->all()
+        );
+
+        return array_values(array_filter($combos, static function (array $combo) use ($pares, $clave): bool {
+            foreach (explode(',', $combo[0]) as $articulo) {
+                foreach (explode(',', $combo[1]) as $tamano) {
+                    if (isset($pares[$clave($articulo, $tamano)])) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }));
     }
 
     /**

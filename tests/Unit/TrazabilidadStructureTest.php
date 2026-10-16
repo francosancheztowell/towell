@@ -172,7 +172,7 @@ class TrazabilidadStructureTest extends TestCase
     {
         $flog = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_flog.blade.php'));
 
-        $this->assertStringContainsString("['Facturado', \$facturado", $flog);
+        $this->assertStringContainsString("'Facturado', \$facturado", $flog);
         $this->assertStringContainsString("['Pendiente', \$pendiente", $flog);
         $this->assertStringContainsString('aria-label="Facturado', $flog);
     }

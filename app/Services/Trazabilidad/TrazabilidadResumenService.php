@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -15,6 +16,7 @@ class TrazabilidadResumenService
         private TrazabilidadMatrixService $matrixService,
         private TrazabilidadProgramaLookupService $programLookup,
         private TrazabilidadFlogsService $flogsAx,
+        private TrazabilidadVentasService $ventas,
     ) {}
 
     /**
@@ -58,6 +60,10 @@ class TrazabilidadResumenService
                 : null));
         $facturado = $facturacion['facturado'] ?? null;
         $pendienteFacturacion = $facturacion['porEntregar'] ?? null;
+        $rangos = TrazabilidadFilters::fromArray($filtros)->rangos();
+        if ($rangos !== [] && $flogs->isNotEmpty()) {
+            [$facturado, $pendienteFacturacion] = $this->facturadoDelPeriodo($flogs->all(), $rangos, $pedido);
+        }
         $produccionPrograma = $programas->isNotEmpty()
             ? (float) $programas->sum(fn ($programa) => (float) ($programa->Produccion ?? 0))
             : null;
@@ -83,6 +89,7 @@ class TrazabilidadResumenService
             'pedido' => $pedido,
             'facturado' => $facturado,
             'pendienteFacturacion' => $pendienteFacturacion,
+            'enPeriodo' => $rangos !== [],
             'cancelado' => $facturacion['cancelado'] ?? null,
             'lineasCanceladas' => $facturacion['lineasCanceladas'] ?? 0,
             'produccionPrograma' => $produccionPrograma,
@@ -94,6 +101,26 @@ class TrazabilidadResumenService
             'fechaFin' => $this->formatearFecha($fechaFin),
             'trazabilidadAreas' => $this->trazabilidadPorArea($totalesArea),
         ];
+    }
+
+    /**
+     * Con año/mes: AX no fecha lo facturado por línea, así que sale de las facturas
+     * (TwHistoricosVentas, piezas). Facturado = el de esos meses; pendiente = pedido menos
+     * lo facturado hasta el fin del periodo. Decisión del usuario, 2026-10-16.
+     *
+     * @param  list<mixed>  $flogs
+     * @param  list<array{0: string, 1: string}>  $rangos
+     * @return array{0: ?float, 1: ?float}
+     */
+    private function facturadoDelPeriodo(array $flogs, array $rangos, ?float $pedido): array
+    {
+        $flogs = array_map(static fn (mixed $flog): string => (string) $flog, $flogs);
+        $piezas = static fn (?array $resumen): ?float => $resumen === null ? null : (float) ($resumen['cantidades']['pza'] ?? 0);
+
+        $delPeriodo = $piezas($this->ventas->resumen($flogs, null, $rangos));
+        $hastaElFin = $piezas($this->ventas->resumen($flogs, null, [['1900-01-01', max(array_column($rangos, 1))]]));
+
+        return [$delPeriodo, $pedido === null || $hastaElFin === null ? null : max(0.0, $pedido - $hastaElFin)];
     }
 
     /** @param array<string, mixed> $filtros */

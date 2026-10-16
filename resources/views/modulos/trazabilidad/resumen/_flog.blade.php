@@ -5,8 +5,12 @@
     $cancelado = $resumen['cancelado'] ?? null;
     $lineasCanceladas = (int) ($resumen['lineasCanceladas'] ?? 0);
     $hayCancelado = $cancelado !== null && $cancelado > 0;
-    // La barra reparte todo lo que se pidió alguna vez: facturado + pendiente + cancelado.
-    $totalBarra = max(0, (float) ($facturado ?? 0) + (float) ($pendiente ?? 0) + (float) ($cancelado ?? 0));
+    // Con año/mes, Facturado es solo el del periodo: la barra se mide contra el pedido.
+    $enPeriodo = (bool) ($resumen['enPeriodo'] ?? false);
+    // Sin periodo reparte todo lo que se pidió alguna vez: facturado + pendiente + cancelado.
+    $totalBarra = $enPeriodo
+        ? max(0, (float) ($pedido ?? 0))
+        : max(0, (float) ($facturado ?? 0) + (float) ($pendiente ?? 0) + (float) ($cancelado ?? 0));
     $porcentaje = static fn (?float $valor): float => $totalBarra > 0 ? min(100, max(0, (float) $valor / $totalBarra * 100)) : 0;
     $porcentajeFacturado = $porcentaje($facturado);
     $porcentajePendiente = $porcentaje($pendiente);
@@ -17,7 +21,7 @@
     ];
     $cifras = [
         ['Pedido', $pedido, 'bg-blue-500'],
-        ['Facturado', $facturado, 'bg-emerald-500'],
+        [$enPeriodo ? 'Facturado periodo' : 'Facturado', $facturado, 'bg-emerald-500'],
         ['Pendiente', $pendiente, 'bg-amber-400'],
     ];
 @endphp

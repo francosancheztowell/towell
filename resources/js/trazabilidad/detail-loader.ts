@@ -200,7 +200,11 @@ export class DetailLoader {
             const select = queryElement<HTMLSelectElement>(selector);
             return select ? valorDe(select) : '';
         };
-        const texto = (selector: string): string => String(value(selector));
+        // Años y meses (múltiples) viajan como '2025,2026', igual que la sintaxis AX.
+        const texto = (selector: string): string => {
+            const v = value(selector);
+            return Array.isArray(v) ? v.join(',') : v;
+        };
         const cliente = value('#filtro-cliente');
 
         return {

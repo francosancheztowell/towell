@@ -4,7 +4,6 @@ namespace App\Models\Trazabilidad;
 
 use App\Support\FiltroAx;
 use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -59,8 +58,8 @@ class TrazaProduccion extends Model
      *
      * - flog/articulo/tamano: sintaxis de AX (lista, rango, comodín; ver FiltroAx).
      * - cliente: lista de nombres exactos.
-     * - anio/mes: Flogs con algún movimiento en ese periodo; de esos Flogs se trae todo,
-     *   para que pedido y facturado de AX (que son del Flog entero) cuadren con la matriz.
+     * - anio/mes: solo las filas de esos periodos (años × meses). Pedido y facturado de AX
+     *   son del Flog entero y no se acotan.
      *
      * @param  array<string, mixed>  $filtros  TrazabilidadFilters::toArray()
      * @param  string|null  $excepto  Filtro que no se aplica (facetas: las opciones de un
@@ -87,13 +86,14 @@ class TrazaProduccion extends Model
         }
 
         if ($excepto !== 'anio' && $f->anio !== '') {
-            $desde = Carbon::create((int) $f->anio, $f->mes === '' ? 1 : (int) $f->mes, 1);
-            $hasta = $f->mes === '' ? $desde->copy()->addYear() : $desde->copy()->addMonth();
-            // Fecha es DATE: el rango deja usar el índice (YEAR()/MONTH() no).
-            $query->whereIn('Flogs', fn ($sub) => $sub->from($this->getTable())
-                ->select('Flogs')
-                ->where('Fecha', '>=', $desde->toDateString())
-                ->where('Fecha', '<', $hasta->toDateString()));
+            $rangos = $f->rangos();
+            // Fecha es DATE: el rango deja usar el índice (YEAR()/MONTH() no). Las filas del periodo, no todo el Flog: con un Flog elegido, cambiar el mes no
+            // cambiaba nada. Pedido y facturado de AX siguen siendo del Flog entero.
+            $query->where(function ($q) use ($rangos): void {
+                foreach ($rangos as [$desde, $hasta]) {
+                    $q->orWhere(fn ($r) => $r->where('Fecha', '>=', $desde)->where('Fecha', '<', $hasta));
+                }
+            });
         }
     }
 }

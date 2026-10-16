@@ -30,6 +30,7 @@ class TrazabilidadLivewireTest extends TestCase
                     'tamano' => collect(['GRANDE']),
                     'cliente' => collect(['WALMART, S.A.']),
                     'anio' => collect([2026]),
+                    'mes' => collect([3]),
                 ]);
                 $mock->shouldReceive('summaryValues')->andReturn([
                     'flogs' => collect(['F-100']),

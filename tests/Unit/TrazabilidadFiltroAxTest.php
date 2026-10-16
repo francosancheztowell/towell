@@ -71,10 +71,12 @@ class TrazabilidadFiltroAxTest extends TestCase
         $this->assertSame([1, 2, 3, 4], $this->ids(['cliente' => ['SORIANA']], 'cliente'));
     }
 
-    public function test_anio_y_mes_traen_los_flogs_completos_con_movimiento_en_el_periodo(): void
+    public function test_anio_y_mes_traen_solo_las_filas_del_periodo(): void
     {
-        // F-1 se movió en marzo: entra también su renglón de enero (el Flog entero).
-        $this->assertSame([1, 2, 3], $this->ids(['anio' => '2026', 'mes' => '3']));
+        // Solo marzo: el renglón de enero de F-1 queda fuera (antes entraba el Flog entero).
+        $this->assertSame([2, 3], $this->ids(['anio' => '2026', 'mes' => '3']));
+        $this->assertSame([1, 2, 3], $this->ids(['anio' => '2026', 'mes' => '1,3']));
+        $this->assertSame([1, 2, 3, 4], $this->ids(['anio' => '2025,2026']));
         $this->assertSame([1, 2, 3], $this->ids(['anio' => '2026']));
         $this->assertSame([4], $this->ids(['anio' => '2025']));
         $this->assertSame([], $this->ids(['anio' => '2026', 'mes' => '2']));

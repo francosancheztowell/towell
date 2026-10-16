@@ -17,7 +17,8 @@ class TrazabilidadFilterOptionsService
      *     articulo: Collection<int, array{codigo:mixed,label:string}>,
      *     tamano: Collection<int, mixed>,
      *     cliente: Collection<int, mixed>,
-     *     anio: Collection<int, mixed>
+     *     anio: Collection<int, int>,
+     *     mes: Collection<int, int>
      * }
      */
     public function build(TrazabilidadFilters $filters, bool $sinExcepcion = false): array
@@ -67,14 +68,32 @@ class TrazabilidadFilterOptionsService
         // Flog elegido, la lista de Flogs es la misma que sin filtros y no se vuelve a
         // consultar en cada render de Livewire (medido 240 ms; artículos 359 ms).
         $remember = static fn (string $key, ?string $except, callable $callback): mixed => Cache::remember(
-            'traza_opt_v2_'.$key.':'.md5((string) json_encode(array_diff_key(
-                $filters->toArray(),
+            // Sin los vacíos: así summaryValues() (con todos los filtros) cae en la misma clave
+            // que la faceta cuando su campo está vacío; antes 'flog' => '' contra sin 'flog'
+            // daban claves distintas y Flog/Artículo/Tamaño se consultaban dos veces.
+            'traza_opt_v4_'.$key.':'.md5((string) json_encode(array_diff_key(
+                array_filter($filters->toArray(), static fn (mixed $v): bool => $v !== '' && $v !== []),
                 // Año acota también al mes: su faceta ignora los dos.
                 $except === 'anio' ? ['anio' => true, 'mes' => true] : [(string) $except => true]
             ))),
             now()->addMinutes(15),
             $callback
         );
+
+        // Años y meses que de verdad tienen movimiento: [año => [meses]]. DISTINCT Fecha (DATE,
+        // pocos cientos de días) en vez de agrupar 266k filas por YEAR()/MONTH().
+        /** @var array<int, list<int>> $periodos */
+        $periodos = $sinExcepcion ? [] : $remember('periodos', 'anio', fn (): array => TrazaProduccion::query()
+            ->filtrados($filters->toArray(), 'anio')
+            ->whereNotNull('Fecha')
+            ->distinct()
+            ->toBase()
+            ->pluck('Fecha')
+            ->map(static fn (mixed $fecha): array => [(int) substr((string) $fecha, 0, 4), (int) substr((string) $fecha, 5, 2)])
+            ->unique()
+            ->groupBy(static fn (array $p): int => $p[0])
+            ->map(static fn (Collection $g): array => $g->pluck(1)->unique()->sort()->values()->all())
+            ->all());
 
         return [
             'flog' => $remember('flog', $except('flog'), fn (): Collection => $facet('Flogs', $except('flog'))),
@@ -85,18 +104,11 @@ class TrazabilidadFilterOptionsService
             ),
             'tamano' => $remember('tamano', $except('tamano'), fn (): Collection => $facet('Tamano', $except('tamano'))),
             'cliente' => $sinExcepcion ? collect() : $remember('cliente', $except('cliente'), fn (): Collection => $facet('Cliente', $except('cliente'))),
-            // Años entre la primera y la última fecha: un MIN/MAX en vez de agrupar 266k filas por YEAR().
-            'anio' => $sinExcepcion ? collect() : $remember('anio', 'anio', fn (): Collection => TrazaProduccion::query()
-                ->filtrados($filters->toArray(), 'anio')
-                ->whereNotNull('Fecha')
-                ->selectRaw('MIN(Fecha) AS desde, MAX(Fecha) AS hasta')
-                ->toBase()
-                ->get()
-                ->flatMap(static fn (object $fila): array => $fila->desde === null ? [] : range(
-                    (int) substr((string) $fila->hasta, 0, 4),
-                    (int) substr((string) $fila->desde, 0, 4),
-                ))
-                ->values()),
+            'anio' => $sinExcepcion ? collect() : collect(array_keys($periodos))->sortDesc()->values(),
+            // Meses con movimiento en los años elegidos; sin año no hay meses.
+            'mes' => $sinExcepcion ? collect() : collect($filters->anios())
+                ->flatMap(static fn (int $anio): array => $periodos[$anio] ?? [])
+                ->unique()->sort()->values(),
         ];
     }
 

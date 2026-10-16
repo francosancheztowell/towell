@@ -20,6 +20,9 @@ class Index extends Component
     /** idrol de Trazabilidad: el mismo que exige el router. /livewire/update no pasa por ese middleware. */
     public const MODULO = 190;
 
+    public const MESES = [1 => 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
+        'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
     #[Url(except: '')]
     public string $flog = '';
 
@@ -128,13 +131,13 @@ class Index extends Component
             'opcionesTamano' => $options['tamano'],
             'opcionesCliente' => $options['cliente'],
             'opcionesAnio' => $options['anio'],
+            'opcionesMes' => $options['mes'],
             'resumenFlog' => $hasFilter ? $this->flogCard($filterValues, $summaryValues, $tableProgress) : null,
             'flogsResumen' => $summaryValues['flogs'] ?? collect(),
             'tablaAvancePedido' => $tableProgress,
             // Ventas de los Flogs completos, igual que el pedido de AX (ver TrazabilidadResumenService).
-            'ventas' => $hasFilter ? $this->sales->resumen($summaryValues['flogs']->all(), $this->sales->stock($filterValues)) : null,
-            'meses' => ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto',
-                'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+            'ventas' => $hasFilter ? $this->sales->resumen($summaryValues['flogs']->all(), $this->sales->stock($filterValues), $filters->rangos()) : null,
+            'meses' => self::MESES,
         ]);
     }
 
@@ -187,14 +190,7 @@ class Index extends Component
      */
     private function filterValues(): array
     {
-        return [
-            'flog' => $this->flog,
-            'articulo' => $this->articulo,
-            'tamano' => $this->tamano,
-            'cliente' => $this->cliente,
-            'anio' => $this->anio,
-            'mes' => $this->mes,
-        ];
+        return $this->only(TrazabilidadFilters::CAMPOS);
     }
 
     /**
@@ -221,8 +217,9 @@ class Index extends Component
             $values[$field] = implode(',', $keep(FiltroAx::valores($filters->{$field}), $options[$field] ?? []));
         }
         $values['cliente'] = $keep($filters->cliente, $options['cliente'] ?? []);
-        if ($filters->anio !== '' && ! in_array($filters->anio, array_map('strval', $codes($options['anio'] ?? [])), true)) {
-            $values['anio'] = '';
+        // Años y meses sin movimiento con los demás filtros (el VO vuelve a quitar los meses si no queda año).
+        foreach (['anio' => $filters->anios(), 'mes' => $filters->meses()] as $field => $selected) {
+            $values[$field] = array_values(array_intersect($selected, collect($options[$field] ?? [])->map(static fn (mixed $v): int => (int) $v)->all()));
         }
 
         $cleaned = TrazabilidadFilters::fromArray($values);
@@ -235,15 +232,21 @@ class Index extends Component
         // Sin aviso, el valor tecleado desaparecía del filtro y parecía que no se había escrito.
         $quitados = array_diff(
             [...FiltroAx::valores($filters->flog), ...FiltroAx::valores($filters->articulo),
-                ...FiltroAx::valores($filters->tamano), ...$filters->cliente, $filters->anio],
+                ...FiltroAx::valores($filters->tamano), ...$filters->cliente, ...$filters->anios(), ...$this->nombresMes($filters)],
             [...FiltroAx::valores($cleaned->flog), ...FiltroAx::valores($cleaned->articulo),
-                ...FiltroAx::valores($cleaned->tamano), ...$cleaned->cliente, $cleaned->anio],
+                ...FiltroAx::valores($cleaned->tamano), ...$cleaned->cliente, ...$cleaned->anios(), ...$this->nombresMes($cleaned)],
         );
         if ($quitados !== []) {
             $this->dispatch('aviso', tipo: 'warning', texto: 'Sin producción con los demás filtros, se quitó: '.implode(', ', $quitados));
         }
 
         return true;
+    }
+
+    /** @return list<string> */
+    private function nombresMes(TrazabilidadFilters $filters): array
+    {
+        return array_map(static fn (int $mes): string => self::MESES[$mes], $filters->meses());
     }
 
     private function applyNormalizedFilters(TrazabilidadFilters $filters): void
