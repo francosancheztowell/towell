@@ -109,12 +109,7 @@ class MecReportesController extends Controller
         $filename = $this->nombreArchivo($reporte, 'xlsx');
         $contents = Excel::raw(new ReporteEstadoMaquinaExport($reporte), ExcelFormat::XLSX);
 
-        $this->telegram->sendDocument($contents, $filename, $this->caption($reporte, 'Excel'));
-
-        return response($contents, 200, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $this->telegram->sendDocumentYDescargar($contents, $filename, $this->caption($reporte, 'Excel'));
     }
 
     public function exportarPdfEstadoMaquina(Request $request): Response
@@ -124,12 +119,7 @@ class MecReportesController extends Controller
         $filename = $this->nombreArchivo($reporte, 'pdf');
         $contents = $this->pdfBinario($reporte);
 
-        $this->telegram->sendDocument($contents, $filename, $this->caption($reporte, 'PDF'));
-
-        return response($contents, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $this->telegram->sendDocumentYDescargar($contents, $filename, $this->caption($reporte, 'PDF'));
     }
 
     public function exportarExcelOtDiarias(Request $request): Response
@@ -139,12 +129,7 @@ class MecReportesController extends Controller
         $filename = $this->nombreArchivoOtDiarias($reporte, 'xlsx');
         $contents = Excel::raw(new ReporteOtDiariasExport($reporte), ExcelFormat::XLSX);
 
-        $this->telegram->sendDocument($contents, $filename, $this->captionOtDiarias($reporte, 'Excel'));
-
-        return response($contents, 200, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $this->telegram->sendDocumentYDescargar($contents, $filename, $this->captionOtDiarias($reporte, 'Excel'));
     }
 
     public function exportarPdfOtDiarias(Request $request): Response
@@ -154,12 +139,7 @@ class MecReportesController extends Controller
         $filename = $this->nombreArchivoOtDiarias($reporte, 'pdf');
         $contents = $this->pdfBinarioOtDiarias($reporte);
 
-        $this->telegram->sendDocument($contents, $filename, $this->captionOtDiarias($reporte, 'PDF'));
-
-        return response($contents, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $this->telegram->sendDocumentYDescargar($contents, $filename, $this->captionOtDiarias($reporte, 'PDF'));
     }
 
     public function telegramImagenOtDiarias(Request $request): JsonResponse
@@ -177,15 +157,7 @@ class MecReportesController extends Controller
             return response()->json(['ok' => false, 'message' => $exception->getMessage()], 422);
         }
 
-        $imagen = $request->file('imagen');
-        $contents = $imagen !== null && $imagen->isValid()
-            ? (string) file_get_contents($imagen->getRealPath())
-            : '';
-        $filename = $this->nombreArchivoOtDiarias($reporte, $imagen?->getClientOriginalExtension() ?: 'png');
-
-        $this->telegram->sendPhoto($contents, $filename, $this->captionOtDiarias($reporte, 'Imagen'));
-
-        return response()->json(['ok' => true]);
+        return $this->telegram->sendUploadedPhoto($request->file('imagen'), fn (string $ext): string => $this->nombreArchivoOtDiarias($reporte, $ext), $this->captionOtDiarias($reporte, 'Imagen'));
     }
 
     public function telegramImagenEstadoMaquina(Request $request): JsonResponse
@@ -204,15 +176,7 @@ class MecReportesController extends Controller
             return response()->json(['ok' => false, 'message' => $exception->getMessage()], 422);
         }
 
-        $imagen = $request->file('imagen');
-        $contents = $imagen !== null && $imagen->isValid()
-            ? (string) file_get_contents($imagen->getRealPath())
-            : '';
-        $filename = $this->nombreArchivo($reporte, $imagen?->getClientOriginalExtension() ?: 'png');
-
-        $this->telegram->sendPhoto($contents, $filename, $this->caption($reporte, 'Imagen'));
-
-        return response()->json(['ok' => true]);
+        return $this->telegram->sendUploadedPhoto($request->file('imagen'), fn (string $ext): string => $this->nombreArchivo($reporte, $ext), $this->caption($reporte, 'Imagen'));
     }
 
     /**

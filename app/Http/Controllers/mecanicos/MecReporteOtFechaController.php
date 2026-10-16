@@ -59,12 +59,7 @@ class MecReporteOtFechaController extends Controller
         $filename = $this->nombreArchivo($reporte, 'xlsx');
         $contents = Excel::raw(new ReporteOtFechaExport($reporte), ExcelFormat::XLSX);
 
-        $this->telegram->sendDocument($contents, $filename, $this->caption($reporte, 'Excel'));
-
-        return response($contents, 200, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $this->telegram->sendDocumentYDescargar($contents, $filename, $this->caption($reporte, 'Excel'));
     }
 
     public function exportarPdf(Request $request): Response
@@ -73,12 +68,7 @@ class MecReporteOtFechaController extends Controller
         $filename = $this->nombreArchivo($reporte, 'pdf');
         $contents = $this->pdf($reporte);
 
-        $this->telegram->sendDocument($contents, $filename, $this->caption($reporte, 'PDF'));
-
-        return response($contents, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+        return $this->telegram->sendDocumentYDescargar($contents, $filename, $this->caption($reporte, 'PDF'));
     }
 
     public function telegramImagen(Request $request): JsonResponse
@@ -88,13 +78,7 @@ class MecReporteOtFechaController extends Controller
         ]);
         $reporte = $this->reporteDesdeRequest($request);
 
-        $imagen = $request->file('imagen');
-        $contents = $imagen !== null && $imagen->isValid() ? (string) file_get_contents($imagen->getRealPath()) : '';
-        $filename = $this->nombreArchivo($reporte, $imagen?->getClientOriginalExtension() ?: 'png');
-
-        $this->telegram->sendPhoto($contents, $filename, $this->caption($reporte, 'Imagen'));
-
-        return response()->json(['ok' => true]);
+        return $this->telegram->sendUploadedPhoto($request->file('imagen'), fn (string $ext): string => $this->nombreArchivo($reporte, $ext), $this->caption($reporte, 'Imagen'));
     }
 
     /**
