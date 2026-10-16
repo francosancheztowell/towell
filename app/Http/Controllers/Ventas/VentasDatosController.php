@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Ventas;
 
 use App\Http\Controllers\Controller;
+use App\Repositories\Ventas\PedidosHistoricosRepository;
 use App\Repositories\Ventas\PvVsOcReportRepository;
+use App\Services\Ventas\PedidosHistoricosPayloadBuilder;
 use App\Services\Ventas\PvVsOcPayloadBuilder;
 use App\Services\Ventas\VentasHistoricasPayloadBuilder;
 use Illuminate\Http\JsonResponse;
@@ -77,6 +79,43 @@ final class VentasDatosController extends Controller
         $payload = Cache::flexible('ventas:historico:payload', self::CACHE_TTL, fn (): array => $builder->build());
 
         return response()->json($payload, 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
+    }
+
+    /**
+     * Pedidos Históricos de un año de creación (~35k líneas), comprimido como Compara. Solo se
+     * aceptan los años de pedidosAnios() para que la cache no crezca con años inventados.
+     */
+    public function pedidos(Request $request, PedidosHistoricosPayloadBuilder $builder, PedidosHistoricosRepository $repository): Response
+    {
+        $this->autorizar();
+
+        $anio = $request->query('anio');
+        if (! is_string($anio) || ! in_array($anio, $this->aniosPedidos($repository), true)) {
+            abort(422, 'Año no disponible en Pedidos Históricos.');
+        }
+
+        $version = PedidosHistoricosPayloadBuilder::VERSION;
+        $gzip = Cache::flexible("ventas:pedidos:v{$version}:{$anio}", self::CACHE_TTL, fn (): string => $builder->build($anio));
+
+        return response($gzip, 200, [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'gzip',
+            'Cache-Control' => self::CACHE_NAVEGADOR,
+        ]);
+    }
+
+    /** Años de creación con pedidos, del más reciente al más antiguo: { anios: ["2026", "2025"] }. */
+    public function pedidosAnios(PedidosHistoricosRepository $repository): JsonResponse
+    {
+        $this->autorizar();
+
+        return response()->json(['anios' => $this->aniosPedidos($repository)], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
+    }
+
+    /** @return list<string> */
+    private function aniosPedidos(PedidosHistoricosRepository $repository): array
+    {
+        return Cache::flexible('ventas:pedidos:anios', self::CACHE_TTL, fn (): array => $repository->anios());
     }
 
     private function autorizar(): void

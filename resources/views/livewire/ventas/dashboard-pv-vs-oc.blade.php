@@ -22,6 +22,7 @@
                     {{-- VtasR. vs PlanVtas oculta por ahora: para volver a mostrarla, restaurar su botón y su subpanel. --}}
                     <li><button type="button" class="pvoc-nav-item is-active" aria-current="page" data-pvoc-nav="summary" data-pvoc-nav-sub="resumen">Resumen General</button></li>
                     <li><button type="button" class="pvoc-nav-item" data-pvoc-nav="summary" data-pvoc-nav-sub="analisis">Análisis Histórico</button></li>
+                    <li><button type="button" class="pvoc-nav-item" data-pvoc-nav="pedidos" data-pvoc-nav-sub="pedidos">Pedidos Históricos</button></li>
                 </ul>
             </div>
             <div class="pvoc-nav-group" data-pvoc-nav-group="history">
@@ -74,6 +75,47 @@
                 <button type="button" class="pvoc-zoom-step" data-pvoc-zoom-step="1" aria-label="Acercar" title="Acercar">+</button>
                 <button type="button" class="pvoc-zoom-value" data-pvoc-zoom-reset title="Volver al tamaño normal (90 %)"><span data-pvoc-zoom-value>90 %</span></button>
             </div>
+        </section>
+
+        {{-- Pedidos Históricos (pedidos-historicos.ts): árbol Empresa › Tipo › Cliente › OC › Artículo de TwHistoricosPedidos. --}}
+        <section
+            class="pvoc-card ph-panel is-hidden"
+            data-pvoc-panel="pedidos"
+            data-pedidos-historicos
+            data-pedidos-url="{{ route('ventas.datos.pedidos') }}"
+            data-pedidos-anios-url="{{ route('ventas.datos.pedidos.anios') }}"
+            aria-label="Pedidos Históricos"
+            wire:ignore
+        >
+            <div id="ph-filter-panel" class="pvoc-filter-panel" role="dialog" aria-labelledby="ph-filter-panel-title" data-ph-filter-panel hidden>
+                <div class="pvoc-filter-panel-header">
+                    <h2 id="ph-filter-panel-title">Filtrar Pedidos Históricos</h2>
+                    <button type="button" class="pvoc-filter-panel-close" data-pvoc-filter-close aria-label="Cerrar">&times;</button>
+                </div>
+                <div class="pvoc-filter-fields" data-ph-slicers>@include('livewire.ventas.partials.cargando')</div>
+                <div class="pvoc-filter-panel-footer">
+                    <button type="button" class="pvoc-button pvoc-button-small" data-ph-clear-all>Limpiar filtros</button>
+                </div>
+            </div>
+
+            <div class="ph-head">
+                <div class="ph-kpis" data-ph-kpis aria-live="polite"></div>
+                <div class="ph-toolbar">
+                    <label class="ph-search">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input type="search" data-ph-search placeholder="Buscar cliente, OC, artículo, color o código…" aria-label="Buscar en pedidos" autocomplete="off">
+                    </label>
+                    <div class="ph-depth" data-ph-depth role="group" aria-label="Abrir el árbol hasta">
+                        <span class="ph-depth-label">Abrir hasta</span>
+                        <button type="button" data-ph-depth-value="1" aria-pressed="false">Tipo</button>
+                        <button type="button" data-ph-depth-value="2" aria-pressed="true">Cliente</button>
+                        <button type="button" data-ph-depth-value="3" aria-pressed="false">OC</button>
+                        <button type="button" data-ph-depth-value="4" aria-pressed="false">Artículo</button>
+                    </div>
+                </div>
+                <div class="ph-chips" data-ph-chips></div>
+            </div>
+            <div class="pvoc-table-scroll ph-scroll" data-ph-table>@include('livewire.ventas.partials.cargando')</div>
         </section>
 
         <section

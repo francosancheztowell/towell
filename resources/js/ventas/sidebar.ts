@@ -19,7 +19,8 @@ const storeCollapsed = (collapsed: boolean) => {
 };
 
 /**
- * Sidebar de secciones (Compara, Ventas históricas) y subsecciones. Reemplaza las pestañas:
+ * Sidebar de secciones (Compara, Ventas históricas) y subsecciones. Una subsección puede tener su
+ * propio panel (data-pvoc-nav = panel), como Pedidos Históricos dentro de Compara. Reemplaza las pestañas:
  * mostrar una sección emite 'pvoc:tab' (lo escuchan el botón Filtrar y Ventas históricas) y
  * una subsección de Ventas históricas emite 'vh:report' sobre su panel.
  * history = reportes de Ventas históricas ({ id, title }), en el orden en que se muestran.
@@ -64,8 +65,9 @@ export const bindSidebar = (root: HTMLElement, history: { id: string; title: str
             item.classList.toggle('is-active', active);
             if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
         });
+        // El grupo resaltado es el que contiene el botón: Pedidos Históricos es su propio panel pero vive en Compara.
         sidebar.querySelectorAll<HTMLElement>('[data-pvoc-nav-group]').forEach((group) =>
-            group.classList.toggle('is-current', group.dataset.pvocNavGroup === tab));
+            group.classList.toggle('is-current', group.contains(button)));
 
         const panel = root.querySelector<HTMLElement>(`[data-pvoc-panel="${tab}"]`);
         if (!panel) return;
