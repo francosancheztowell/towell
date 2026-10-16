@@ -81,6 +81,7 @@ test('closingKpis: plan, real al corte, diferencia, avance, proyección y ritmo 
     assert.equal(kpis.proyeccion.toFixed(4), (900 / (16 / 31)).toFixed(4));
     assert.equal(kpis.proyeccionKg.toFixed(4), (150 / (16 / 31)).toFixed(4));
     assert.equal(kpis.planKg, 300);
+    assert.equal(kpis.realKg, 150);
     assert.equal(kpis.diasRestantes, 15);
     assert.equal(kpis.ritmo!.toFixed(4), (2200 / 15).toFixed(4));
 });
@@ -97,4 +98,15 @@ test('closingKpis: sin plan el avance es 0 y una meta ya superada pide ritmo 0',
     assert.equal(closingKpis([kpiRow('10', 0, 50)], { anio: 2026, mes: 10, dia: 16 }).avance, 0);
     assert.equal(closingKpis([kpiRow('10', 100, 150)], { anio: 2026, mes: 10, dia: 16 }).ritmo, 0);
     assert.equal(closingKpis([], { anio: 2026, mes: 10, dia: 16 }).plan, 0);
+});
+
+test('closingKpis: Pedidos suma la V.N. del pedido de los mismos combos', () => {
+    const rows = [
+        { ...kpiRow('10', 1000, 400), pedido: { vn: 700, kilos: 90 } },
+        { ...kpiRow('10', 500, 100), pedido: { vn: 50, kilos: 10 } },
+    ];
+    const kpis = closingKpis(rows, { anio: 2026, mes: 10, dia: 16 });
+    assert.equal(kpis.pedido, 750);
+    assert.equal(kpis.pedidoKg, 100);
+    assert.equal(closingKpis([kpiRow('10', 1, 1)], { anio: 2026, mes: 10, dia: 16 }).pedido, 0);
 });

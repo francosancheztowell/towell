@@ -312,7 +312,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .ph-filter-chip-key { color: #4b7f78; font-weight: 600; }
 .ph-filter-none { color: var(--pvoc-muted); font-size: .78rem; }
 
-.ph-scroll { flex: 1; min-height: 240px; }
+.ph-scroll { flex: 1; min-height: 240px; margin: .75rem .75rem 0; border: 1px solid var(--pvoc-border); border-radius: .5rem; }
 .ph-table { font-size: calc(.8rem * var(--pvoc-zoom, 1)); }
 .ph-table thead th:first-child { min-width: 26rem; }
 .ph-table td { padding-top: .32em; padding-bottom: .32em; vertical-align: middle; }
@@ -357,20 +357,23 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 @media (max-width: 760px) { .ph-table thead th:first-child { min-width: 17rem; } }
 
 /* --- KPIs de cierre de Resumen General (renderKpis en dashboard.ts) --- */
-.pvoc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: .45rem; padding: .5rem .5rem .55rem; border-bottom: 1px solid var(--pvoc-border); background: #f8fafc; }
+.pvoc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .45rem; padding: .5rem .5rem .55rem; border-bottom: 1px solid var(--pvoc-border); background: #f8fafc; }
 .pvoc-kpis:empty { display: none; }
-.pvoc-kpi { display: flex; flex-direction: column; gap: .1rem; min-width: 0; border: 1px solid var(--pvoc-border); border-top: 3px solid #94a3b8; border-radius: .5rem; background: #fff; padding: .4rem .6rem .45rem; }
-.pvoc-kpi.is-plan { border-top-color: var(--pvoc-plan); }
-.pvoc-kpi.is-real { border-top-color: var(--pvoc-real); }
-.pvoc-kpi.is-good { border-top-color: #15803d; }
-.pvoc-kpi.is-warning { border-top-color: #b45309; }
-.pvoc-kpi-label { color: var(--pvoc-muted); font-size: .74rem; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
-.pvoc-kpi-value { overflow: hidden; color: var(--pvoc-ink); font-size: 1.2rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-.pvoc-kpi.is-good .pvoc-kpi-value { color: #15803d; }
-.pvoc-kpi.is-warning .pvoc-kpi-value { color: #b45309; }
-.pvoc-kpi-note { color: var(--pvoc-muted); font-size: .75rem; }
+/* Cada KPI con su color sólido y texto blanco (todos con contraste AA sobre blanco). */
+.pvoc-kpi { --pvoc-kpi-bg: #334155; display: flex; flex-direction: column; gap: .1rem; min-width: 0; border-radius: .5rem; background: var(--pvoc-kpi-bg); padding: .45rem .65rem .5rem; color: #fff; box-shadow: 0 1px 2px rgb(15 23 42 / 18%); }
+.pvoc-kpi-plan { --pvoc-kpi-bg: #1d4ed8; }
+.pvoc-kpi-pedido { --pvoc-kpi-bg: #0f766e; }
+.pvoc-kpi-real { --pvoc-kpi-bg: #b45309; }
+.pvoc-kpi-dif { --pvoc-kpi-bg: #be123c; }
+.pvoc-kpi-avance { --pvoc-kpi-bg: #6d28d9; }
+.pvoc-kpi-proyeccion { --pvoc-kpi-bg: #0e7490; }
+.pvoc-kpi-proyeccion-kg { --pvoc-kpi-bg: #4d7c0f; }
+.pvoc-kpi-ritmo { --pvoc-kpi-bg: #334155; }
+.pvoc-kpi-label { font-size: .72rem; font-weight: 800; letter-spacing: .03em; opacity: .92; text-transform: uppercase; }
+.pvoc-kpi-value { overflow: hidden; font-size: 1.25rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.pvoc-kpi-note { font-size: .75rem; opacity: .9; }
+/* Kg de P. de Mes, Pedidos y Vta R.: segundo valor, casi del tamaño del importe. */
+.pvoc-kpi .pvoc-kpi-kg { font-size: 1.1rem; opacity: .95; }
 /* Barra de avance con una marca en lo esperado a hoy. */
-.pvoc-kpi-bar { position: relative; display: block; height: .4rem; margin: .15rem 0 .1rem; border-radius: 999px; background: #e2e8f0 linear-gradient(90deg, currentcolor var(--pvoc-kpi-pct, 0%), transparent 0) no-repeat; color: var(--pvoc-plan); }
-.pvoc-kpi.is-good .pvoc-kpi-bar { color: #15803d; }
-.pvoc-kpi.is-warning .pvoc-kpi-bar { color: #b45309; }
-.pvoc-kpi-bar::after { position: absolute; top: -.2rem; bottom: -.2rem; left: var(--pvoc-kpi-mark, 0%); width: 2px; background: #1e293b; content: ""; }
+.pvoc-kpi-bar { position: relative; display: block; height: .4rem; margin: .15rem 0 .1rem; border-radius: 999px; background: rgb(255 255 255 / 28%) linear-gradient(90deg, #fff var(--pvoc-kpi-pct, 0%), transparent 0) no-repeat; }
+.pvoc-kpi-bar::after { position: absolute; top: -.2rem; bottom: -.2rem; left: var(--pvoc-kpi-mark, 0%); width: 2px; background: #fde047; content: ""; }

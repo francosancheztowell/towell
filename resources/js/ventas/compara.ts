@@ -56,13 +56,18 @@ export const expectedCompliance = (rows: PlanRow[], today: Today) => {
     return total ? (dueByToday / total) * 100 : 0;
 };
 
-type KpiRow = { anio: string; mes: string; plan: { vn: number; kilos: number }; real: { vn: number; kilos: number } };
+type KpiAmounts = { vn: number; kilos: number };
+type KpiRow = { anio: string; mes: string; plan: KpiAmounts; real: KpiAmounts; pedido?: KpiAmounts };
 
 export type ClosingKpis = {
     /** P. de Mes y Vta R. al corte, en V.N. ($). */
     plan: number;
     real: number;
     planKg: number;
+    realKg: number;
+    /** Pedidos (OC) en V.N. y kg de los mismos combos. */
+    pedido: number;
+    pedidoKg: number;
     /** Dif Neta Plan − Real: positiva = lo que falta vender. */
     diferencia: number;
     /** % de Avance: real ÷ plan × 100, y lo que se esperaría llevar hoy si se vendiera parejo. */
@@ -79,33 +84,36 @@ export type ClosingKpis = {
 /** KPIs de cierre de Resumen General sobre los combos filtrados (uno o varios meses). */
 export const closingKpis = (rows: KpiRow[], today: Today): ClosingKpis => {
     const months = new Map<string, { anio: number; mes: number; planVn: number; realVn: number; realKg: number }>();
-    let planKg = 0;
-    rows.forEach(({ anio, mes, plan, real }) => {
+    let planKg = 0; let pedido = 0; let pedidoKg = 0;
+    rows.forEach(({ anio, mes, plan, real, pedido: oc }) => {
         const key = `${anio}-${mes}`;
         const month = months.get(key) ?? { anio: Number(anio), mes: Number(mes), planVn: 0, realVn: 0, realKg: 0 };
         month.planVn += plan.vn || 0;
         month.realVn += real.vn || 0;
         month.realKg += real.kilos || 0;
         planKg += plan.kilos || 0;
+        pedido += oc?.vn || 0;
+        pedidoKg += oc?.kilos || 0;
         months.set(key, month);
     });
 
-    let plan = 0; let real = 0; let due = 0; let proyeccion = 0; let proyeccionKg = 0; let diasRestantes = 0;
-    months.forEach(({ anio, mes, planVn, realVn, realKg }) => {
+    let plan = 0; let real = 0; let realKg = 0; let due = 0; let proyeccion = 0; let proyeccionKg = 0; let diasRestantes = 0;
+    months.forEach(({ anio, mes, planVn, realVn, realKg: monthKg }) => {
         const fraction = elapsedFraction(anio, mes, today);
         const days = new Date(anio, mes, 0).getDate();
         plan += planVn;
         real += realVn;
+        realKg += monthKg;
         due += planVn * fraction;
         // Un mes futuro (fracción 0) no tiene ritmo que extrapolar: se proyecta lo que ya trae.
         proyeccion += fraction > 0 ? realVn / fraction : realVn;
-        proyeccionKg += fraction > 0 ? realKg / fraction : realKg;
+        proyeccionKg += fraction > 0 ? monthKg / fraction : monthKg;
         diasRestantes += Math.round(days * (1 - fraction));
     });
 
     const diferencia = plan - real;
     return {
-        plan, real, planKg, diferencia,
+        plan, real, planKg, realKg, pedido, pedidoKg, diferencia,
         avance: plan ? (real / plan) * 100 : 0,
         avanceEsperado: plan ? (due / plan) * 100 : 0,
         proyeccion, proyeccionKg, diasRestantes,

@@ -24,12 +24,20 @@ const LEVEL_ICONS: Record<TreeNode['level'], string> = {
     empresa: 'fa-industry', tipo: 'fa-tag', cliente: 'fa-building', oc: 'fa-file-lines',
 };
 
+/** Nombre de cada artículo para mostrarlo junto a su código en el filtro Art (se llena al cargar años). */
+const ARTICLE_NAMES = new Map<string, string>();
+const articleLabel = (code: string) => (ARTICLE_NAMES.get(code) ? `${code} · ${ARTICLE_NAMES.get(code)}` : code);
+
 const FILTERS: { key: FilterKey; label: string; format?: (value: string) => string }[] = [
     { key: 'anio', label: 'Año' },
     { key: 'mes', label: 'Mes', format: monthName },
     { key: 'empresa', label: 'Empresa' },
     { key: 'tipo', label: 'Tipo de pedido' },
     { key: 'cliente', label: 'Cliente' },
+    { key: 'articulo', label: 'Art', format: articleLabel },
+    { key: 'talla', label: 'Tamaño' },
+    { key: 'color', label: 'Color' },
+    { key: 'codigo', label: 'Código de barras' },
     { key: 'estatus', label: 'Estatus' },
 ];
 
@@ -149,9 +157,12 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
 
     const allLines = () => wantedYears().flatMap((year) => loaded.get(year) ?? []);
 
-    const refreshValues = () => (['mes', 'empresa', 'tipo', 'cliente'] as const).forEach((key) => {
+    const refreshValues = () => (['mes', 'empresa', 'tipo', 'cliente', 'articulo', 'talla', 'color', 'codigo'] as const).forEach((key) => {
         const distinct = new Set<string>();
-        loaded.forEach((lines) => lines.forEach((line) => distinct.add(line[key])));
+        loaded.forEach((lines) => lines.forEach((line) => {
+            distinct.add(line[key]);
+            if (key === 'articulo' && line.nombre) ARTICLE_NAMES.set(line.articulo, line.nombre);
+        }));
         const sorted = [...distinct].sort(key === 'mes'
             ? (a, b) => Number(a) - Number(b)
             : (a, b) => a.localeCompare(b, 'es', { numeric: true }));

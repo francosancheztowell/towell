@@ -93,3 +93,13 @@ test('los niveles abiertos de entrada y las flechas invierten nodos sueltos', ()
     toggled.add('/TOWEL')
     assert.equal(isOpen({ id: '/TOWEL', depth: 0 }, 2, toggled), false)
 })
+
+test('filtra por artículo, tamaño, color y código de barras', () => {
+    const [fac, alb] = decodePedidos(payload([linea(), linea({ articulo: '6360', talla: 'ALB', color: 'GRIS LISTADA', codigo: '750100' })]))
+    for (const [key, value] of [['articulo', '6360'], ['talla', 'ALB'], ['color', 'GRIS LISTADA'], ['codigo', '750100']] as const) {
+        const filtros = sinFiltros()
+        filtros[key].add(value)
+        assert.equal(matchesLine(fac!, filtros), false, key)
+        assert.ok(matchesLine(alb!, filtros), key)
+    }
+})

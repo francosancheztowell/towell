@@ -438,25 +438,31 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
     /** Barra de scroll de los nombres de cada tabla (label-scroll.ts). */
     const labelScrolls = {} as Record<Panel, () => void>;
 
-    /** Tarjetas de cierre de Resumen General: en V.N. ($) salvo la proyección por Kg. */
+    /**
+     * Tarjetas de cierre de Resumen General: en V.N. ($) salvo las de kg. Cada una tiene su color de
+     * fondo fijo para reconocerla de un vistazo; el estado (adelantado/atrasado) va en su nota.
+     */
     const kpiContainer = root.querySelector<HTMLElement>('[data-pvoc-kpis]');
     const renderKpis = (items: PvRecord[]) => {
         if (!kpiContainer) return;
         const k = closingKpis(items, today);
         const money = (value: number) => `$${formatNumber(value)}`;
-        const ahead = k.diferencia <= 0;
-        const card = (label: string, value: string, note: string, modifier = '', extra = '') =>
-            `<div class="pvoc-kpi${modifier}"><span class="pvoc-kpi-label">${label}</span><span class="pvoc-kpi-value">${value}</span>${extra}<span class="pvoc-kpi-note">${note}</span></div>`;
+        const kg = (value: number) => `<span class="pvoc-kpi-value pvoc-kpi-kg">${formatNumber(value)} kg</span>`;
+        const ofPlan = (value: number, base: number, empty: string) => (base ? `${((value / base) * 100).toFixed(1)}% del plan` : empty);
+        const card = (kind: string, label: string, value: string, note: string, extra = '') =>
+            `<div class="pvoc-kpi pvoc-kpi-${kind}"><span class="pvoc-kpi-label">${label}</span><span class="pvoc-kpi-value">${value}</span>${extra}<span class="pvoc-kpi-note">${note}</span></div>`;
         const bar = `<span class="pvoc-kpi-bar" style="--pvoc-kpi-pct:${Math.min(100, k.avance).toFixed(1)}%;--pvoc-kpi-mark:${Math.min(100, k.avanceEsperado).toFixed(1)}%" aria-hidden="true"></span>`;
+        const onTrack = k.avance >= k.avanceEsperado;
         kpiContainer.replaceChildren(fragment([
-            card('P. de Mes', money(k.plan), `${formatNumber(k.planKg)} kg plan`, ' is-plan'),
-            card('Vta R. al corte', money(k.real), `Al ${String(today.dia).padStart(2, '0')}/${String(today.mes).padStart(2, '0')}/${today.anio}`, ' is-real'),
-            card('Dif Neta Plan − Real', money(Math.abs(k.diferencia)), ahead ? 'Sobre el plan' : 'Por vender', ahead ? ' is-good' : ' is-warning'),
-            card('% de Avance', `${k.avance.toFixed(1)}%`, `Esperado a hoy: ${k.avanceEsperado.toFixed(1)}%`, k.avance >= k.avanceEsperado ? ' is-good' : ' is-warning', bar),
-            card('Proyección de Cierre', money(k.proyeccion), k.plan ? `${((k.proyeccion / k.plan) * 100).toFixed(1)}% del plan` : 'Sin plan'),
-            card('Proyección de Cierre x Kg', `${formatNumber(k.proyeccionKg)} kg`, k.planKg ? `${((k.proyeccionKg / k.planKg) * 100).toFixed(1)}% del plan` : 'Sin plan en kg'),
-            card('Ritmo Requerido', k.ritmo === null ? '—' : `${money(k.ritmo)}/día`,
-                k.ritmo === null ? 'Periodo cerrado' : `${k.diasRestantes} ${k.diasRestantes === 1 ? 'día restante' : 'días restantes'}`, ' is-plan'),
+            card('plan', 'P. de Mes', money(k.plan), 'Plan del periodo', kg(k.planKg)),
+            card('pedido', 'Pedidos', money(k.pedido), ofPlan(k.pedido, k.plan, 'Sin plan'), kg(k.pedidoKg)),
+            card('real', 'Vta R. al Corte', money(k.real), `Al ${String(today.dia).padStart(2, '0')}/${String(today.mes).padStart(2, '0')}/${today.anio}`, kg(k.realKg)),
+            card('dif', 'Dif Neta Plan − Real', money(Math.abs(k.diferencia)), k.diferencia <= 0 ? 'Sobre el plan' : 'Por vender'),
+            card('avance', '% de Avance', `${k.avance.toFixed(1)}%`, `Esperado a hoy: ${k.avanceEsperado.toFixed(1)}% · ${onTrack ? 'en ritmo' : 'atrasado'}`, bar),
+            card('proyeccion', 'Proyección de Cierre', money(k.proyeccion), ofPlan(k.proyeccion, k.plan, 'Sin plan')),
+            card('proyeccion-kg', 'Proyección de Cierre x Kg', `${formatNumber(k.proyeccionKg)} kg`, ofPlan(k.proyeccionKg, k.planKg, 'Sin plan en kg')),
+            card('ritmo', 'Ritmo Requerido', k.ritmo === null ? '—' : `${money(k.ritmo)}/día`,
+                k.ritmo === null ? 'Periodo cerrado' : `${k.diasRestantes} ${k.diasRestantes === 1 ? 'día restante' : 'días restantes'}`),
         ].join('')));
     };
 

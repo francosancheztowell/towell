@@ -62,7 +62,7 @@ export const decodePedidos = (payload: PedidosPayload): PedidoLinea[] => {
     });
 };
 
-export const FILTER_KEYS = ['anio', 'mes', 'empresa', 'tipo', 'cliente', 'estatus'] as const;
+export const FILTER_KEYS = ['anio', 'mes', 'empresa', 'tipo', 'cliente', 'articulo', 'talla', 'color', 'codigo', 'estatus'] as const;
 export type FilterKey = typeof FILTER_KEYS[number];
 export type Filters = Record<FilterKey, Set<string>>;
 
