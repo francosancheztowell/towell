@@ -1,6 +1,7 @@
 import { escapeHtml, formatNumber as formatEsMx } from '../utils/format';
 import { http } from '../utils/http';
 import { HISTORY_SECTIONS, mountVentasHistoricas } from './ventas-historicas';
+import { mountPedidosHistoricos } from './pedidos-historicos';
 import { createMultiSelect } from './multi-select';
 import { bindRowSelection, clearRowSelection } from './row-selection';
 import { PANEL_LAYOUT, columnCount, expectedCompliance, mexicoToday, rowClass, type Panel, type Series } from './compara';
@@ -15,7 +16,7 @@ type Totals = Record<Series, Metrics>;
 type FilterKey = 'anio' | 'mes' | 'empresa' | 'tipo' | 'cliente' | 'agente' | 'tamano' | 'articulo';
 /** Set = selección múltiple (vacío = todos); string = select de una opción ('' = todos). */
 type Filters = Record<FilterKey, Set<string> | string>;
-type Tab = 'summary' | 'history';
+type Tab = 'summary' | 'pedidos' | 'history';
 type SfField = 'anio' | 'mes' | 'empresa' | 'tipo' | 'nombreCte' | 'artCode' | 'artName' | 'config' | 'tamano' | 'colorName' | 'agente';
 type PvPayload = { sf: string[]; nf: string[]; series: string[]; dict: string[]; rows: (string | number)[][] };
 type PvRecord = Record<'anio' | 'mes' | 'empresa' | 'tipo' | 'cliente' | 'articuloCodigo' | 'articulo' | 'linea' | 'tamano' | 'color' | 'agente', string>
@@ -141,21 +142,23 @@ const showLoadError = (containers: Element[] | NodeListOf<Element>, message: str
 
 /**
  * Botón "Filtrar" del navbar (fuera del root, vía @section('navbar-right')): abre el panel de filtros
- * de la pestaña activa (Compara o Ventas históricas). Cada pestaña avisa cuántos filtros tiene activos
+ * de la pestaña activa (Compara, Pedidos Históricos o Ventas históricas). Cada pestaña avisa cuántos filtros tiene activos
  * con el evento 'pvoc:filtros' ({ tab, count }) y el botón muestra el de la pestaña visible.
  */
 const bindFilterPanel = (root: HTMLElement) => {
     const button = document.getElementById('btn-filtrar-ventas-compara');
     const summary = root.querySelector<HTMLElement>('[data-pvoc-filter-panel]');
     const history = root.querySelector<HTMLElement>('[data-vh-filter-panel]');
-    if (!button || !summary || !history) return;
+    const pedidos = root.querySelector<HTMLElement>('[data-ph-filter-panel]');
+    if (!button || !summary || !history || !pedidos) return;
     const panels: Record<Tab, { element: HTMLElement; title: string }> = {
         summary: { element: summary, title: 'Filtrar Compara' },
+        pedidos: { element: pedidos, title: 'Filtrar Pedidos Históricos' },
         history: { element: history, title: 'Filtrar Ventas históricas' },
     };
 
     const label = button.querySelector('span');
-    const counts: Record<Tab, number> = { summary: 0, history: 0 };
+    const counts: Record<Tab, number> = { summary: 0, pedidos: 0, history: 0 };
     let activeTab: Tab = 'summary';
     const panel = () => panels[activeTab].element;
 
@@ -205,6 +208,7 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
     if (comparaPanel && zoomBar) {
         bindZoom(comparaPanel, zoomBar, () => comparaPanel.querySelector<HTMLElement>('[data-pvoc-subpanel]:not(.is-hidden) .pvoc-table-scroll'));
     }
+    mountPedidosHistoricos(root, (container) => showLoadError([container], 'No se pudieron cargar los pedidos históricos. Intenta nuevamente en unos minutos.'));
     mountVentasHistoricas(root, (container) => showLoadError([container], 'No se pudieron cargar las ventas históricas. Intenta nuevamente en unos minutos.'));
 
     // Primero la lista de años y solo el más reciente: con eso se pinta; los demás llegan en segundo plano.

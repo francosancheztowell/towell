@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Nivel 1: Ventas → /ventas
 |
-| Dashboard Plan de Ventas vs Pedido (OC) vs Real y Ventas históricas, con datos de
+| Dashboard Plan de Ventas vs Pedido (OC) vs Real, Pedidos Históricos y Ventas históricas, con datos de
 | dbo.TwHistoricosPronostico, dbo.TwHistoricosPedidos y dbo.TwHistoricosVentas.
 | La página se sirve vacía y el navegador pide los datos a /ventas/datos/*.
 */
@@ -20,4 +20,6 @@ Route::controller(VentasDatosController::class)->prefix('ventas/datos')->name('v
     Route::get('/compara', 'compara')->name('compara');
     Route::get('/compara/anios', 'comparaAnios')->name('compara.anios');
     Route::get('/historico', 'historico')->name('historico');
+    Route::get('/pedidos', 'pedidos')->name('pedidos');
+    Route::get('/pedidos/anios', 'pedidosAnios')->name('pedidos.anios');
 });
