@@ -4,6 +4,13 @@ namespace App\Models\Sistema;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $idrol
+ * @property string $orden
+ * @property string $modulo
+ * @property string|null $Nivel
+ * @property string|null $Dependencia
+ */
 class SYSRoles extends Model
 {
     protected $table = 'SYSRoles';

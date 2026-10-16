@@ -10,7 +10,6 @@ use App\Models\Sistema\SYSUsuariosRoles;
 use App\Models\Sistema\Usuario;
 use App\Repositories\UsuarioRepository;
 use App\Services\ModuloService;
-use App\Services\PermissionService;
 use App\Services\UsuarioService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,8 +22,7 @@ class UsuarioController extends Controller
     public function __construct(
         private UsuarioRepository $usuarioRepository,
         private UsuarioService $usuarioService,
-        private ModuloService $moduloService,
-        private PermissionService $permissionService
+        private ModuloService $moduloService
     ) {}
 
     /**
@@ -156,67 +154,13 @@ class UsuarioController extends Controller
      */
     public function edit(int $id)
     {
-        $usuario = $this->usuarioRepository->findById($id);
-
-        if (! $usuario) {
+        if (! $this->usuarioRepository->findById($id)) {
             return redirect()->route('configuracion.usuarios.select')
                 ->with('error', 'Usuario no encontrado');
         }
 
-        $modulos = $this->moduloService->getAllModulos();
-        $permisosUsuario = $this->permissionService->getAllPermisosUsuario($usuario->idusuario);
-        $departamentos = SysDepartamentos::orderBy('Depto')->get();
-
-        $modulosDescendientes = $this->obtenerDescendientesPorIdrolRaiz($modulos);
-
-        return view('modulos.usuarios.form_usuario', [
-            'usuario' => $usuario,
-            'modulos' => $modulos,
-            'permisosUsuario' => $permisosUsuario,
-            'departamentos' => $departamentos,
-            'isEdit' => true,
-            'modulosDescendientes' => $modulosDescendientes,
-        ]);
-    }
-
-    /**
-     * Actualizar usuario
-     */
-    public function update(StoreUsuarioRequest $request, int $id)
-    {
-        try {
-            $data = $request->validated();
-            $foto = $request->hasFile('foto') ? $request->file('foto') : null;
-
-            // Extraer permisos del request (todos los campos que empiezan con "modulo_")
-            $permisos = array_filter($request->all(), function ($key) {
-                return strpos($key, 'modulo_') === 0;
-            }, ARRAY_FILTER_USE_KEY);
-
-            // Actualizar usuario y permisos desde el formulario
-            $actualizado = $this->usuarioService->update($id, $data, $foto, $permisos);
-
-            if (! $actualizado) {
-                return redirect()->route('configuracion.usuarios.select')
-                    ->with('error', 'Usuario no encontrado');
-            }
-
-            $usuario = $this->usuarioRepository->findById($id);
-            $this->moduloService->limpiarCacheUsuario($id);
-
-            return redirect()
-                ->route('configuracion.usuarios.select')
-                ->with('success', "Usuario #{$usuario->numero_empleado} actualizado correctamente.");
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar usuario', [
-                'usuario_id' => $id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return back()
-                ->with('error', 'No se pudo actualizar el usuario.')
-                ->withInput();
-        }
+        // Formulario y guardado en el componente Livewire Configuracion\EditarUsuario.
+        return view('modulos.usuarios.editar', ['usuarioId' => $id]);
     }
 
     /**

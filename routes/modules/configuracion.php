@@ -46,8 +46,6 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
             ->middleware("module.permission:crear,{$usuarios}")->name('duplicar');
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])
             ->middleware("module.permission:modificar,{$usuarios}")->name('edit');
-        Route::put('/{id}', [UsuarioController::class, 'update'])
-            ->middleware("module.permission:modificar,{$usuarios}")->name('update');
         Route::delete('/{id}', [UsuarioController::class, 'destroy'])
             ->middleware("module.permission:eliminar,{$usuarios}")->name('destroy');
         // Si esta queda abierta, cualquier usuario autenticado se asigna permisos de cualquier modulo.
