@@ -5,6 +5,7 @@
    combobox suele llegar de segundo nivel (p. ej. catcodificacion → lmat-modal → combobox). */
 @import 'tom-select/dist/css/tom-select.default.css';
 @import '../js/utils/combobox.css';
+@import '../js/componentes/diagrama-flujo/diagrama-flujo.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
