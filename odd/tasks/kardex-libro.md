@@ -18,8 +18,8 @@ Rama: `feat/kardex` · Entrega: un PR (`single-pr`) · Runner: `node --test` (JS
 | ID | Specs | Ruta | Estado | Commit |
 |----|-------|------|--------|--------|
 | T1 | S1 | inline | hecho | c74d2a20 |
-| T2 | S2 | inline | hecho | (commit T2) |
-| T3 | S3 | inline | pendiente | — |
+| T2 | S2 | inline | hecho | 7430c7cf |
+| T3 | S3 | inline | hecho | PR #81 |
 
 ## Log
 
@@ -27,3 +27,4 @@ Rama: `feat/kardex` · Entrega: un PR (`single-pr`) · Runner: `node --test` (JS
 - L2: "si, conecta lo que se puede con las cifras del libro". "Despues crea los commit y crea el pr".
 - L3: agosto 2026 verificado contra la hoja REs del HTML: los totales de las 4 secciones y Crudo (278,200.82) cuadran. Mapeo neto: URDID Traspasos = ENTTRASPASOS − SALTRASPASOS; AJULTELA Otros = SALOTROS − ENTRADASOTROS; AEPTEJID Otros = SALOTROS − (EXISTENCIA − INI − ENTURDIDO − ENTENGOM). Localidad = WMSLOCATIONID.
 - L4: T2 verificado con la BD real (agosto 2026): los totales de URDID, AJULURD, AJULTELA y AEPTEJID que arma KardexLibroBuilder son idénticos a la hoja REs del HTML; flujo con cifras del libro (Tejido → Crudo 225,019.53). Checks: 15 tests PHP de kardex, 683 JS, typecheck, Pint, PHPStan, PHPMD, ratchet y build en verde. Sin verificación visual: la página pide login y el navegador integrado no abre towell.test.
+- L5: commits c74d2a20 y 7430c7cf; PR https://github.com/francosancheztowell/towell/pull/81 (incluye feat/diagrama-flujo).
