@@ -6,7 +6,7 @@ namespace App\Services\Mantenimiento;
 
 use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Mantenimiento\CatParosFallas;
-use App\Models\Sistema\SYSMaquinaAsignacion;
+use App\Models\Sistema\SYSDepartamentoAsignacion;
 use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
@@ -17,9 +17,9 @@ use Illuminate\Support\Collection;
  * ofrece cada uno y qué fallas le aplican. Lo usan el combo en cascada (ParosCatalogoController),
  * la validación de `store` y el listado, para que lo que se acepta sea exactamente lo que se ofrece.
  *
- * Los departamentos salen de URDCatalogoMaquinas a través de SYSMaquinasAsignacion: cada quien
- * ve los departamentos de sus máquinas asignadas. Atadores y Calidad no están en ese catálogo
- * y se ofrecen por área, como antes (.planning/paros_acceso_maquinas_plan.md).
+ * Cada quien reporta en los departamentos que tiene asignados (SYSDepartamentosAsignacion) y ve
+ * todas sus máquinas de URDCatalogoMaquinas. Atadores y Calidad no están en ese catálogo y se
+ * ofrecen por área, como antes (.planning/paros_acceso_maquinas_plan.md).
  */
 final class ParosCatalogoService
 {
@@ -29,7 +29,10 @@ final class ParosCatalogoService
     /** Salones de telares: comparten el catálogo de fallas "Tejido". */
     private const DEPARTAMENTOS_TEJIDO = ['JACQUARD', 'ITEMA', 'SMITH', 'KARL MAYER'];
 
-    /** @var array<int, list<string>> MaquinaId asignadas por idusuario, una consulta por petición. */
+    /** @var array<int, list<string>> Departamentos asignados por idusuario, una consulta por petición. */
+    private array $deptosAsignados = [];
+
+    /** @var array<int, list<string>> MaquinaId de esos departamentos por idusuario. */
     private array $asignadas = [];
 
     /**
@@ -41,12 +44,7 @@ final class ParosCatalogoService
     {
         $porArea = self::DEPARTAMENTOS_POR_AREA[$this->areaDe($usuario)] ?? null;
 
-        return URDCatalogoMaquina::query()
-            ->whereIn('MaquinaId', $this->maquinasAsignadas($usuario))
-            ->distinct()
-            ->pluck('Departamento')
-            ->map(fn ($d): string => trim((string) $d))
-            ->filter()
+        return collect($this->departamentosAsignados($usuario))
             ->when($porArea !== null, fn (Collection $c) => $c->push($porArea))
             ->unique()
             ->sort()
@@ -55,11 +53,11 @@ final class ParosCatalogoService
     }
 
     /**
-     * MaquinaId asignadas al usuario en SYSMaquinasAsignacion.
+     * Departamentos asignados al usuario en SYSDepartamentosAsignacion.
      *
      * @return list<string>
      */
-    public function maquinasAsignadas(?Authenticatable $usuario): array
+    public function departamentosAsignados(?Authenticatable $usuario): array
     {
         // getKey y no getAuthIdentifier: en algunos modelos de usuario el identificador de sesión es numero_empleado.
         $id = $usuario instanceof Model ? (int) $usuario->getKey() : 0;
@@ -67,8 +65,30 @@ final class ParosCatalogoService
             return [];
         }
 
-        return $this->asignadas[$id] ??= SYSMaquinaAsignacion::query()
+        return $this->deptosAsignados[$id] ??= SYSDepartamentoAsignacion::query()
             ->where('idusuario', $id)
+            ->pluck('Departamento')
+            ->map(fn ($d): string => trim((string) $d))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * MaquinaId de los departamentos asignados: todas las de URDCatalogoMaquinas en ellos.
+     *
+     * @return list<string>
+     */
+    public function maquinasAsignadas(?Authenticatable $usuario): array
+    {
+        $deptos = $this->departamentosAsignados($usuario);
+        if ($deptos === []) {
+            return [];
+        }
+
+        // $deptos no vacío ⇒ $usuario es un Model con llave (ver departamentosAsignados).
+        return $this->asignadas[$usuario instanceof Model ? (int) $usuario->getKey() : 0] ??= URDCatalogoMaquina::query()
+            ->whereIn('Departamento', $deptos)
             ->pluck('MaquinaId')
             ->map(fn ($m): string => trim((string) $m))
             ->all();

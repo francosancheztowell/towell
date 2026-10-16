@@ -51,11 +51,24 @@ class UsuarioDuplicarTest extends TestCase
             $table->string('Ruta')->nullable();
             $table->timestamps();
         });
-        // duplicar() también copia las máquinas (SYSMaquinasAsignacion); aquí el origen no tiene.
-        Schema::connection('sqlsrv')->create('SYSMaquinasAsignacion', function (Blueprint $table) {
+        // duplicar() también copia los departamentos (SYSDepartamentosAsignacion); aquí el origen no tiene.
+        Schema::connection('sqlsrv')->create('SYSDepartamentosAsignacion', function (Blueprint $table) {
             $table->increments('Id');
             $table->integer('idusuario');
-            $table->string('MaquinaId');
+            $table->string('Departamento');
+            $table->boolean('Supervisor')->default(false);
+        });
+        // ...y sus telares de Jacquard/Smith/Karl Mayer (TelTelaresOperador, por catálogo).
+        Schema::connection('sqlsrv')->create('URDCatalogoMaquinas', function (Blueprint $table) {
+            $table->string('MaquinaId')->primary();
+            $table->string('Departamento');
+        });
+        Schema::connection('sqlsrv')->create('TelTelaresOperador', function (Blueprint $table) {
+            $table->increments('Id');
+            foreach (['numero_empleado', 'nombreEmpl', 'NoTelarId', 'SalonTejidoId'] as $columna) {
+                $table->string($columna)->nullable();
+            }
+            $table->integer('Turno')->nullable();
             $table->boolean('Supervisor')->default(false);
         });
 
@@ -65,6 +78,9 @@ class UsuarioDuplicarTest extends TestCase
             ['idrol' => 12, 'orden' => '12', 'modulo' => 'Engomado'],
             ['idrol' => 13, 'orden' => '13', 'modulo' => 'Atadores'],
         ]);
+
+        // La lista pinta las áreas del modal de alta.
+        $this->createTablaDbo('SysDepartamentos', ['Depto' => 'TEXT']);
 
         // UsuarioRepository lee App\Models\Sistema\Usuario, que apunta a dbo.SYSUsuario.
         $this->createTablaDbo('SYSUsuario', [

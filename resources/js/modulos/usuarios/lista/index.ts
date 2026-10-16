@@ -1,11 +1,10 @@
 /**
  * Lista de usuarios: filtros en cliente, modal "Nuevo Usuario" y confirmación al eliminar.
  * Vista: resources/views/modulos/usuarios/select.blade.php.
- * El alta es un POST normal del form (configuracion.usuarios.store redirige con flash).
+ * El alta es un POST normal del form (configuracion.usuarios.store sigue en la edición con flash).
  */
 import { delegate, onReady, qs, qsa } from '../../../utils/dom.ts';
 import { escapeHtml } from '../../../utils/format.ts';
-import { http } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
 
 interface Filtros {
@@ -107,17 +106,6 @@ async function abrirFiltros(contenedor: HTMLElement, boton: HTMLElement): Promis
     else if (valor === 'limpiar') aplicar({ ...SIN_FILTROS }, contenedor, boton);
 }
 
-/** El select de áreas sale del formulario completo de alta (configuracion.usuarios.create). */
-async function cargarDepartamentos(url: string, select: HTMLSelectElement): Promise<void> {
-    try {
-        const html = await http.get<string>(url, { responseType: 'text' });
-        const original = new DOMParser().parseFromString(html, 'text/html').querySelector('select[name="area"]');
-        if (original) select.innerHTML = original.innerHTML;
-    } catch {
-        // http ya avisó (towell:http-error); el select se queda como estaba.
-    }
-}
-
 onReady(() => {
     const contenedor = qs('#usuarios-container');
     const modal = qs('#modalCrearUsuario');
@@ -126,11 +114,7 @@ onReady(() => {
 
     delegate(document, 'click', '[data-usuarios-filtrar]', (_e, boton) => void abrirFiltros(contenedor, boton));
 
-    delegate(document, 'click', '[data-usuarios-crear]', () => {
-        const area = qs<HTMLSelectElement>('#area_modal');
-        if (form?.dataset.urlAreas && area) void cargarDepartamentos(form.dataset.urlAreas, area);
-        modal?.classList.remove('hidden');
-    });
+    delegate(document, 'click', '[data-usuarios-crear]', () => modal?.classList.remove('hidden'));
 
     delegate(document, 'click', '[data-usuarios-cerrar-crear]', () => {
         modal?.classList.add('hidden');

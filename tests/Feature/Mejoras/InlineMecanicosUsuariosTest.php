@@ -143,7 +143,7 @@ final class InlineMecanicosUsuariosTest extends TestCase
             ->assertSee('data-turno="1"', false);
     }
 
-    public function test_el_form_del_modal_es_un_post_normal_a_store_con_csrf_y_url_de_areas(): void
+    public function test_el_form_del_modal_es_un_post_normal_a_store_con_csrf_y_areas(): void
     {
         $this->withoutVite();
         $this->actuarComoAdmin();
@@ -154,34 +154,16 @@ final class InlineMecanicosUsuariosTest extends TestCase
         $form = $m[0];
         $this->assertMatchesRegularExpression('/method="POST"/i', $form);
         $this->assertStringContainsString('action="'.route('configuracion.usuarios.store').'"', $form);
-        $this->assertStringContainsString('data-url-areas="'.route('configuracion.usuarios.create').'"', $form);
 
         // El POST normal necesita el _token dentro del form (antes iba en el header del fetch).
         $inicio = strpos($html, 'id="formCrearUsuario"');
         $fin = strpos($html, '</form>', (int) $inicio);
-        $this->assertStringContainsString('name="_token"', substr($html, (int) $inicio, $fin - $inicio));
-    }
+        $modal = substr($html, (int) $inicio, $fin - $inicio);
+        $this->assertStringContainsString('name="_token"', $modal);
 
-    /* ── cargarDepartamentos(): GET a create con los headers de window.http ── */
-
-    public function test_create_pedido_como_lo_pide_http_get_devuelve_html_con_select_area(): void
-    {
-        $this->withoutVite();
-        $this->actuarComoAdmin();
-
-        // http.get manda siempre Accept: application/json y X-Requested-With; el TS parsea el
-        // HTML de respuesta con DOMParser y copia select[name="area"]. Si la ruta respondiera
-        // JSON (o 4xx/redirect) a esa petición, el select del modal se quedaría vacío.
-        $res = $this->get(route('configuracion.usuarios.create'), [
-            'Accept' => 'application/json',
-            'X-Requested-With' => 'XMLHttpRequest',
-        ]);
-
-        $res->assertOk();
-        $html = $res->getContent();
-        $this->assertMatchesRegularExpression('/<select[^>]*name="area"/', $html);
-        $this->assertStringContainsString('<option value="Tejido"', $html);
-        $this->assertStringContainsString('<option value="Urdido"', $html);
+        // Las áreas vienen en la vista (antes se copiaban de la página create con un GET).
+        $this->assertStringContainsString('<option value="Tejido"', $modal);
+        $this->assertStringContainsString('<option value="Urdido"', $modal);
     }
 
     /* ── Alta: POST normal (sin Accept JSON) ── */
@@ -204,14 +186,14 @@ final class InlineMecanicosUsuariosTest extends TestCase
         $this->assertNotNull($nuevo);
         $this->assertTrue(Hash::check('secreta123', $nuevo->contrasenia));
 
-        // El alta arranca sin permisos: sigue en la edición para copiarlos y asignar máquinas.
+        // El alta arranca sin permisos: sigue en la edición para copiarlos y asignar departamentos.
         $res->assertRedirect(route('configuracion.usuarios.edit', $nuevo->idusuario))
-            ->assertSessionHas('success', 'Usuario registrado. Asigna sus permisos y máquinas.');
+            ->assertSessionHas('success', 'Usuario registrado. Asigna sus permisos y departamentos.');
 
         // El <script> inline de éxito se quitó: ahora lo pinta x-ui.flash del layout, una vez.
         $html = $this->get(route('configuracion.usuarios.select'))->assertOk()->getContent();
         $this->assertStringContainsString('data-ui-flash', $html);
-        $this->assertSame(1, substr_count($html, 'Usuario registrado. Asigna sus permisos y máquinas.'));
+        $this->assertSame(1, substr_count($html, 'Usuario registrado. Asigna sus permisos y departamentos.'));
     }
 
     public function test_alta_con_numero_repetido_vuelve_a_la_lista_y_muestra_el_error_de_validacion(): void
@@ -234,22 +216,6 @@ final class InlineMecanicosUsuariosTest extends TestCase
         $html = $this->get(route('configuracion.usuarios.select'))->assertOk()->getContent();
         $this->assertStringContainsString('data-ui-flash', $html);
         $this->assertStringContainsString('Este número de empleado ya está registrado', $html);
-    }
-
-    public function test_form_usuario_ya_no_pinta_errores_con_script_inline_sino_con_flash(): void
-    {
-        $this->withoutVite();
-        $this->actuarComoAdmin();
-
-        $this->from(route('configuracion.usuarios.create'))
-            ->post(route('configuracion.usuarios.store'), ['numero_empleado' => '', 'nombre' => ''])
-            ->assertRedirect(route('configuracion.usuarios.create'));
-
-        $html = $this->get(route('configuracion.usuarios.create'))->assertOk()->getContent();
-        $this->assertStringNotContainsString('Revisa los campos', $html);
-        $this->assertStringContainsString('data-ui-flash', $html);
-        $this->assertStringContainsString('El número de empleado es obligatorio', $html);
-        $this->assertStringContainsString('El nombre es obligatorio', $html);
     }
 
     /* ── Estado de Máquina: botones del navbar con Alpine ── */

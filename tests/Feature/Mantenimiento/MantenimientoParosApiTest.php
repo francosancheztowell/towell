@@ -70,10 +70,10 @@ class MantenimientoParosApiTest extends TestCase
         $schema->create('AtaMaquinas', function (Blueprint $table) {
             $table->string('MaquinaId')->primary();
         });
-        $schema->create('SYSMaquinasAsignacion', function (Blueprint $table) {
+        $schema->create('SYSDepartamentosAsignacion', function (Blueprint $table) {
             $table->increments('Id');
             $table->integer('idusuario');
-            $table->string('MaquinaId');
+            $table->string('Departamento');
             $table->boolean('Supervisor')->default(false);
         });
         $schema->create('UrdProgramaUrdido', function (Blueprint $table) {
@@ -102,14 +102,18 @@ class MantenimientoParosApiTest extends TestCase
         return $usuario;
     }
 
-    /** Asigna máquinas al usuario; las que no estén en el catálogo se dan de alta en $depto. */
+    /**
+     * Asigna al usuario el departamento de esas máquinas (la asignación es por departamento: ve
+     * todas sus máquinas). Las que no estén en el catálogo se dan de alta en $depto.
+     */
     private function asignar(User $usuario, array $maquinas, string $depto = 'Urdido'): void
     {
         foreach ($maquinas as $maquina) {
             if (! DB::table('URDCatalogoMaquinas')->where('MaquinaId', $maquina)->exists()) {
                 $this->maquinaUrdido($maquina, $depto);
             }
-            DB::table('SYSMaquinasAsignacion')->insert(['idusuario' => $usuario->getKey(), 'MaquinaId' => $maquina]);
+            $deptoMaquina = DB::table('URDCatalogoMaquinas')->where('MaquinaId', $maquina)->value('Departamento');
+            DB::table('SYSDepartamentosAsignacion')->updateOrInsert(['idusuario' => $usuario->getKey(), 'Departamento' => $deptoMaquina]);
         }
     }
 
@@ -174,8 +178,9 @@ class MantenimientoParosApiTest extends TestCase
             ->assertJsonPath('data', ['Atadores', 'Calidad', 'Costura', 'Tejido', 'Urdido']);
     }
 
-    public function test_maquinas_son_solo_las_asignadas_del_departamento(): void
+    public function test_maquinas_son_todas_las_del_departamento_asignado(): void
     {
+        // CVERT3 no se asignó una por una: entra por ser de Costura (asignación por departamento).
         $this->maquinaUrdido('CVERT3', 'Costura');
         DB::table('AtaMaquinas')->insert(['MaquinaId' => 'AT1']);
         $usuario = $this->entrar();
@@ -186,6 +191,7 @@ class MantenimientoParosApiTest extends TestCase
             ->assertJsonPath('data', [
                 ['MaquinaId' => 'CVERT1', 'Nombre' => 'CVERT1', 'Departamento' => 'Costura'],
                 ['MaquinaId' => 'CVERT2', 'Nombre' => 'CVERT2', 'Departamento' => 'Costura'],
+                ['MaquinaId' => 'CVERT3', 'Nombre' => 'CVERT3', 'Departamento' => 'Costura'],
             ]);
         // Departamento ajeno o área que no le toca: lista vacía, no las de otros.
         $this->getJson(route('api.mantenimiento.maquinas', 'Urdido'))->assertJsonPath('data', []);
@@ -289,11 +295,10 @@ class MantenimientoParosApiTest extends TestCase
 
         // Departamento sin máquinas asignadas.
         $this->postJson($url, ['depto' => 'Costura', 'maquina' => 'MC1', 'falla_id' => $urdido])
-            ->assertStatus(422)->assertJsonPath('errors.depto.0', 'No tienes máquinas asignadas en ese departamento.');
-        // Máquina de otro departamento, del departamento pero no asignada, e inventada.
+            ->assertStatus(422)->assertJsonPath('errors.depto.0', 'No tienes ese departamento asignado.');
+        // Máquina de otro departamento e inventada. MC2 sí vale: es de Urdido, que tiene asignado.
         $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'WP2', 'falla_id' => $urdido])
-            ->assertStatus(422)->assertJsonPath('errors.maquina.0', 'Esa máquina no está asignada a tu usuario en el departamento elegido.');
-        $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'MC2', 'falla_id' => $urdido])->assertStatus(422);
+            ->assertStatus(422)->assertJsonPath('errors.maquina.0', 'Esa máquina no es del departamento elegido.');
         $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'XX9', 'falla_id' => $urdido])->assertStatus(422);
         // Falla del catálogo de otro departamento.
         $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $engomado])
@@ -443,7 +448,7 @@ class MantenimientoParosApiTest extends TestCase
             route('api.mantenimiento.paros.show', 1),
             route('api.mantenimiento.operadores'),
         ];
-        Schema::connection('sqlsrv')->drop('SYSMaquinasAsignacion');
+        Schema::connection('sqlsrv')->drop('SYSDepartamentosAsignacion');
 
         foreach ($urls as $url) {
             $respuesta = $this->getJson($url)->assertStatus(500);

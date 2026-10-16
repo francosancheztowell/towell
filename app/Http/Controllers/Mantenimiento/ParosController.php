@@ -153,7 +153,7 @@ class ParosController extends Controller
             // Closure y no Rule::in: la lista se consulta solo si el campo llegó, y no al armar las reglas.
             'depto' => ['bail', 'required', 'string', 'max:15', function (string $atributo, mixed $valor, \Closure $falla) use ($usuario): void {
                 if (! $this->catalogo->puedeReportarEn((string) $valor, $usuario)) {
-                    $falla('No tienes máquinas asignadas en ese departamento.');
+                    $falla('No tienes ese departamento asignado.');
                 }
             }],
             'maquina' => 'required|string|max:15',
@@ -173,7 +173,7 @@ class ParosController extends Controller
 
         if (! $this->catalogo->esMaquinaDe($datos['depto'], $datos['maquina'], $usuario)) {
             throw ValidationException::withMessages([
-                'maquina' => 'Esa máquina no está asignada a tu usuario en el departamento elegido.',
+                'maquina' => 'Esa máquina no es del departamento elegido.',
             ]);
         }
 
@@ -191,7 +191,7 @@ class ParosController extends Controller
     /**
      * Lista de paros para el reporte de solicitudes.
      *
-     * Sin query: los paros de sus máquinas asignadas (SYSMaquinasAsignacion); sin asignación,
+     * Sin query: los paros de sus máquinas asignadas (de sus departamentos en SYSDepartamentosAsignacion); sin asignación,
      * o en Atadores/Calidad, los del departamento del usuario (`area`).
      * `alcance=todos`: todos los departamentos.
      * `depto={nombre}`: solo ese departamento.

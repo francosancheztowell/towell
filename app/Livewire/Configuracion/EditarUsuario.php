@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire\Configuracion;
 
+use App\Models\Sistema\SYSDepartamentoAsignacion;
 use App\Models\Sistema\SysDepartamentos;
-use App\Models\Sistema\SYSMaquinaAsignacion;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuariosRoles;
 use App\Models\Sistema\Usuario;
@@ -25,7 +25,7 @@ use Livewire\Component;
  * + 300 líneas de JS inline). Las reglas de los permisos viven aquí:
  *  - sin acceso no hay crear/modificar/eliminar/registrar; marcar cualquiera de ellos da acceso;
  *  - un módulo de Nivel 1 arrastra el mismo cambio a todos sus descendientes (Nivel 2 y 3).
- * Máquinas (SYSMaquinasAsignacion): las que el usuario ve en paros; sin ninguna no reporta.
+ * Departamentos (SYSDepartamentosAsignacion): en paros ve todas sus máquinas; sin ninguno no reporta.
  * Teléfono, correo y foto ya no se editan aquí (decisión del owner, 16-oct) y se conservan.
  *
  * @property-read Collection<int, SYSRoles> $modulos
@@ -47,10 +47,16 @@ class EditarUsuario extends Component
     /** @var array<int, array<string, bool>> idrol => [campo => bool] */
     public array $permisos = [];
 
-    /** @var list<string> MaquinaId asignadas */
-    public array $maquinas = [];
+    /** @var list<string> Departamentos de URDCatalogoMaquinas asignados */
+    public array $departamentos = [];
+
+    /** @var list<string> Telares (MaquinaId) de Jacquard/Itema/Smith/Karl Mayer: van a TelTelaresOperador */
+    public array $telares = [];
 
     public bool $supervisor = false;
+
+    /** Hay cambios sin guardar (la insignia del navbar). */
+    public bool $sinGuardar = false;
 
     public function mount(int $usuarioId): void
     {
@@ -122,15 +128,33 @@ class EditarUsuario extends Component
     #[Computed]
     public function maquinasPorDepto(): Collection
     {
-        return URDCatalogoMaquina::orderBy('Departamento')->orderBy('Secuencia')->orderBy('MaquinaId')
-            ->get(['MaquinaId', 'Nombre', 'Departamento'])->groupBy('Departamento');
+        // Por número de telar en orden natural (201, 202… y no por Secuencia de captura).
+        return URDCatalogoMaquina::orderBy('Departamento')->get(['MaquinaId', 'Nombre', 'Departamento'])
+            ->groupBy('Departamento')
+            ->map(fn ($lista) => $lista->sortBy('MaquinaId', SORT_NATURAL)->values());
     }
 
     /** "Copiar permisos de…": trae permisos, máquinas y Supervisor de otro usuario (se guardan con Guardar). */
     public function copiarDe(int $idusuario): void
     {
-        abort_unless(Usuario::whereKey($idusuario)->exists(), 404);
+        $origen = Usuario::findOrFail($idusuario, ['idusuario', 'nombre']);
         $this->cargarAccesosDe($idusuario);
+        $this->sinGuardar = true;
+        $this->dispatch('aviso', tipo: 'info', texto: "Se copiaron los permisos y departamentos de {$origen->nombre}. Guarda para aplicarlos.");
+    }
+
+    /** Cualquier wire:model (campos, máquinas, Supervisor, casillas de permisos) deja cambios pendientes. */
+    public function updated(): void
+    {
+        $this->sinGuardar = true;
+    }
+
+    /** Marcar un telar marca su departamento (sin él no reportaría paros de ese salón). */
+    public function updatedTelares(): void
+    {
+        $catalogo = UsuarioService::telaresDelCatalogo();
+        $deptos = array_map(fn ($t) => $catalogo[$t] ?? null, $this->telares);
+        $this->departamentos = array_values(array_unique([...$this->departamentos, ...array_filter($deptos)]));
     }
 
     public function alternar(int $idrol, string $campo): void
@@ -141,6 +165,19 @@ class EditarUsuario extends Component
         foreach ([$idrol, ...($this->descendientes[$idrol] ?? [])] as $id) {
             $this->fijar($id, $campo, $valor);
         }
+    }
+
+    /**
+     * Casilla con wire:model (flux:checkbox): Livewire ya puso el valor nuevo; se regresa y se
+     * aplica por alternar() para que cuente la regla de acceso y la cascada del Nivel 1.
+     */
+    public function updatedPermisos(mixed $valor, string $clave): void
+    {
+        [$idrol, $campo] = explode('.', $clave) + [1 => ''];
+        abort_unless(in_array($campo, self::CAMPOS, true), 422);
+
+        $this->permisos[(int) $idrol][$campo] = ! $valor;
+        $this->alternar((int) $idrol, $campo);
     }
 
     /** Encabezado de columna: marca la columna entera, o la desmarca si ya estaba toda marcada. */
@@ -159,6 +196,7 @@ class EditarUsuario extends Component
         foreach ($this->permisos as $id => $fila) {
             $this->permisos[$id] = array_fill_keys(self::CAMPOS, $valor);
         }
+        $this->sinGuardar = true;
     }
 
     public function columnaCompleta(string $campo): bool
@@ -166,20 +204,16 @@ class EditarUsuario extends Component
         return $this->permisos !== [] && ! in_array(false, array_column($this->permisos, $campo), true);
     }
 
-    /** Casilla del departamento: marca todas sus máquinas, o las quita si ya estaban todas. */
-    public function alternarDepartamento(string $departamento): void
-    {
-        $ids = $this->idsDe($this->maquinasPorDepto->get($departamento, collect()));
-        $this->maquinas = array_diff($ids, $this->maquinas) === []
-            ? array_values(array_diff($this->maquinas, $ids))
-            : array_values(array_unique([...$this->maquinas, ...$ids]));
-    }
-
     public function guardar(UsuarioService $usuarios, ModuloService $moduloService)
     {
         abort_unless(userCan('modificar', self::MODULO_USUARIOS), 403);
 
         $puestoGuardado = (string) Usuario::whereKey($this->usuarioId)->value('puesto');
+        $this->withValidator(fn ($v) => $v->after(function ($v) {
+            if ($v->errors()->isNotEmpty()) {
+                $this->dispatch('aviso', tipo: 'error', texto: 'Revisa los campos marcados en rojo.');
+            }
+        }));
         $datos = $this->validate([
             'form.area' => 'nullable|string|max:100',
             'form.nombre' => 'required|string|max:255',
@@ -187,8 +221,9 @@ class EditarUsuario extends Component
             'form.puesto' => ['nullable', Rule::in([...UsuarioService::PUESTOS, $puestoGuardado])],
             'form.turno' => ['nullable', Rule::in(['1', '2', '3', '4'])],
             'form.contrasenia' => 'nullable|string|min:4',
-            'maquinas.*' => [Rule::in($this->idsDe($this->maquinasPorDepto->flatten(1)))],
-        ], [], ['form.nombre' => 'nombre', 'form.contrasenia' => 'contraseña', 'maquinas.*' => 'máquina'])['form'];
+            'departamentos.*' => [Rule::in($this->maquinasPorDepto->keys()->map(fn ($d) => (string) $d)->all())],
+            'telares.*' => [Rule::in(UsuarioService::telaresDelCatalogo()->keys()->all())],
+        ], [], ['form.nombre' => 'nombre', 'form.contrasenia' => 'contraseña', 'departamentos.*' => 'departamento', 'telares.*' => 'telar'])['form'];
 
         // Livewire no pasa por ConvertEmptyStringsToNull. numero_empleado no va en las reglas:
         // no se edita aquí (es la llave con la que inicia sesión).
@@ -202,7 +237,11 @@ class EditarUsuario extends Component
             }
         }
 
-        $usuarios->update($this->usuarioId, $datos, null, $marcados, $this->maquinas, $this->supervisor);
+        // Telares solo de los departamentos que siguen marcados: quitar Jacquard quita sus telares.
+        $catalogo = UsuarioService::telaresDelCatalogo();
+        $telares = array_values(array_filter($this->telares, fn ($t) => in_array($catalogo[$t] ?? null, $this->departamentos, true)));
+
+        $usuarios->update($this->usuarioId, $datos, null, $marcados, $this->departamentos, $this->supervisor, $telares);
         $moduloService->limpiarCacheUsuario($this->usuarioId);
 
         session()->flash('success', "Usuario #{$this->form['numero_empleado']} actualizado correctamente.");
@@ -213,7 +252,7 @@ class EditarUsuario extends Component
     public function render(): View
     {
         return view('livewire.configuracion.editar-usuario', [
-            'departamentos' => SysDepartamentos::orderBy('Depto')->pluck('Depto'),
+            'areas' => SysDepartamentos::orderBy('Depto')->pluck('Depto'),
             'puestos' => array_unique(array_filter([...UsuarioService::PUESTOS, $this->form['puesto']])),
             'otrosUsuarios' => Usuario::whereKeyNot($this->usuarioId)->orderBy('nombre')->get(['idusuario', 'nombre', 'numero_empleado']),
         ]);
@@ -231,18 +270,10 @@ class EditarUsuario extends Component
             }
         }
 
-        $asignadas = SYSMaquinaAsignacion::where('idusuario', $idusuario)->get();
-        $this->maquinas = $this->idsDe($asignadas);
-        $this->supervisor = $asignadas->contains('Supervisor', true);
-    }
-
-    /**
-     * @param  iterable<URDCatalogoMaquina|SYSMaquinaAsignacion>  $filas
-     * @return list<string>
-     */
-    private function idsDe(iterable $filas): array
-    {
-        return collect($filas)->map(fn ($f) => (string) $f->MaquinaId)->values()->all();
+        $asignados = SYSDepartamentoAsignacion::where('idusuario', $idusuario)->get();
+        $this->departamentos = $asignados->map(fn ($a) => (string) $a->Departamento)->values()->all();
+        $this->supervisor = $asignados->contains('Supervisor', true);
+        $this->telares = UsuarioService::telaresDe(Usuario::whereKey($idusuario)->value('numero_empleado'));
     }
 
     private function fijar(int $idrol, string $campo, bool $valor): void
@@ -251,6 +282,7 @@ class EditarUsuario extends Component
             return;
         }
         $this->permisos[$idrol][$campo] = $valor;
+        $this->sinGuardar = true;
 
         if ($campo === 'acceso' && ! $valor) {
             $this->permisos[$idrol] = array_fill_keys(self::CAMPOS, false);

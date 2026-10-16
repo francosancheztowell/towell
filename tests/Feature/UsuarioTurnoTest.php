@@ -88,7 +88,7 @@ class UsuarioTurnoTest extends TestCase
         // Renderizar el form exige rutas, permisos y $departamentos; esto falla
         // igual si alguien borra la opcion, que es lo unico que importa aqui.
         $selects = [
-            resource_path('views/modulos/usuarios/form_usuario.blade.php'),
+            resource_path('views/livewire/configuracion/editar-usuario.blade.php'),
             resource_path('views/modulos/usuarios/select.blade.php'),
         ];
 

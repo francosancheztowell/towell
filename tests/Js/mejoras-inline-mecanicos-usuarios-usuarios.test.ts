@@ -66,7 +66,7 @@ doc.body.append(
     ),
     h('div', { id: 'modalCrearUsuario', class: 'hidden fixed' },
         h('button', { type: 'button', 'data-usuarios-cerrar-crear': '', id: 'cerrar-x' }),
-        h('form', { id: 'formCrearUsuario', method: 'POST', action: '/configuracion/usuarios', 'data-url-areas': '/configuracion/usuarios/create' },
+        h('form', { id: 'formCrearUsuario', method: 'POST', action: '/configuracion/usuarios' },
             h('input', { name: 'nombre', id: 'nombre_modal', value: '' }),
             h('select', { id: 'area_modal', name: 'area' }, h('option', { value: '' }, 'Selecciona el área')),
         ),
@@ -130,15 +130,12 @@ test('sin resultados muestra el mensaje y al limpiar lo quita, quita el badge y 
     assert.equal(btnFiltrar.querySelector('.badge-filtros'), null)
 })
 
-test('Nuevo Usuario abre el modal y copia las áreas de la página create (GET como texto)', async () => {
+test('Nuevo Usuario abre el modal sin pedir nada: las áreas ya vienen en la vista', async () => {
     click(q('#btn-crear').children[0])
     await settle()
 
     assert.equal(q('#modalCrearUsuario').classList.contains('hidden'), false)
-    assert.equal(pedidas.length, 1)
-    assert.equal(pedidas[0]!.url, '/configuracion/usuarios/create')
-    assert.equal(pedidas[0]!.responseType, 'text')
-    assert.match(q('#area_modal').innerHTML, /<option value="Tejido">Tejido<\/option><option value="Urdido">/)
+    assert.equal(pedidas.length, 0)
 })
 
 test('cerrar el modal lo oculta y resetea el form', () => {

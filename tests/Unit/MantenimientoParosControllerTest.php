@@ -49,10 +49,10 @@ class MantenimientoParosControllerTest extends TestCase
             $table->string('Departamento');
         });
 
-        $schema->create('SYSMaquinasAsignacion', function (Blueprint $table) {
+        $schema->create('SYSDepartamentosAsignacion', function (Blueprint $table) {
             $table->increments('Id');
             $table->integer('idusuario');
-            $table->string('MaquinaId');
+            $table->string('Departamento');
             $table->boolean('Supervisor')->default(false);
         });
     }

@@ -88,10 +88,10 @@ class Usuario extends Authenticatable
         return $this->hasMany(SYSUsuariosRoles::class, 'idusuario', 'idusuario');
     }
 
-    /** Máquinas asignadas (SYSMaquinasAsignacion): las que ve en paros. */
-    public function maquinasAsignadas()
+    /** Departamentos asignados (SYSDepartamentosAsignacion): en paros ve sus máquinas. */
+    public function departamentosAsignados()
     {
-        return $this->hasMany(SYSMaquinaAsignacion::class, 'idusuario', 'idusuario');
+        return $this->hasMany(SYSDepartamentoAsignacion::class, 'idusuario', 'idusuario');
     }
 
     /**

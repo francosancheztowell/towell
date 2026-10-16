@@ -38,8 +38,6 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
             ->middleware("module.permission:acceso,{$usuarios}")->name('index');
         Route::get('/select', [UsuarioController::class, 'select'])
             ->middleware("module.permission:acceso,{$usuarios}")->name('select');
-        Route::get('/create', [UsuarioController::class, 'create'])
-            ->middleware("module.permission:crear,{$usuarios}")->name('create');
         Route::post('/store', [UsuarioController::class, 'store'])
             ->middleware("module.permission:crear,{$usuarios}")->name('store');
         Route::post('/{id}/duplicar', [UsuarioController::class, 'duplicar'])

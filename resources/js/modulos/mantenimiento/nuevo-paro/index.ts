@@ -204,7 +204,7 @@ function iniciar(): void {
         const departamentos = cfg!.departamentos ?? [];
         soloPlaceholder(selDepto, 'Seleccione un departamento');
         departamentos.forEach((d) => selDepto.add(new Option(d, d)));
-        if (departamentos.length === 0) errorCarga('depto', 'No tienes máquinas asignadas: pide a Sistemas que te las asigne en tu usuario.');
+        if (departamentos.length === 0) errorCarga('depto', 'No tienes departamentos asignados: pide a Sistemas que te los asigne en tu usuario.');
 
         // Con un solo departamento (el caso común: sus máquinas son de un salón) se elige solo.
         const propio = departamentoDelArea(departamentos, cfg!.areaUsuario) ?? (departamentos.length === 1 ? departamentos[0] : null);
@@ -278,7 +278,7 @@ function iniciar(): void {
                 selMaquina.append(...maquinas.map(opcion));
             }
             selMaquina.disabled = maquinas.length === 0;
-            if (maquinas.length === 0) errorCarga('maquina', 'Este departamento no tiene máquinas asignadas a su usuario.');
+            if (maquinas.length === 0) errorCarga('maquina', 'Este departamento no tiene máquinas en el catálogo.');
         } catch (err) {
             if (!vigente()) return;
             reiniciar(selMaquina, 'Error al cargar máquinas');

@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\Sistema\SYSMaquinaAsignacion;
+use App\Models\Sistema\SYSDepartamentoAsignacion;
 use App\Models\Sistema\SYSUsuariosRoles;
 use App\Models\Sistema\Usuario;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Repositories\UsuarioRepository;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -21,6 +24,42 @@ class UsuarioService
         'Tejedor', 'Supervisor', 'Atador', 'Aux Atador', 'Engomado', 'Urdido', 'Mecánico',
         'Eléctrico', 'Tramero', 'Desarrollador', 'Calidad', 'Contador', 'Planeación', 'Auxiliar',
     ];
+
+    /**
+     * Departamentos cuyos telares se asignan uno por uno en TelTelaresOperador (lo leen también
+     * Mecánicos, BPM y Desarrolladores). El resto se asigna solo por departamento.
+     * Itema y Smith son un mismo salón en TelTelaresOperador ("Smith"/"SMIT"): ver salonDe().
+     */
+    public const DEPARTAMENTOS_CON_TELARES = ['Jacquard', 'Itema', 'Smith', 'Karl Mayer'];
+
+    /**
+     * Telares (MaquinaId) de DEPARTAMENTOS_CON_TELARES que el empleado tiene en TelTelaresOperador.
+     * Por catálogo y no por SalonTejidoId: el salón "Smith" junta los telares de Itema y de Smith.
+     *
+     * @return list<string>
+     */
+    public static function telaresDe(?string $numeroEmpleado): array
+    {
+        if (trim((string) $numeroEmpleado) === '') {
+            return [];
+        }
+
+        return TelTelaresOperador::where('numero_empleado', $numeroEmpleado)
+            ->whereIn('NoTelarId', self::telaresDelCatalogo()->keys())
+            ->pluck('NoTelarId')
+            ->map(fn ($t) => trim((string) $t))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** @return Collection<string, string> MaquinaId => Departamento de DEPARTAMENTOS_CON_TELARES */
+    public static function telaresDelCatalogo(): Collection
+    {
+        return URDCatalogoMaquina::whereIn('Departamento', self::DEPARTAMENTOS_CON_TELARES)
+            ->pluck('Departamento', 'MaquinaId')
+            ->mapWithKeys(fn ($depto, $id) => [trim((string) $id) => (string) $depto]);
+    }
 
     /** El puesto de la lista que corresponde a uno guardado ("Mecanico", "AUX ATADOR"…); si no hay, el mismo. */
     public static function puestoDeLista(?string $puesto): ?string
@@ -100,20 +139,23 @@ class UsuarioService
                     ->where('idusuario', $origen->idusuario)
             );
 
-            $maquinas = SYSMaquinaAsignacion::where('idusuario', $origen->idusuario)->get();
-            $this->guardarMaquinas($usuario->idusuario, $maquinas->pluck('MaquinaId')->all(), (bool) $maquinas->first()?->Supervisor);
+            $deptos = SYSDepartamentoAsignacion::where('idusuario', $origen->idusuario)->get();
+            $supervisor = $deptos->contains('Supervisor', true);
+            $this->guardarDepartamentos($usuario->idusuario, $deptos->pluck('Departamento')->all(), $supervisor);
+            $this->guardarTelares($usuario, self::telaresDe($origen->numero_empleado), $supervisor);
 
             return $usuario;
         });
     }
 
     /**
-     * Actualizar usuario, permisos y máquinas en una transacción. Solo se tocan las columnas
+     * Actualizar usuario, permisos y departamentos en una transacción. Solo se tocan las columnas
      * que llegan en $data: teléfono, correo y foto ya no están en el formulario y se conservan.
      *
-     * @param  list<string>|null  $maquinas  MaquinaId asignadas; null = no tocar las máquinas
+     * @param  list<string>|null  $departamentos  de URDCatalogoMaquinas; null = no tocar la asignación
+     * @param  list<string>|null  $telares  MaquinaId de Jacquard/Itema/Smith/Karl Mayer; null = no tocar TelTelaresOperador
      */
-    public function update(int $id, array $data, ?UploadedFile $foto = null, array $permisos = [], ?array $maquinas = null, bool $supervisor = false): bool
+    public function update(int $id, array $data, ?UploadedFile $foto = null, array $permisos = [], ?array $departamentos = null, bool $supervisor = false, ?array $telares = null): bool
     {
         if ($foto) {
             $data['foto'] = $this->guardarFoto($foto);
@@ -126,14 +168,18 @@ class UsuarioService
             unset($data['contrasenia']);
         }
 
-        return DB::connection('sqlsrv')->transaction(function () use ($id, $data, $permisos, $maquinas, $supervisor) {
+        return DB::connection('sqlsrv')->transaction(function () use ($id, $data, $permisos, $departamentos, $supervisor, $telares) {
             $actualizado = $this->usuarioRepository->update($id, $data);
 
             // Guardar permisos desde el formulario (aunque estén en blanco)
             $this->permissionService->guardarPermisos($permisos, $id);
 
-            if ($maquinas !== null) {
-                $this->guardarMaquinas($id, $maquinas, $supervisor);
+            if ($departamentos !== null) {
+                $this->guardarDepartamentos($id, $departamentos, $supervisor);
+            }
+
+            if ($telares !== null && ($usuario = $this->usuarioRepository->findById($id))) {
+                $this->guardarTelares($usuario, $telares, $supervisor);
             }
 
             return $actualizado;
@@ -141,16 +187,48 @@ class UsuarioService
     }
 
     /**
-     * Reemplaza las máquinas del usuario. Supervisor es uno solo para toda la asignación.
+     * Reemplaza los telares de Jacquard/Itema/Smith/Karl Mayer del empleado en TelTelaresOperador
+     * con su nombre y turno actuales. Solo borra filas de telares de esos departamentos según el
+     * catálogo: las de telares que no están en él (p. ej. el 212 de Jacquard) se conservan.
      *
-     * @param  list<string>  $maquinas
+     * @param  list<string>  $telares
      */
-    public function guardarMaquinas(int $idusuario, array $maquinas, bool $supervisor): void
+    public function guardarTelares(Usuario $usuario, array $telares, bool $supervisor): void
     {
-        SYSMaquinaAsignacion::where('idusuario', $idusuario)->delete();
+        $numero = (string) $usuario->numero_empleado;
+        if (trim($numero) === '') {
+            return;
+        }
 
-        foreach (array_unique($maquinas) as $maquinaId) {
-            SYSMaquinaAsignacion::create(['idusuario' => $idusuario, 'MaquinaId' => $maquinaId, 'Supervisor' => $supervisor]);
+        $catalogo = self::telaresDelCatalogo();
+        TelTelaresOperador::where('numero_empleado', $numero)->whereIn('NoTelarId', $catalogo->keys())->delete();
+
+        foreach (array_unique($telares) as $telar) {
+            if (! $catalogo->has($telar)) {
+                continue;
+            }
+            TelTelaresOperador::create([
+                'numero_empleado' => $numero,
+                'nombreEmpl' => $usuario->nombre,
+                'NoTelarId' => $telar,
+                'Turno' => $usuario->turno,
+                'SalonTejidoId' => URDCatalogoMaquina::salonDe($catalogo[$telar]),
+                'Supervisor' => (int) $supervisor,
+            ]);
+        }
+    }
+
+    /**
+     * Reemplaza los departamentos del usuario. Supervisor es uno solo para toda la asignación.
+     *
+     * @param  list<string>  $departamentos
+     */
+    public function guardarDepartamentos(int $idusuario, array $departamentos, bool $supervisor): void
+    {
+        SYSDepartamentoAsignacion::where('idusuario', $idusuario)->delete();
+
+        foreach (array_unique($departamentos) as $departamento) {
+            SYSDepartamentoAsignacion::create(['idusuario' => $idusuario, 'Departamento' => $departamento, 'Supervisor' => $supervisor]);
         }
     }
 

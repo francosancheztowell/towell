@@ -171,8 +171,7 @@
                 </button>
             </div>
 
-            <form id="formCrearUsuario" class="p-6" method="POST" action="{{ route('configuracion.usuarios.store') }}"
-                  data-url-areas="{{ route('configuracion.usuarios.create') }}">
+            <form id="formCrearUsuario" class="p-6" method="POST" action="{{ route('configuracion.usuarios.store') }}">
                 @csrf
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Número de Empleado -->
@@ -204,6 +203,9 @@
                         <select id="area_modal" name="area" required
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
                             <option value="">Selecciona el área</option>
+                            @foreach ($departamentos as $depto)
+                                <option value="{{ $depto }}">{{ $depto }}</option>
+                            @endforeach
                         </select>
                     </div>
 

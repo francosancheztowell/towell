@@ -13,7 +13,6 @@ use App\Services\ModuloService;
 use App\Services\UsuarioService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -43,26 +42,6 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Mostrar formulario de creación de usuario
-     */
-    public function create()
-    {
-        $modulos = $this->moduloService->getAllModulos();
-        $departamentos = SysDepartamentos::orderBy('Depto')->get();
-
-        $modulosDescendientes = $this->obtenerDescendientesPorIdrolRaiz($modulos);
-
-        return view('modulos.usuarios.form_usuario', [
-            'usuario' => null,
-            'modulos' => $modulos,
-            'permisosUsuario' => collect(),
-            'departamentos' => $departamentos,
-            'isEdit' => false,
-            'modulosDescendientes' => $modulosDescendientes,
-        ]);
-    }
-
-    /**
      * Almacenar un nuevo usuario
      */
     public function store(StoreUsuarioRequest $request)
@@ -78,10 +57,10 @@ class UsuarioController extends Controller
 
             $usuario = $this->usuarioService->create($data, $foto, $permisos);
 
-            // El alta arranca sin permisos: se sigue en la edición para copiarlos y asignar máquinas.
+            // El alta arranca sin permisos: se sigue en la edición para copiarlos y asignar departamentos.
             return redirect()
                 ->route('configuracion.usuarios.edit', $usuario->idusuario)
-                ->with('success', 'Usuario registrado. Asigna sus permisos y máquinas.');
+                ->with('success', 'Usuario registrado. Asigna sus permisos y departamentos.');
         } catch (\Exception $e) {
             Log::error('Error al crear usuario', ['error' => $e->getMessage()]);
 
@@ -135,6 +114,7 @@ class UsuarioController extends Controller
         return view('modulos.usuarios.select', [
             'usuarios' => $usuarios,
             'puestos' => UsuarioService::PUESTOS,
+            'departamentos' => SysDepartamentos::orderBy('Depto')->pluck('Depto'),
         ]);
     }
 
@@ -380,43 +360,5 @@ class UsuarioController extends Controller
                 Auth::user()->idusuario
             ),
         ]);
-    }
-
-    /**
-     * Obtener para cada módulo de Nivel 1 el listado de idrol de sus descendientes (Nivel 2 y 3).
-     * Se usa en el formulario de usuario para cascada de permisos.
-     *
-     * @param  Collection  $modulos
-     * @return array [ idrol_raiz => [ idrol_hijo1, idrol_hijo2, ... ], ... ]
-     */
-    private function obtenerDescendientesPorIdrolRaiz($modulos): array
-    {
-        $porOrden = $modulos->keyBy('orden');
-        $descendientes = [];
-
-        foreach ($modulos as $m) {
-            if ((int) $m->Nivel === 1) {
-                $descendientes[$m->idrol] = [];
-            }
-        }
-
-        foreach ($modulos as $m) {
-            if ((int) $m->Nivel === 2 && $m->Dependencia !== null) {
-                $raiz = $porOrden->get($m->Dependencia);
-                if ($raiz && (int) $raiz->Nivel === 1) {
-                    $descendientes[$raiz->idrol][] = $m->idrol;
-                }
-            } elseif ((int) $m->Nivel === 3 && $m->Dependencia !== null) {
-                $padre = $porOrden->get($m->Dependencia);
-                if ($padre && (int) $padre->Nivel === 2 && $padre->Dependencia !== null) {
-                    $raiz = $porOrden->get($padre->Dependencia);
-                    if ($raiz && (int) $raiz->Nivel === 1) {
-                        $descendientes[$raiz->idrol][] = $m->idrol;
-                    }
-                }
-            }
-        }
-
-        return $descendientes;
     }
 }
