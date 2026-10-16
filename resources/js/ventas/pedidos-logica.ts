@@ -82,12 +82,19 @@ export const sumLines = (lines: PedidoLinea[]): Totals => lines.reduce((acc, lin
 export const progress = (totals: Totals) => (totals.cantidad > 0 ? Math.min(100, (totals.entregado / totals.cantidad) * 100) : 0);
 
 const collator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
-/** Como en el Excel: Towel antes que Textil; lo demás alfabético. */
-const COMPANY_ORDER = ['towel', 'textil'];
+/**
+ * Orden de negocio (el mismo de Resumen General): Towel antes que Textil y los tipos CE, CE HT, RS
+ * y al final 2das / 3ra. Lo que no está en la lista va después, en orden alfabético.
+ */
+const BUSINESS_ORDER: Partial<Record<Level, string[]>> = {
+    empresa: ['towel', 'textil'],
+    tipo: ['ce', 'ce ht', 'rs', '2das / 3ra'],
+};
 
 const compareValues = (level: Level, a: string, b: string) => {
-    if (level === 'empresa') {
-        const rank = (value: string) => { const i = COMPANY_ORDER.indexOf(value.toLowerCase()); return i === -1 ? COMPANY_ORDER.length : i; };
+    const order = BUSINESS_ORDER[level];
+    if (order) {
+        const rank = (value: string) => { const i = order.indexOf(value.trim().toLowerCase()); return i === -1 ? order.length : i; };
         const diff = rank(a) - rank(b);
         if (diff) return diff;
     }

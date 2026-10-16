@@ -17,8 +17,8 @@ import {
 /** Más filas que esto vuelven lenta la tabla en tablet; se avisa para acotar con filtros o búsqueda. */
 const MAX_ROWS = 2500;
 const COLUMNS = 6;
-/** Niveles abiertos al entrar (Empresa y Tipo): se ven los clientes de cada tipo, como en el Excel. */
-const OPEN_DEPTH = 2;
+/** Niveles abiertos al entrar: solo Empresa, así se ve cada Tipo de pedido con su total. */
+const OPEN_DEPTH = 1;
 
 const LEVEL_ICONS: Record<TreeNode['level'], string> = {
     empresa: 'fa-industry', tipo: 'fa-tag', cliente: 'fa-building', oc: 'fa-file-lines',

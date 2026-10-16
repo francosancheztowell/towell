@@ -103,3 +103,13 @@ test('filtra por artículo, tamaño, color y código de barras', () => {
         assert.ok(matchesLine(alb!, filtros), key)
     }
 })
+
+test('el tipo de pedido sigue el orden de negocio: CE, CE HT, RS y al final 2das / 3ra', () => {
+    const lineas = decodePedidos(payload([
+        linea({ empresa: 'TEXTIL', tipo: '2das / 3ra' }), linea({ empresa: 'TEXTIL', tipo: 'CE' }),
+        linea({ tipo: 'RS' }), linea({ tipo: 'CE HT' }), linea({ tipo: 'CE' }), linea({ tipo: 'OTRO' }),
+    ]))
+    const [towel, textil] = buildTree(lineas)
+    assert.deepEqual(towel!.children.map((nodo) => nodo.value), ['CE', 'CE HT', 'RS', 'OTRO'])
+    assert.deepEqual(textil!.children.map((nodo) => nodo.value), ['CE', '2das / 3ra'])
+})
