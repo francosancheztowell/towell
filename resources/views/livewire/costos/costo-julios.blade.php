@@ -4,11 +4,10 @@
     $porKg = fn (?float $v, string $unidad = ''): string => $v === null ? '—' : '$'.number_format($v, 2).$unidad;
     // Clases completas por concepto: Tailwind solo ve literales en Blade.
     $colores = ['MOD' => 'bg-blue-600', 'MOI' => 'bg-indigo-400', 'GtsV' => 'bg-emerald-500', 'GtsF' => 'bg-amber-500',
-        'Pf' => 'bg-rose-500', 'PV' => 'bg-cyan-500', 'Maquila' => 'bg-slate-500'];
+        'Gastos' => 'bg-emerald-500', 'Pf' => 'bg-rose-500', 'PV' => 'bg-cyan-500', 'Maquila' => 'bg-slate-500'];
     // Encabezado de la tabla en dos renglones, en palabras del contador (los códigos solo los entiende quien ya los sabe).
     $encabezado = ['MOD' => ['Mano obra', 'directa'], 'MOI' => ['Mano obra', 'indirecta'], 'GtsV' => ['Gastos', 'variables'],
-        'GtsF' => ['Gastos', 'fijos'], 'Pf' => ['Prorrateo', 'fijo'], 'PV' => ['Prorrateo', 'variable'], 'Maquila' => ['Maquila', '']];
-    $sabDe = array_flip(\App\Livewire\Costos\CostoJulios::SABANA);
+        'GtsF' => ['Gastos', 'fijos'], 'Gastos' => ['Gastos', ''], 'Pf' => ['Prorrateo', 'fijo'], 'PV' => ['Prorrateo', 'variable'], 'Maquila' => ['Maquila', '']];
     $pct = fn (float $parte, float $total): string => $total > 0 ? number_format($parte / $total * 100, 1).'%' : '—';
     // Lo que necesita atención va primero.
     $puntos = collect($veredicto ?? [])->sortBy(fn ($p) => ['fuera' => 0, 'sin' => 1, 'ok' => 2][$p['estado']])->values();
@@ -121,7 +120,7 @@
                     <tbody>
                         @forelse ($conceptos as $col => $nombre)
                             @php
-                                $sab = isset($sabDe[$col]) ? ($cuadre[$nombre]['sab'] ?? null) : null;
+                                $sab = $cuadre[$col]['sab'] ?? null;
                                 $difSab = $sab === null ? null : $mesTotal[$col] - $sab;
                             @endphp
                             <tr>
@@ -140,6 +139,15 @@
                         @empty
                             <tr><td colspan="5" class="py-2 text-slate-500">Sin costo de conversión en el mes.</td></tr>
                         @endforelse
+                        {{-- Directo: los fijos se ven para referencia, en gris y fuera del total. --}}
+                        @foreach ($noContemplados as $col => $f)
+                            <tr class="text-slate-500">
+                                <td class="py-1"><span class="me-1.5 inline-block size-2.5 rounded-sm bg-slate-300" aria-hidden="true"></span>{{ $f['nombre'] }}</td>
+                                <td class="py-1 text-end">{{ $pesos($f['julios'], 0) }}</td>
+                                <td class="py-1 text-end">{{ $pesos($f['sab'], 0) }}</td>
+                                <td colspan="2" class="py-1 text-end text-caption italic">No se contempla</td>
+                            </tr>
+                        @endforeach
                     </tbody>
                     @if ($cuadre !== null)
                         <tfoot class="border-t border-slate-200 font-semibold">

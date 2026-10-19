@@ -39,11 +39,15 @@ class CostoJulios extends Component
     /** Costos fijos: el costeo directo no los toma (igual que CosCuota::FIJOS en las cuotas). */
     public const FIJOS = ['GtsF', 'Pf'];
 
+    /** Columna calculada: en absorbente el contador ve los gastos variables y fijos en un solo renglón. */
+    public const GASTOS = 'Gastos';
+
     /** Máquina como se ve en pantalla => prefijo de sus columnas de consumo en el kardex (MC1KG, MC1IMP…). */
     public const KARDEX = ['Mc Coy 1' => 'MC1', 'Mc Coy 2' => 'MC2', 'Mc Coy 3' => 'MC3', 'Karl Mayer' => 'KM'];
 
-    /** Sábana de la cuota real => columna del julio: Σ julios del mes = Sab (CostosJulio). */
-    public const SABANA = ['SabMO' => 'MOD', 'SabMOI' => 'MOI', 'SabGtosVariable' => 'GtsV', 'SabGtosFijos' => 'GtsF'];
+    /** Columna del julio => columnas de la sábana de la cuota real que la cubren: Σ julios del mes = Σ Sab (CostosJulio). */
+    public const SABANA = ['MOD' => ['SabMO'], 'MOI' => ['SabMOI'], 'GtsV' => ['SabGtosVariable'], 'GtsF' => ['SabGtosFijos'],
+        self::GASTOS => ['SabGtosVariable', 'SabGtosFijos']];
 
     /** Método de costeo: 'directo' deja fuera los fijos. Mismo switch del navbar que Cuotas y la Hoja de costos. */
     #[Url(except: 'absorbente')]
@@ -240,23 +244,69 @@ class CostoJulios extends Component
         foreach (array_keys(self::CONCEPTOS) as $col) {
             $fila[$col] = $j->getAttribute($col) === null ? null : (float) $j->getAttribute($col);
         }
+        $fila[self::GASTOS] = $fila['GtsV'] === null && $fila['GtsF'] === null ? null : (float) $fila['GtsV'] + (float) $fila['GtsF'];
 
         return $fila;
     }
 
     /**
-     * Conceptos que se muestran: los que tienen importe en el mes y, en directo, sin los fijos.
+     * Conceptos de cada costeo: directo sin los fijos; absorbente con gastos variables y fijos en uno (GASTOS).
+     *
+     * @return array<string, string> columna => nombre
+     */
+    public static function conceptosDe(string $costeo): array
+    {
+        if ($costeo === 'directo') {
+            return array_diff_key(self::CONCEPTOS, array_flip(self::FIJOS));
+        }
+
+        $conceptos = [];
+        foreach (self::CONCEPTOS as $col => $nombre) {
+            if ($col === 'GtsV') {
+                $conceptos[self::GASTOS] = 'Gastos';
+            } elseif ($col !== 'GtsF') {
+                $conceptos[$col] = $nombre;
+            }
+        }
+
+        return $conceptos;
+    }
+
+    /**
+     * Conceptos que se muestran: los del costeo que tienen importe en el mes.
      *
      * @return array<string, string>
      */
     private function conceptosVisibles(Collection $julios): array
     {
         return array_filter(
-            self::CONCEPTOS,
-            fn (string $col): bool => ! ($this->costeo === 'directo' && in_array($col, self::FIJOS, true))
-                && abs((float) $julios->sum($col)) > 0.0001,
+            self::conceptosDe($this->costeo),
+            fn (string $col): bool => abs((float) $julios->sum($col)) > 0.0001,
             ARRAY_FILTER_USE_KEY,
         );
+    }
+
+    /**
+     * Fijos que el costeo directo no contempla, con su importe del mes, para mostrarlos aparte (en gris).
+     *
+     * @return array<string, array{nombre: string, julios: float, sab: float|null}>
+     */
+    private function noContemplados(Collection $julios, ?CosCuotasReal $cuota): array
+    {
+        if ($this->costeo !== 'directo') {
+            return [];
+        }
+
+        $fijos = [];
+        foreach (self::FIJOS as $col) {
+            $sab = $cuota === null || ! isset(self::SABANA[$col]) ? null : self::sabana($cuota, $col);
+            $importe = (float) $julios->sum($col);
+            if (abs($importe) > 0.0001 || abs((float) $sab) > 0.0001) {
+                $fijos[$col] = ['nombre' => self::CONCEPTOS[$col], 'julios' => $importe, 'sab' => $sab];
+            }
+        }
+
+        return $fijos;
     }
 
     /**
@@ -313,26 +363,29 @@ class CostoJulios extends Component
     }
 
     /**
-     * Σ julios contra la sábana de la cuota real del mes, por concepto. null = no hay cuota real.
+     * Σ julios contra la sábana de la cuota real del mes, por concepto visible (en directo, sin los fijos:
+     * no se cobran a los julios ni se cuadran). null = no hay cuota real.
      *
-     * @return array<string, array{sab: float, julios: float}>|null
+     * @param  array<string, string>  $conceptos
+     * @return array<string, array{sab: float, julios: float}>|null columna => importes
      */
-    private function cuadre(Collection $julios): ?array
+    private function cuadre(Collection $julios, array $conceptos, ?CosCuotasReal $cuota): ?array
     {
-        $cuota = CosCuotasReal::existente(CuotasUrdidoService::DEPTO, $this->anio, $this->mes);
         if ($cuota === null) {
             return null;
         }
 
         $cuadre = [];
-        foreach (self::SABANA as $sab => $col) {
-            if ($this->costeo === 'directo' && in_array($col, self::FIJOS, true)) {
-                continue; // en directo los fijos no se cobran a los julios: tampoco se cuadran
-            }
-            $cuadre[self::CONCEPTOS[$col]] = ['sab' => (float) $cuota->getAttribute($sab), 'julios' => (float) $julios->sum($col)];
+        foreach (array_intersect_key($conceptos, self::SABANA) as $col => $nombre) {
+            $cuadre[$col] = ['sab' => self::sabana($cuota, $col), 'julios' => (float) $julios->sum($col)];
         }
 
         return $cuadre;
+    }
+
+    private static function sabana(CosCuotasReal $cuota, string $col): float
+    {
+        return array_sum(array_map(fn (string $sab): float => (float) $cuota->getAttribute($sab), self::SABANA[$col]));
     }
 
     /**
@@ -418,7 +471,8 @@ class CostoJulios extends Component
         $filtrados = $this->filtrados($julios);
         $porMaquina = $julios->groupBy('maquina')->sortKeys()->map(fn ($l) => self::totales($l, $conceptos));
         $folios = $filtrados->groupBy('folio')->map(fn ($l) => ['julios' => $l] + self::totales($l, $conceptos) + $l->first());
-        $cuadre = $this->cuadre($julios);
+        $cuota = CosCuotasReal::existente(CuotasUrdidoService::DEPTO, $this->anio, $this->mes);
+        $cuadre = $this->cuadre($julios, $conceptos, $cuota);
         $kardex = $this->kardex();
         $sabana = $cuadre === null ? null : ['julios' => (float) array_sum(array_column($cuadre, 'julios')), 'sab' => (float) array_sum(array_column($cuadre, 'sab'))];
 
@@ -432,6 +486,7 @@ class CostoJulios extends Component
             'lmat' => $this->lmat($folios->keys()->map(fn ($f) => (string) $f)->all()),
             'filtroTotal' => self::totales($filtrados, $conceptos),
             'cuadre' => $cuadre,
+            'noContemplados' => $this->noContemplados($julios, $cuota),
             'kardex' => $kardex,
             'veredicto' => self::veredicto(
                 $sabana,

@@ -28,6 +28,15 @@ class CostoJuliosTotalesTest extends TestCase
         $this->assertNull(CostoJulios::totales(collect(), [])['totalKg']);
     }
 
+    public function test_absorbente_unifica_gastos_y_directo_quita_los_fijos(): void
+    {
+        $absorbente = CostoJulios::conceptosDe('absorbente');
+        $this->assertSame(['MOD', 'MOI', CostoJulios::GASTOS, 'Pf', 'PV', 'Maquila'], array_keys($absorbente));
+
+        $directo = CostoJulios::conceptosDe('directo');
+        $this->assertSame(['MOD', 'MOI', 'GtsV', 'PV', 'Maquila'], array_keys($directo));
+    }
+
     public function test_mp_kardex_reparte_el_importe_del_kardex_y_suma_igual(): void
     {
         $julios = collect([
