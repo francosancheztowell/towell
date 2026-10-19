@@ -21,8 +21,11 @@ class EngProduccionFormulacionModel extends Model
 
     // Ahora usamos Id como PK, pero mantenemos Folio como clave única para compatibilidad
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -43,7 +46,7 @@ class EngProduccionFormulacionModel extends Model
         'ProdId',
         'TiempoCocinado',
         'Solidos',
-        'Viscocidad',   
+        'Viscocidad',
         'Status',
         'obs_calidad',
         'OkTiempo',
@@ -53,18 +56,18 @@ class EngProduccionFormulacionModel extends Model
     ];
 
     protected $casts = [
-        'Id'            => 'integer',
-        'fecha'         => 'date',
-        'Calibre'       => 'float',
-        'Kilos'         => 'float',
-        'Litros'        => 'float',
+        'Id' => 'integer',
+        'fecha' => 'date',
+        'Calibre' => 'float',
+        'Kilos' => 'float',
+        'Litros' => 'float',
         'TiempoCocinado' => 'float',
-        'Solidos'       => 'float',
-        'Viscocidad'    => 'float',
-        'OkTiempo'      => 'boolean',
-        'OkViscosidad'  => 'boolean',
-        'OkSolidos'     => 'boolean',
-        'AX'            => 'integer',
+        'Solidos' => 'float',
+        'Viscocidad' => 'float',
+        'OkTiempo' => 'boolean',
+        'OkViscosidad' => 'boolean',
+        'OkSolidos' => 'boolean',
+        'AX' => 'integer',
     ];
 
     /** Relación: encabezado → líneas por Id (nueva relación mejorada) */
