@@ -121,6 +121,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .pvoc-table thead th { border-right-color: #c9d6e1; }
 .pvoc-table thead th { position: sticky; z-index: 2; top: 0; background: #eef4f8; color: #456178; text-align: right; font-weight: 800; }
 .pvoc-table .pvoc-table-groups th { background: #dce6ee; color: #17445f; font-size: .9em; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
+.pvoc-table .pvoc-table-groups th.pvoc-th-stack { white-space: normal; line-height: 1.15; }
 .pvoc-table .pvoc-table-groups .pvoc-label { text-align: left; }
 .pvoc-table .pvoc-label { position: sticky; z-index: 1; left: 0; overflow: hidden; background: inherit; color: #273548; text-align: left; text-overflow: ellipsis; }
 .pvoc-table thead .pvoc-label { z-index: 3; background: #dce6ee; }

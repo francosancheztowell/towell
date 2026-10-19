@@ -397,7 +397,7 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
                 <th rowspan="2" class="pvoc-label"><span class="pvoc-label-text">${TABLES[panel].label}</span>${labelScrollBar()}${resizeHandle('label')}</th>
                 ${series.map((key) => `<th colspan="${metrics.length}" class="pvoc-${SERIES[key].className}">${SERIES[key].label}</th>`).join('')}
                 <th colspan="${metrics.length}" class="pvoc-delta">${deltaLabel ?? `Δ ${comparisonSeries(panel).map((key) => SERIES[key].label).join(' − ')}`}</th>
-                <th rowspan="2">Cumpl. Pzas.${resizeHandle('cumpl')}</th><th rowspan="2">Cumplimiento Actual${resizeHandle('cumplActual')}</th><th rowspan="2">Estatus${resizeHandle('estatus')}</th>
+                <th rowspan="2">Cumpl. Pzas.${resizeHandle('cumpl')}</th><th rowspan="2" class="pvoc-th-stack">Cumplimiento<br>Actual${resizeHandle('cumplActual')}</th><th rowspan="2">Estatus${resizeHandle('estatus')}</th>
             </tr>
             <tr>${series.map(metricHeaders).join('')}${metricHeaders('delta')}</tr>
         </thead><tbody>`;
