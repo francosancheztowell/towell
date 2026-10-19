@@ -32,7 +32,7 @@ class CrearOrdenTrabajoController extends Controller
         $this->acceso->exigir('crear', 'No tienes permiso para crear órdenes de trabajo.');
 
         $datos = OrdenTrabajoDatos::normalizarCabecera(
-            $request->validate(OrdenTrabajoDatos::reglasCabecera(), OrdenTrabajoDatos::mensajesCabecera())
+            $request->validate(OrdenTrabajoDatos::reglasCreacion(), OrdenTrabajoDatos::mensajesCabecera())
         );
         $datos = $this->resolverOrigen($datos, $request->boolean('CapturaManual'));
         OrdenTrabajoDatos::validarOrdenNoVacia($datos);

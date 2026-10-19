@@ -185,7 +185,7 @@
                 </div>
                 <div class="md:col-span-2">
                     <label for="cabecera-tipo-falla" class="mb-1 block text-xs font-medium text-gray-700">Tipo de falla</label>
-                    <select id="cabecera-tipo-falla" name="TipoFalla"
+                    <select id="cabecera-tipo-falla" name="TipoFalla" required
                         class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                         <option value="">Selecciona…</option>
                         @foreach ($tiposFalla as $tipo)
@@ -794,8 +794,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $('#form-cabecera').addEventListener('submit', async (event) => {
         event.preventDefault();
-        if (! $('#cabecera-tipo-falla').value.trim() && ! $('#cabecera-falla').value.trim()) {
-            notificar('warning', 'La orden de trabajo no puede quedar vacía: captura la máquina y el tipo o la descripción de la falla.');
+        if (! $('#cabecera-tipo-falla').value.trim()) {
+            notificar('warning', 'Selecciona el tipo de falla.');
             $('#cabecera-tipo-falla').focus();
             return;
         }
