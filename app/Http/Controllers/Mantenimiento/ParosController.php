@@ -11,6 +11,7 @@ use App\Services\Mantenimiento\ParosCatalogoService;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -229,19 +230,7 @@ class ParosController extends Controller
                 $query->where('Estatus', 'Activo');
             }
 
-            $usuario = Auth::user();
-            $asignadas = $this->catalogo->esPorArea($usuario) ? [] : $this->catalogo->maquinasAsignadas($usuario);
-
-            if ($asignadas !== []) {
-                $query->whereIn('MaquinaId', $asignadas);
-            }
-
-            if ($deptoReq !== '' && $alcance !== 'todos') {
-                $query->where('Depto', $deptoReq);
-            } elseif ($alcance !== 'todos' && $asignadas === []) {
-                $areaUsuario = trim((string) ($usuario->area ?? ''));
-                $areaUsuario !== '' ? $query->where('Depto', $areaUsuario) : $query->whereRaw('1 = 0');
-            }
+            $this->filtrarPorAlcance($query, $alcance, $deptoReq);
 
             $paros = $query->get([
                 'Id',
@@ -270,6 +259,24 @@ class ParosController extends Controller
             ]);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Error al obtener paros/fallas', 'No se pudieron cargar los paros.');
+        }
+    }
+
+    /** Máquinas asignadas siempre; luego `depto` pedido o, sin asignación ni `alcance=todos`, el área del usuario. */
+    private function filtrarPorAlcance(Builder $query, string $alcance, string $deptoReq): void
+    {
+        $usuario = Auth::user();
+        $asignadas = $this->catalogo->esPorArea($usuario) ? [] : $this->catalogo->maquinasAsignadas($usuario);
+
+        if ($asignadas !== []) {
+            $query->whereIn('MaquinaId', $asignadas);
+        }
+
+        if ($deptoReq !== '' && $alcance !== 'todos') {
+            $query->where('Depto', $deptoReq);
+        } elseif ($alcance !== 'todos' && $asignadas === []) {
+            $areaUsuario = trim((string) ($usuario->area ?? ''));
+            $areaUsuario !== '' ? $query->where('Depto', $areaUsuario) : $query->whereRaw('1 = 0');
         }
     }
 

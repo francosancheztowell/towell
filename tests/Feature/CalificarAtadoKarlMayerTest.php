@@ -30,6 +30,20 @@ class CalificarAtadoKarlMayerTest extends TestCase
         $schema = Schema::connection('sqlsrv');
         DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
 
+        // Selects de empleado de KM: montado lee Usuario (dbo.SYSUsuario), enhebrado TelTelaresOperador.
+        $schema->create('dbo.SYSUsuario', function (Blueprint $table) {
+            $table->increments('idusuario');
+            $table->string('nombre')->nullable();
+            $table->string('numero_empleado')->nullable();
+            $table->string('area')->nullable();
+        });
+        $schema->create('TelTelaresOperador', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('numero_empleado')->nullable();
+            $table->string('nombreEmpl')->nullable();
+            $table->string('SalonTejidoId')->nullable();
+        });
+
         $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
             $table->increments('Id');
             $table->string('MaquinaId');
