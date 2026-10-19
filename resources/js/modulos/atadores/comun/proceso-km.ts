@@ -7,22 +7,13 @@ import { delegate } from '../../../utils/dom.ts';
 import { http } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
 import { exigirOk, mensajeError, type RespuestaAtadores } from './pagina.ts';
-import {
-    cveDeEmpleado,
-    empleadoRepetido,
-    fechaHoraLocal,
-    nombreDeEmpleado,
-    nombreTarjeta,
-    textoEmpleado,
-    type EmpleadoApi,
-} from './proceso-km-logica.ts';
+import { empleadoRepetido, fechaHoraLocal, nombreTarjeta, textoEmpleado } from './proceso-km-logica.ts';
 
 export interface ConfigProcesoKm {
     guardar: string;
-    empleados: string;
     noJulio: string;
     noOrden: string;
-    yo: { cve: string; nombre: string; area: string } | null;
+    yo: { cve: string; nombre: string } | null;
 }
 
 const FILAS = [1, 2, 3] as const;
@@ -119,38 +110,5 @@ export function iniciarProcesoKm(raiz: Element | Document, cfg: ConfigProcesoKm)
         if (fila === 1) ponerInicioSiVacio(prefijo);
         void guardar(prefijo);
     });
-
-    void llenarEmpleados(raiz, cfg);
 }
 
-/** Opciones de los selects con los empleados del área del usuario (una consulta por página). */
-async function llenarEmpleados(raiz: Element | Document, cfg: ConfigProcesoKm): Promise<void> {
-    const selects = [...raiz.querySelectorAll<HTMLSelectElement>('select[data-km-empleado]')];
-    if (!selects.length || !cfg.yo?.area) return;
-
-    let empleados: EmpleadoApi[] = [];
-    try {
-        const datos = await http.get<unknown>(`${cfg.empleados}/${encodeURIComponent(cfg.yo.area)}`);
-        empleados = Array.isArray(datos) ? (datos as EmpleadoApi[]) : [];
-    } catch {
-        return; // Sin lista: quedan la opción guardada y "Asignarme".
-    }
-
-    for (const sel of selects) {
-        const actual = sel.dataset.valorActual || sel.value;
-        for (const e of empleados) {
-            const cve = cveDeEmpleado(e);
-            if (!cve) continue;
-            const nombre = nombreDeEmpleado(e);
-            const existente = [...sel.options].find((o) => o.value === cve);
-            if (!existente) {
-                sel.add(opcion(cve, nombre));
-            } else if (nombre && !existente.dataset.nombre) {
-                existente.dataset.nombre = nombre;
-                existente.textContent = textoEmpleado(cve, nombre);
-            }
-        }
-        if (actual) sel.value = actual;
-        sincronizarNombre(sel);
-    }
-}

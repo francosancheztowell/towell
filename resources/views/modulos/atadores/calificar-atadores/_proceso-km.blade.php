@@ -38,9 +38,13 @@
                             class="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             @disabled($bloqueado)>
                             <option value="">Seleccione…</option>
-                            @if($cveGuardada !== '')
+                            {{-- El guardado va aunque ya no esté en la lista (cambió de área o de telar). --}}
+                            @if($cveGuardada !== '' && ! array_key_exists($cveGuardada, $empleados))
                                 <option value="{{ $cveGuardada }}" data-nombre="{{ $nomGuardado }}" selected>{{ $cveGuardada }}{{ $nomGuardado !== '' ? ' - '.$nomGuardado : '' }}</option>
                             @endif
+                            @foreach($empleados as $cve => $nombre)
+                                <option value="{{ $cve }}" data-nombre="{{ $nombre }}" @selected((string) $cve === $cveGuardada)>{{ $cve }} - {{ $nombre }}</option>
+                            @endforeach
                         </select>
                     </div>
                     @unless($bloqueado)

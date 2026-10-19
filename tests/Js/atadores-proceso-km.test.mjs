@@ -2,14 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  cveDeEmpleado, empleadoRepetido, fechaHoraLocal, nombreDeEmpleado, nombreTarjeta, textoEmpleado,
+  empleadoRepetido, fechaHoraLocal, nombreTarjeta, textoEmpleado,
 } from '../../resources/js/modulos/atadores/comun/proceso-km-logica.ts'
 
-test('empleados: acepta las llaves que devuelve /obtener-empleados', () => {
-  assert.equal(cveDeEmpleado({ numero_empleado: 1001 }), '1001')
-  assert.equal(cveDeEmpleado({ clave: 'X1' }), 'X1')
-  assert.equal(cveDeEmpleado({}), '')
-  assert.equal(nombreDeEmpleado({ nombre_completo: 'Ana' }), 'Ana')
+test('texto de la opción de empleado', () => {
   assert.equal(textoEmpleado('1001', 'Ana'), '1001 - Ana')
   assert.equal(textoEmpleado('1001', ''), '1001')
 })

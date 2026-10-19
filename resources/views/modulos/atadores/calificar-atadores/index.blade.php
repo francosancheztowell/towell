@@ -60,10 +60,9 @@
             ] : null,
             'km' => ($esKm ?? false) && $atadoActual ? [
                 'guardar' => route('atadores.save'),
-                'empleados' => url('/obtener-empleados'),
                 'noJulio' => (string) $atadoActual->NoJulio,
                 'noOrden' => (string) $atadoActual->NoProduccion,
-                'yo' => $usuarioActual ? ['cve' => (string) $usuarioActual->numero_empleado, 'nombre' => (string) $usuarioActual->nombre, 'area' => (string) $usuarioActual->area] : null,
+                'yo' => $usuarioActual ? ['cve' => (string) $usuarioActual->numero_empleado, 'nombre' => (string) $usuarioActual->nombre] : null,
             ] : null,
         ];
     @endphp
@@ -406,11 +405,13 @@
                     'titulo' => 'Montado',
                     'prefijo' => 'montado',
                     'registro' => $kmMontado,
+                    'empleados' => $empleadosKm['montado'] ?? [],
                 ])
                 @include('modulos.atadores.calificar-atadores._proceso-km', [
                     'titulo' => 'Enhebrado',
                     'prefijo' => 'enhebrado',
                     'registro' => $kmEnhebrado,
+                    'empleados' => $empleadosKm['enhebrado'] ?? [],
                 ])
             </div>
             @endif

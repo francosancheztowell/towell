@@ -1,24 +1,5 @@
 /** Lógica pura de Montado/Enhebrado de Karl Mayer (sin DOM): tests en tests/Js/atadores-proceso-km.test.mjs. */
 
-export interface EmpleadoApi {
-    numero_empleado?: unknown;
-    cve?: unknown;
-    clave?: unknown;
-    id?: unknown;
-    nombre?: unknown;
-    nombre_completo?: unknown;
-    name?: unknown;
-}
-
-/** /obtener-empleados/{area} no siempre usa las mismas llaves. */
-export function cveDeEmpleado(e: EmpleadoApi): string {
-    return String(e.numero_empleado ?? e.cve ?? e.clave ?? e.id ?? '');
-}
-
-export function nombreDeEmpleado(e: EmpleadoApi): string {
-    return String(e.nombre ?? e.nombre_completo ?? e.name ?? '');
-}
-
 export function textoEmpleado(cve: string, nombre: string): string {
     return nombre ? `${cve} - ${nombre}` : cve;
 }

@@ -11,10 +11,9 @@
         $usuarioActual = auth()->user();
         $configPagina = [
             'guardar' => route('atadores.save'),
-            'empleados' => url('/obtener-empleados'),
             'noJulio' => (string) $item->NoJulio,
             'noOrden' => (string) $item->NoProduccion,
-            'yo' => $usuarioActual ? ['cve' => (string) $usuarioActual->numero_empleado, 'nombre' => (string) $usuarioActual->nombre, 'area' => (string) $usuarioActual->area] : null,
+            'yo' => $usuarioActual ? ['cve' => (string) $usuarioActual->numero_empleado, 'nombre' => (string) $usuarioActual->nombre] : null,
         ];
     @endphp
     <div class="container mx-auto px-4 py-6 max-w-3xl" id="proceso-km" data-pagina='@json($configPagina)'>
@@ -48,6 +47,7 @@
             'titulo' => $titulo,
             'prefijo' => $proceso,
             'registro' => $registro,
+            'empleados' => $empleados,
         ])
     </div>
 @endsection

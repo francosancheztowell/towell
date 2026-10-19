@@ -15,6 +15,8 @@ use App\Models\Atadores\AtaMontadoActividadesModel;
 use App\Models\Atadores\AtaMontadoMaquinasModel;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Sistema\SYSMensaje;
+use App\Models\Sistema\Usuario;
+use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Atadores\ChecklistAtado;
@@ -402,6 +404,9 @@ class AtadoresController extends Controller
         }
 
         $comentarios = $esKm ? collect() : AtaComentariosModel::orderBy('Nota1')->get();
+        $empleadosKm = $esKm
+            ? ['montado' => $this->empleadosKm('montado'), 'enhebrado' => $this->empleadosKm('enhebrado')]
+            : [];
 
         // Catálogo de telares de la planta, para el select "Telar" del panel de Devolución.
         $telaresCatalogo = URDCatalogoMaquina::query()
@@ -426,7 +431,8 @@ class AtadoresController extends Controller
                 'anteriorKm',
                 'esKm',
                 'kmMontado',
-                'kmEnhebrado'
+                'kmEnhebrado',
+                'empleadosKm'
             )
         );
     }
@@ -465,11 +471,34 @@ class AtadoresController extends Controller
             ->first();
 
         $titulo = $proceso === 'montado' ? 'Montado' : 'Enhebrado';
+        $empleados = $this->empleadosKm($proceso);
 
         return view(
             'modulos.atadores.calificar-atadores.proceso-km',
-            compact('item', 'registro', 'proceso', 'titulo')
+            compact('item', 'registro', 'proceso', 'titulo', 'empleados')
         );
+    }
+
+    /**
+     * Opciones de los selects de empleado de Karl Mayer: en montado, el área Atadores;
+     * en enhebrado, los tejedores asignados a un telar Karl Mayer en TelTelaresOperador.
+     *
+     * @return array<string, string> clave => nombre
+     */
+    private function empleadosKm(string $proceso): array
+    {
+        if ($proceso === 'montado') {
+            return Usuario::where('area', 'Atadores')
+                ->orderBy('nombre')
+                ->pluck('nombre', 'numero_empleado')
+                ->all();
+        }
+
+        return TelTelaresOperador::query()
+            ->whereIn('SalonTejidoId', TelarSalonResolver::salonAliases('KARL MAYER'))
+            ->orderBy('nombreEmpl')
+            ->pluck('nombreEmpl', 'numero_empleado')
+            ->all();
     }
 
     public function save(Request $request)
