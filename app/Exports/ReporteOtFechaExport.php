@@ -15,12 +15,12 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 
 /**
- * Excel del reporte "OT x Fecha": un bloque por mecánico (fila de subtotal + sus trabajos)
- * y una fila de total al final.
+ * Excel del reporte "OT x Fecha": un bloque por mecánico (fila de subtotal + sus trabajos,
+ * cada uno con su No. Empleado y nombre) y una fila de total al final.
  */
 final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
 {
-    public const ENCABEZADOS = ['Fecha', 'Folio', 'Telar', 'Falla', 'Trabajo realizado', 'Inicio', 'Fin', 'Duración (min)', 'Duración', 'Estatus', 'Comentarios'];
+    public const ENCABEZADOS = ['No. Empleado', 'Nombre', 'Fecha', 'Folio', 'Telar', 'Falla', 'Trabajo realizado', 'Inicio', 'Fin', 'Duración (min)', 'Duración', 'Estatus', 'Comentarios'];
 
     private const FILA_ENCABEZADOS = 5;
 
@@ -56,7 +56,7 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
         foreach ($this->reporte['mecanicos'] as $grupo) {
             $filas[] = [
                 $grupo['nombre'].' ('.$grupo['cve'].') · '.$grupo['total_ots'].' OT · '.$grupo['total_trabajos'].' trabajos',
-                '', '', '', '', '', '',
+                '', '', '', '', '', '', '', '',
                 $grupo['total_minutos'],
                 ReporteOtFechaService::duracion($grupo['total_minutos']),
             ];
@@ -64,6 +64,8 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
 
             foreach ($grupo['renglones'] as $fila) {
                 $filas[] = [
+                    $grupo['cve'],
+                    $grupo['nombre'],
                     $this->fecha($fila['fecha']),
                     $fila['folio'],
                     $fila['telar'],
@@ -81,7 +83,7 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
 
         $filas[] = [
             'Total · '.count($this->reporte['mecanicos']).' mecánicos · '.$this->reporte['total_ots'].' OT · '.$this->reporte['total_trabajos'].' trabajos',
-            '', '', '', '', '', '',
+            '', '', '', '', '', '', '', '',
             $this->reporte['total_minutos'],
             ReporteOtFechaService::duracion($this->reporte['total_minutos']),
         ];
@@ -95,7 +97,7 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
         return [
             AfterSheet::class => function (AfterSheet $event): void {
                 $hoja = $event->sheet->getDelegate();
-                $ultima = 'K';
+                $ultima = 'M';
 
                 $hoja->getStyle('A1')->getFont()->setBold(true)->setSize(14);
                 $hoja->getStyle('A'.self::FILA_ENCABEZADOS.':'.$ultima.self::FILA_ENCABEZADOS)->applyFromArray([
@@ -115,10 +117,10 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
                 $hoja->getStyle('A'.self::FILA_ENCABEZADOS.":{$ultima}{$this->filaTotal}")
                     ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-                foreach (['A' => 12, 'B' => 12, 'C' => 8, 'D' => 30, 'E' => 28, 'F' => 8, 'G' => 14, 'H' => 14, 'I' => 14, 'J' => 12, 'K' => 50] as $columna => $ancho) {
+                foreach (['A' => 13, 'B' => 28, 'C' => 12, 'D' => 12, 'E' => 8, 'F' => 30, 'G' => 28, 'H' => 8, 'I' => 14, 'J' => 14, 'K' => 14, 'L' => 12, 'M' => 50] as $columna => $ancho) {
                     $hoja->getColumnDimension($columna)->setWidth($ancho);
                 }
-                $hoja->getStyle("K1:K{$this->filaTotal}")->getAlignment()->setWrapText(true);
+                $hoja->getStyle("M1:M{$this->filaTotal}")->getAlignment()->setWrapText(true);
                 $hoja->freezePane('A'.(self::FILA_ENCABEZADOS + 1));
                 $hoja->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
             },

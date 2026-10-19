@@ -140,6 +140,16 @@ class ReporteOtFechaHttpTest extends TestCase
             ->assertSee('1 h 30 min');
     }
 
+    public function test_cada_renglon_muestra_numero_de_empleado_y_nombre(): void
+    {
+        $this->conAcceso();
+
+        $this->get(self::URL.'?desde=2026-10-02&hasta=2026-10-02')
+            ->assertOk()
+            ->assertSeeInOrder(['No. Empleado', 'Nombre', 'Fecha', 'Folio'])
+            ->assertSeeInOrder(['<td', '3003', '</td>', '<td', 'RAUL ZAPATA', '</td>', '<td', '02/10/2026', '</td>', '<td', 'MEC00002'], false);
+    }
+
     public function test_con_mecanico_solo_muestra_sus_ot(): void
     {
         $this->conAcceso();

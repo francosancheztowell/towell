@@ -39,19 +39,21 @@
     <table>
         <thead>
             <tr>
-                <th>Fecha</th><th>Folio</th><th>Telar</th><th>Falla</th><th>Trabajo realizado</th>
+                <th>No. Empleado</th><th>Nombre</th><th>Fecha</th><th>Folio</th><th>Telar</th><th>Falla</th><th>Trabajo realizado</th>
                 <th>Inicio</th><th>Fin</th><th>Duración</th><th>Estatus</th><th>Comentarios</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($reporte['mecanicos'] as $grupo)
                 <tr class="mecanico">
-                    <td colspan="7">{{ $grupo['nombre'] }} ({{ $grupo['cve'] }}) · {{ $grupo['total_ots'] }} OT · {{ $grupo['total_trabajos'] }} trabajos</td>
+                    <td colspan="9">{{ $grupo['nombre'] }} ({{ $grupo['cve'] }}) · {{ $grupo['total_ots'] }} OT · {{ $grupo['total_trabajos'] }} trabajos</td>
                     <td class="derecha">{{ ReporteOtFechaService::duracion($grupo['total_minutos']) }}</td>
                     <td colspan="2"></td>
                 </tr>
                 @foreach ($grupo['renglones'] as $fila)
                     <tr>
+                        <td class="nowrap">{{ $grupo['cve'] }}</td>
+                        <td class="nowrap">{{ $grupo['nombre'] }}</td>
                         <td class="nowrap">{{ \Carbon\Carbon::parse($fila['fecha'])->format('d/m/Y') }}</td>
                         <td class="nowrap">{{ $fila['folio'] }}</td>
                         <td class="nowrap">{{ $fila['telar'] }}</td>
@@ -65,10 +67,10 @@
                     </tr>
                 @endforeach
             @empty
-                <tr><td colspan="10">No hay órdenes de trabajo en el rango seleccionado.</td></tr>
+                <tr><td colspan="12">No hay órdenes de trabajo en el rango seleccionado.</td></tr>
             @endforelse
             <tr class="total">
-                <td colspan="7">Total · {{ count($reporte['mecanicos']) }} mecánicos · {{ $reporte['total_ots'] }} OT · {{ $reporte['total_trabajos'] }} trabajos</td>
+                <td colspan="9">Total · {{ count($reporte['mecanicos']) }} mecánicos · {{ $reporte['total_ots'] }} OT · {{ $reporte['total_trabajos'] }} trabajos</td>
                 <td class="derecha">{{ ReporteOtFechaService::duracion($reporte['total_minutos']) }}</td>
                 <td colspan="2"></td>
             </tr>
