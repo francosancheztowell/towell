@@ -1,33 +1,120 @@
-<div class="flex min-h-0 flex-1 flex-col gap-2">
-    {{-- Filtros propios y no el slot de x-tabla: ese trae un buscador que aquí no busca nada. --}}
-    <div class="flex flex-wrap items-end gap-2">
-        <flux:select wire:model.live="maquinaFiltro" label="Máquina" class="sm:w-48">
-            <flux:select.option value="">Todas</flux:select.option>
+@php
+    // Un color por turno (cuadrilla); se repite en la leyenda y en las casillas.
+    $colores = [
+        1 => 'border-sky-300 bg-sky-100 text-sky-900',
+        2 => 'border-emerald-300 bg-emerald-100 text-emerald-900',
+        3 => 'border-amber-300 bg-amber-100 text-amber-900',
+        4 => 'border-violet-300 bg-violet-100 text-violet-900',
+    ];
+    $diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+@endphp
+
+<div class="flex min-h-0 flex-1 flex-col gap-3">
+    @if ($puede['crear'])
+        @teleport('#tabla-navbar-acciones')
+            <div class="flex items-center gap-2">
+                <flux:button variant="primary" color="blue" icon="plus" class="min-h-touch" wire:click="abrirAlta">Nuevo</flux:button>
+                <flux:button icon="calendar-days" class="min-h-touch" wire:click="abrirGenerar">Generar mes</flux:button>
+            </div>
+        @endteleport
+    @endif
+
+    {{-- Máquina, mes y resumen --}}
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label="Máquina" class="inline-flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
             @foreach ($this->maquinas as $id => $nombre)
-                <flux:select.option :value="$id">{{ $nombre }}</flux:select.option>
+                @php $activa = (string) $id === $maquinaFiltro; @endphp
+                <button type="button" role="tab" aria-selected="{{ $activa ? 'true' : 'false' }}"
+                        wire:click="verMaquina('{{ $id }}')"
+                        class="min-h-touch rounded-md px-4 text-sm font-semibold transition-colors {{ $activa ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-white/60 hover:text-slate-900' }}">
+                    {{ $nombre }}
+                </button>
             @endforeach
-        </flux:select>
-        <flux:input type="month" wire:model.live="mes" label="Mes" class="sm:w-48" />
+        </div>
+
+        <div class="flex items-center gap-1">
+            <flux:button icon="chevron-left" variant="ghost" class="min-h-touch min-w-touch" wire:click="moverMes(-1)" aria-label="Mes anterior" />
+            <h2 class="min-w-40 text-center text-lg font-semibold text-slate-800">{{ $tituloMes }}</h2>
+            <flux:button icon="chevron-right" variant="ghost" class="min-h-touch min-w-touch" wire:click="moverMes(1)" aria-label="Mes siguiente" />
+            <flux:input type="month" wire:model.live="mes" size="sm" aria-label="Ir al mes" class="ms-2 w-40" />
+        </div>
+
+        <p class="text-sm text-slate-600">
+            <span class="font-semibold text-slate-800">{{ number_format($resumen['turnos']) }}</span> turnos ·
+            <span class="font-semibold text-slate-800">{{ number_format($resumen['minutos']) }}</span> min programados
+        </p>
     </div>
 
-    <x-tabla :columnas="$this->columnas()"
-             :filas="$filas"
-             :seleccionado="$seleccionado"
-             :orden-por="$ordenPor"
-             :orden-dir="$ordenDir"
-             :al-editar="$puede['modificar'] ? 'abrirEdicion' : null"
-             :mostrar-filtros="false"
-             objetivos-extra="maquinaFiltro,mes"
-             vacio="No hay turnos en el calendario. Usa «Generar mes» para llenarlo."
-             vacio-icono="fa-calendar-days">
-        <x-slot:acciones>
-            <x-tabla-acciones-crud :puede="$puede" :seleccionado="$seleccionado" confirmar="¿Eliminar el turno?">
-                @if ($puede['crear'])
-                    <flux:button icon="calendar-days" class="min-h-touch" wire:click="abrirGenerar">Generar mes</flux:button>
-                @endif
-            </x-tabla-acciones-crud>
-        </x-slot:acciones>
-    </x-tabla>
+    <ul class="flex flex-wrap items-center gap-2 text-caption text-slate-600" aria-label="Turnos">
+        @foreach ($colores as $turno => $clases)
+            <li class="rounded-md border px-2 py-0.5 font-semibold {{ $clases }}">T{{ $turno }}</li>
+        @endforeach
+        <li class="rounded-md border border-dashed border-slate-300 px-2 py-0.5 text-slate-500">+ sin programar</li>
+        <li class="text-slate-500">Los minutos salen solo si no son 480.</li>
+    </ul>
+
+    {{-- Mes: semanas de lunes a domingo; cada día con sus 3 horarios. --}}
+    <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm"
+         wire:loading.class="opacity-60" wire:target="verMaquina,moverMes,mes">
+        <div class="grid min-w-[56rem] grid-cols-7">
+            @foreach ($diasSemana as $nombreDia)
+                <div class="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $nombreDia }}</div>
+            @endforeach
+
+            @foreach ($semanas as $semana)
+                @foreach ($semana as $dia)
+                    <div wire:key="dia-{{ $dia['fecha']->format('Y-m-d') }}"
+                         class="min-h-36 border-b border-r border-slate-100 p-1.5 {{ $dia['enMes'] ? '' : 'bg-slate-50/70' }}">
+                        <div class="mb-1 flex items-center px-0.5">
+                            <span @class([
+                                'inline-flex size-6 items-center justify-center rounded-full text-sm font-semibold',
+                                'bg-blue-600 text-white' => $dia['hoy'],
+                                'text-slate-800' => ! $dia['hoy'] && $dia['enMes'],
+                                'text-slate-400' => ! $dia['enMes'],
+                            ])>{{ $dia['fecha']->day }}</span>
+                        </div>
+
+                        @if ($dia['enMes'])
+                            <div class="space-y-1">
+                                @foreach ($dia['casillas'] as $casilla)
+                                    @php $t = $casilla['turno']; @endphp
+                                    @if ($t)
+                                        <button type="button" wire:click="abrirEdicion('{{ $t->Id }}')" @disabled(! $puede['modificar'])
+                                                aria-label="Turno {{ $t->Turno }}, {{ $casilla['hora'] }}, {{ $t->Minutos }} minutos{{ $puede['modificar'] ? '. Editar' : '' }}"
+                                                class="flex min-h-9 w-full items-center justify-between rounded-md border px-2 text-xs font-semibold transition hover:brightness-95 {{ $colores[$t->Turno] ?? '' }}">
+                                            <span class="tabular-nums">{{ $casilla['hora'] }}</span>
+                                            <span>T{{ $t->Turno }}@if ($t->Minutos !== 480)<span class="ms-1 font-normal">· {{ $t->Minutos }} min</span>@endif</span>
+                                        </button>
+                                    @elseif ($puede['crear'])
+                                        <button type="button" wire:click="abrirAltaEn('{{ $casilla['inicio'] }}')"
+                                                aria-label="Agregar turno {{ $casilla['sugerido'] }} a las {{ $casilla['hora'] }}"
+                                                class="flex min-h-9 w-full items-center justify-between rounded-md border border-dashed border-slate-300 px-2 text-xs text-slate-400 transition hover:border-blue-400 hover:text-blue-600">
+                                            <span class="tabular-nums">{{ $casilla['hora'] }}</span>
+                                            <span>+ T{{ $casilla['sugerido'] }}</span>
+                                        </button>
+                                    @else
+                                        <div class="flex min-h-9 items-center justify-between rounded-md border border-dashed border-slate-200 px-2 text-xs text-slate-300">
+                                            <span class="tabular-nums">{{ $casilla['hora'] }}</span><span>—</span>
+                                        </div>
+                                    @endif
+                                @endforeach
+
+                                {{-- Turnos que empiezan a otra hora (capturados a mano). --}}
+                                @foreach ($dia['otros'] as $t)
+                                    <button type="button" wire:click="abrirEdicion('{{ $t->Id }}')" @disabled(! $puede['modificar'])
+                                            aria-label="Turno {{ $t->Turno }}, {{ $t->FechaInicio->format('H:i') }}, {{ $t->Minutos }} minutos"
+                                            class="flex min-h-9 w-full items-center justify-between rounded-md border px-2 text-xs font-semibold ring-1 ring-inset ring-slate-400/40 {{ $colores[$t->Turno] ?? '' }}">
+                                        <span class="tabular-nums">{{ $t->FechaInicio->format('H:i') }}</span>
+                                        <span>T{{ $t->Turno }} · {{ $t->Minutos }} min</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            @endforeach
+        </div>
+    </div>
 
     {{-- Alta / edición de un turno. <dialog> nativo como en los demás catálogos. --}}
     @if ($editando !== null)
@@ -53,6 +140,15 @@
                     <flux:input type="datetime-local" wire:model.live="form.FechaInicio" label="Inicio" required />
                     <flux:input type="number" wire:model="form.Minutos" label="Minutos" min="1" max="1440" required />
                 </div>
+
+                @if ($editando !== '' && $puede['eliminar'])
+                    <div>
+                        <flux:button variant="danger" icon="trash" size="sm" class="min-h-touch"
+                                     x-on:click="notify.confirm({ title: '¿Eliminar el turno?', text: 'Se borra del calendario. No se puede deshacer.', confirmText: 'Sí, eliminar', confirmColor: '#dc2626' }).then(ok => ok && $wire.eliminar())">
+                            Eliminar turno
+                        </flux:button>
+                    </div>
+                @endif
 
                 <x-dialogo-botones />
             </form>

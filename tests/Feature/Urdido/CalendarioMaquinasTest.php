@@ -123,6 +123,33 @@ class CalendarioMaquinasTest extends TestCase
         $this->assertSame(93, UrdEngCalMaquina::count(), 'La segunda vez todo se encima: no agrega nada.');
     }
 
+    public function test_el_calendario_pinta_el_mes_y_permite_agregar_y_borrar_desde_la_casilla(): void
+    {
+        $this->autenticarCon(['acceso', 'crear', 'modificar', 'eliminar']);
+        $domingo = UrdEngCalMaquina::create(['Maquina' => $this->mcCoy1, 'FechaInicio' => '2026-10-18 06:30:00', 'Minutos' => 450, 'Turno' => 3]);
+
+        $lw = Livewire::withQueryParams(['mes' => '2026-10'])->test(CalendarioMaquinas::class)
+            ->assertSet('maquinaFiltro', (string) $this->mcCoy1)
+            ->assertSee('Octubre 2026')
+            ->assertSee('450 min')          // minutos distintos de 480 se muestran
+            ->assertSee('+ T2')             // domingo 14:30 vacío: sugiere el turno 2 de la rotación
+            ->assertViewHas('resumen', ['turnos' => 1, 'minutos' => 450]);
+
+        // Casilla vacía del domingo en la noche: alta con máquina, inicio y turno 4 ya puestos.
+        $lw->call('abrirAltaEn', '2026-10-18T22:30')
+            ->assertSet('editando', '')
+            ->assertSet('form.Maquina', (string) $this->mcCoy1)
+            ->assertSet('form.Turno', '4')
+            ->call('guardar')->assertHasNoErrors();
+        $this->assertSame(2, UrdEngCalMaquina::count());
+
+        // Clic en el turno → editar → eliminar desde el diálogo.
+        $lw->call('abrirEdicion', (string) $domingo->Id)->call('eliminar')->assertSet('editando', null);
+        $this->assertNull(UrdEngCalMaquina::find($domingo->Id));
+
+        $lw->call('moverMes', 1)->assertSet('mes', '2026-11')->assertSee('Noviembre 2026');
+    }
+
     public function test_generar_rechaza_maquina_de_otro_departamento(): void
     {
         $this->autenticarCon(['acceso', 'crear']);

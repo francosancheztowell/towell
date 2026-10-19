@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Livewire\Urdido;
 
 use App\Livewire\Concerns\ConCrud;
-use App\Livewire\Concerns\ConTabla;
 use App\Models\UrdEngomado\UrdEngCalMaquina;
 use App\Models\Urdido\URDCatalogoMaquina;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -18,7 +18,8 @@ use Livewire\Component;
 
 /**
  * Calendario de máquinas de urdido (UrdEngCalMaquinas): minutos disponibles por máquina y turno.
- * Tabla filtrada por máquina y mes, alta/edición/borrado de un turno y "Generar mes" desde una plantilla.
+ * Vista de mes por máquina (semanas de lunes a domingo, los 3 horarios de cada día); clic en un turno
+ * lo edita, clic en un horario vacío lo agrega. "Generar mes" llena el mes con la rotación.
  *
  * @property-read array<int, string> $maquinas
  */
@@ -27,8 +28,8 @@ class CalendarioMaquinas extends Component
     use ConCrud {
         abrirAlta as protected abrirAltaCrud;
         abrirEdicion as protected abrirEdicionCrud;
+        eliminar as protected eliminarCrud;
     }
-    use ConTabla;
 
     public const MODULO = 211;
 
@@ -43,13 +44,16 @@ class CalendarioMaquinas extends Component
 
     public const NOMBRES_VENTANA = [1 => 'Mañana', 2 => 'Tarde', 3 => 'Noche'];
 
-    /** URDCatalogoMaquinas.Id; '' = todas. */
+    /** URDCatalogoMaquinas.Id de la máquina que se ve; '' = la primera. */
     #[Url(except: '')]
     public string $maquinaFiltro = '';
 
-    /** 'Y-m'; '' = todos los meses. */
+    /** 'Y-m' del mes que se ve. */
     #[Url(except: '')]
     public string $mes = '';
+
+    /** Fila abierta en el modal (ConCrud::eliminar borra esta). */
+    public ?string $seleccionado = null;
 
     /** Formulario de "Generar mes"; null = modal cerrado. */
     public ?array $generar = null;
@@ -58,12 +62,11 @@ class CalendarioMaquinas extends Component
     {
         abort_unless(userCan('acceso', self::MODULO), 403, 'No tienes acceso al calendario de máquinas.');
 
-        // Un mes de una máquina son ~90 turnos: 25 por página obliga a paginar siempre.
-        if ($this->porPagina === 25) {
-            $this->porPagina = 100;
-        }
-        if ($this->mes === '') {
+        if (! $this->mesValido()) {
             $this->mes = now()->format('Y-m');
+        }
+        if (! array_key_exists((int) $this->maquinaFiltro, $this->maquinas)) {
+            $this->maquinaFiltro = (string) (array_key_first($this->maquinas) ?? '');
         }
     }
 
@@ -79,39 +82,30 @@ class CalendarioMaquinas extends Component
             ->all();
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    public function columnas(): array
+    public function verMaquina(string $id): void
     {
-        $maquinas = $this->maquinas;
-
-        return [
-            ['campo' => 'Maquina', 'titulo' => 'Máquina', 'valor' => fn (UrdEngCalMaquina $f) => $maquinas[$f->Maquina] ?? $f->Maquina],
-            ['campo' => 'FechaInicio', 'titulo' => 'Día', 'valor' => fn (UrdEngCalMaquina $f) => ucfirst($f->FechaInicio->locale('es')->isoFormat('ddd DD/MM/YYYY'))],
-            ['campo' => 'Turno', 'titulo' => 'Turno', 'alinear' => 'center'],
-            ['campo' => '', 'titulo' => 'Inicio', 'alinear' => 'center', 'valor' => fn (UrdEngCalMaquina $f) => $f->FechaInicio->format('H:i')],
-            ['campo' => '', 'titulo' => 'Fin', 'alinear' => 'center', 'valor' => fn (UrdEngCalMaquina $f) => $this->textoFin($f)],
-            ['campo' => 'Minutos', 'titulo' => 'Minutos', 'alinear' => 'end'],
-        ];
+        if (array_key_exists((int) $id, $this->maquinas)) {
+            $this->maquinaFiltro = $id;
+        }
     }
 
-    public function updatedMaquinaFiltro(): void
+    public function moverMes(int $paso): void
     {
-        $this->seleccionado = null;
-        $this->resetPage();
-    }
-
-    public function updatedMes(): void
-    {
-        $this->seleccionado = null;
-        $this->resetPage();
+        $this->mes = $this->inicioMes()->addMonths($paso > 0 ? 1 : -1)->format('Y-m');
     }
 
     public function abrirAlta(): void
     {
         $this->abrirAltaCrud();
         $this->form = ['Maquina' => $this->maquinaFiltro, 'FechaInicio' => '', 'Minutos' => '480', 'Turno' => '1'];
+    }
+
+    /** Alta desde un horario vacío del calendario ('Y-m-d\TH:i'): máquina, inicio y turno ya puestos. */
+    public function abrirAltaEn(string $inicio): void
+    {
+        $this->abrirAlta();
+        $this->form['FechaInicio'] = $inicio;
+        $this->updatedFormFechaInicio($inicio);
     }
 
     public function abrirEdicion(?string $id = null): void
@@ -121,6 +115,13 @@ class CalendarioMaquinas extends Component
             // <input type="datetime-local"> pide 'Y-m-d\TH:i'.
             $this->form['FechaInicio'] = CarbonImmutable::parse($this->form['FechaInicio'])->format('Y-m-d\TH:i');
         }
+    }
+
+    /** Borra el turno abierto en el modal y lo cierra. */
+    public function eliminar(): void
+    {
+        $this->eliminarCrud();
+        $this->editando = null;
     }
 
     /** Inicio en una ventana de reloj (06:30 / 14:30 / 22:30): el turno lo dice la rotación. */
@@ -166,10 +167,9 @@ class CalendarioMaquinas extends Component
             return;
         }
 
-        $fila = $esAlta ? UrdEngCalMaquina::create($datos) : tap($this->buscar((string) $this->editando))->update($datos);
+        $esAlta ? UrdEngCalMaquina::create($datos) : $this->buscar((string) $this->editando)->update($datos);
 
-        $this->seleccionado = (string) $fila->getKey();
-        $this->editando = null;
+        $this->editando = $this->seleccionado = null;
         $this->dispatch('aviso', tipo: 'success', texto: $esAlta ? 'Turno agregado.' : 'Turno actualizado.');
     }
 
@@ -180,7 +180,7 @@ class CalendarioMaquinas extends Component
         $this->resetValidation();
         $this->generar = [
             'Maquina' => $this->maquinaFiltro,
-            'mes' => $this->mes ?: now()->format('Y-m'),
+            'mes' => $this->mes,
             // 1 = lunes … 7 = domingo; con la rotación se trabaja toda la semana.
             'dias' => ['1', '2', '3', '4', '5', '6', '7'],
             'ventanas' => collect(UrdEngCalMaquina::VENTANAS)
@@ -246,37 +246,73 @@ class CalendarioMaquinas extends Component
         $this->maquinaFiltro = (string) $maquina;
         $this->mes = $g['mes'];
         $this->generar = null;
-        $this->resetPage();
         $this->dispatch('aviso', tipo: 'success', texto: "Se agregaron {$creados} turnos."
             .($omitidos > 0 ? " {$omitidos} se omitieron porque se enciman con turnos que ya estaban." : ''));
     }
 
     public function render(): View
     {
-        $filas = $this->aplicarTabla(UrdEngCalMaquina::query(), [])
-            ->when($this->maquinaFiltro !== '', fn ($q) => $q->where('Maquina', (int) $this->maquinaFiltro))
-            ->when($this->mesValido(), function ($q) {
-                $inicio = CarbonImmutable::createFromFormat('!Y-m', $this->mes);
-                $q->where('FechaInicio', '>=', $inicio)->where('FechaInicio', '<', $inicio->addMonth());
-            })
-            ->when($this->ordenPor === '', fn ($q) => $q->orderBy('FechaInicio')->orderBy('Maquina'));
+        $inicioMes = $this->inicioMes();
+        $desde = $inicioMes->startOfWeek(CarbonImmutable::MONDAY);
+        $hasta = $inicioMes->endOfMonth()->endOfWeek(CarbonImmutable::SUNDAY)->addDay()->startOfDay();
+
+        $turnos = UrdEngCalMaquina::query()
+            ->where('Maquina', (int) $this->maquinaFiltro)
+            ->where('FechaInicio', '>=', $desde)
+            ->where('FechaInicio', '<', $hasta)
+            ->orderBy('FechaInicio')
+            ->get();
+        $porDia = $turnos->groupBy(fn (UrdEngCalMaquina $t): string => $t->FechaInicio->format('Y-m-d'));
+        $delMes = $turnos->filter(fn (UrdEngCalMaquina $t): bool => $t->FechaInicio->format('Y-m') === $this->mes);
 
         return view('livewire.urdido.calendario-maquinas', [
-            'filas' => $this->paginar($filas),
+            'semanas' => $this->semanas($desde, $hasta, $porDia->all()),
+            'tituloMes' => ucfirst($inicioMes->locale('es')->isoFormat('MMMM YYYY')),
+            'resumen' => ['turnos' => $delMes->count(), 'minutos' => (int) $delMes->sum('Minutos')],
             'puede' => $this->permisos(),
         ]);
+    }
+
+    /**
+     * Semanas de lunes a domingo; cada día con sus casillas: una por horario de reloj (con el turno
+     * que empieza a esa hora o vacía) y aparte los turnos que empiezan a otra hora.
+     *
+     * @param  array<string, Collection<int, UrdEngCalMaquina>>  $porDia
+     * @return list<list<array<string, mixed>>>
+     */
+    private function semanas(CarbonImmutable $desde, CarbonImmutable $hasta, array $porDia): array
+    {
+        $dias = [];
+        for ($dia = $desde; $dia < $hasta; $dia = $dia->addDay()) {
+            $delDia = collect($porDia[$dia->format('Y-m-d')] ?? []);
+            $casillas = [];
+            foreach (UrdEngCalMaquina::VENTANAS as $ventana => $hora) {
+                $casillas[] = [
+                    'hora' => $hora,
+                    'inicio' => $dia->format('Y-m-d').'T'.$hora,
+                    'turno' => $delDia->first(fn (UrdEngCalMaquina $t): bool => $t->FechaInicio->format('H:i') === $hora),
+                    'sugerido' => UrdEngCalMaquina::ROTACION_URDIDO[$dia->dayOfWeekIso][$ventana],
+                ];
+            }
+            $dias[] = [
+                'fecha' => $dia,
+                'enMes' => $dia->format('Y-m') === $this->mes,
+                'hoy' => $dia->isToday(),
+                'casillas' => $casillas,
+                'otros' => $delDia->reject(fn (UrdEngCalMaquina $t): bool => in_array($t->FechaInicio->format('H:i'), UrdEngCalMaquina::VENTANAS, true))->values(),
+            ];
+        }
+
+        return array_chunk($dias, 7);
+    }
+
+    private function inicioMes(): CarbonImmutable
+    {
+        return CarbonImmutable::createFromFormat('!Y-m', $this->mesValido() ? $this->mes : now()->format('Y-m'));
     }
 
     private function mesValido(): bool
     {
         return preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $this->mes) === 1;
-    }
-
-    /** Hora de fin; con el día si cae en otro (turno 3). */
-    private function textoFin(UrdEngCalMaquina $fila): string
-    {
-        $fin = $fila->fin();
-
-        return $fin->isSameDay($fila->FechaInicio) ? $fin->format('H:i') : $fin->format('H:i (d/m)');
     }
 }
