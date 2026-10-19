@@ -293,7 +293,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
    artículo viajan dentro de su fila para no dejar columnas vacías en los niveles de grupo. */
 .ph-panel { --ph-accent: var(--pvoc-pedido); --ph-ok: #15803d; --ph-warn: #b45309; }
 .ph-head { display: flex; flex-direction: column; gap: .5rem; padding: .55rem .6rem .45rem; border-bottom: 1px solid var(--pvoc-border); background: #f8fafc; }
-.ph-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .5rem; }
+.ph-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .5rem; padding: .6rem .75rem .75rem; }
 .ph-kpis:empty { display: none; }
 .ph-kpi { display: flex; flex-direction: column; gap: .1rem; min-width: 0; border: 1px solid var(--pvoc-border); border-left: 3px solid #94a3b8; border-radius: .5rem; background: #fff; padding: .4rem .6rem; }
 .ph-kpi.is-primary { border-left-color: var(--ph-accent); }
@@ -357,7 +357,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 @media (max-width: 760px) { .ph-table thead th:first-child { min-width: 17rem; } }
 
 /* --- KPIs de cierre de Resumen General (renderKpis en dashboard.ts) --- */
-.pvoc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .45rem; padding: .5rem .5rem .55rem; border-bottom: 1px solid var(--pvoc-border); background: #f8fafc; }
+.pvoc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .45rem; padding: .5rem .5rem .55rem; border-top: 1px solid var(--pvoc-border); background: #f8fafc; }
 .pvoc-kpis:empty { display: none; }
 /* Cada KPI con su color sólido y texto blanco (todos con contraste AA sobre blanco). */
 .pvoc-kpi { --pvoc-kpi-bg: #334155; display: flex; flex-direction: column; gap: .1rem; min-width: 0; border-radius: .5rem; background: var(--pvoc-kpi-bg); padding: .45rem .65rem .5rem; color: #fff; box-shadow: 0 1px 2px rgb(15 23 42 / 18%); }

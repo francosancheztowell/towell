@@ -41,9 +41,9 @@
             <div class="pvoc-subpanel" role="region" aria-label="Resumen General" data-pvoc-subpanel="resumen">
                 <div class="pvoc-card-header">
                 </div>
-                {{-- KPIs de cierre (closingKpis en compara.ts) sobre los mismos filtros que la tabla. --}}
-                <div class="pvoc-kpis" data-pvoc-kpis aria-live="polite"></div>
                 <div class="pvoc-table-scroll" data-pvoc-table="summary">@include('livewire.ventas.partials.cargando')</div>
+                {{-- KPIs de cierre (closingKpis en compara.ts), debajo de la tabla y con sus mismos filtros. --}}
+                <div class="pvoc-kpis" data-pvoc-kpis aria-live="polite"></div>
             </div>
 
             <div class="pvoc-subpanel is-hidden" role="region" aria-label="Análisis Histórico" data-pvoc-subpanel="analisis">
@@ -101,10 +101,11 @@
             </div>
 
             <div class="ph-head">
-                <div class="ph-kpis" data-ph-kpis aria-live="polite"></div>
                 <div class="ph-chips" data-ph-chips></div>
             </div>
             <div class="pvoc-table-scroll ph-scroll" data-ph-table>@include('livewire.ventas.partials.cargando')</div>
+            {{-- KPIs debajo de la tabla, igual que en Resumen General. --}}
+            <div class="ph-kpis" data-ph-kpis aria-live="polite"></div>
         </section>
 
         <section
