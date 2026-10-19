@@ -22,4 +22,10 @@ class CatalogosUrdidoController extends Controller
     {
         return view('catalogosurdido.catalago-maquinas');
     }
+
+    /** Calendario de máquinas (CalendarioMaquinas, idrol 211). */
+    public function calendario(): View
+    {
+        return view('catalogosurdido.calendario-maquinas');
+    }
 }

@@ -54,6 +54,10 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::get('/configuracion/catalogosmaquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])
         ->name('configuracion.catalogos-maquinas');
 
+    // Calendario de máquinas (UrdEngCalMaquinas): tabla, alta y "generar mes" en Livewire Urdido\CalendarioMaquinas.
+    Route::get('/configuracion/calendariourdido', [CatalogosUrdidoController::class, 'calendario'])
+        ->middleware('module.permission:acceso,211')->name('configuracion.calendario');
+
     Route::get('/programar-urdido', [ProgramarUrdidoController::class, 'index'])->name('programar.urdido');
     Route::redirect('/programar-urdido/legacy', '/urdido/programar-urdido', 301)->name('programar.urdido.legacy');
     Route::redirect('/programar-urdido/livewire', '/urdido/programar-urdido', 301)->name('programar.urdido.livewire');

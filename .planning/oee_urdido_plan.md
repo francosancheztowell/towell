@@ -57,9 +57,18 @@ Rendimiento y OEE siguen en `OeeUrdidoService::indicadores()` (cubierto por test
   sin calificar = bueno). La penalización es una boleta de puntos (5S/seguridad), no %; va informativa.
 - OEE = D × R × C.
 
+## Tiempo total: calendario de máquinas (owner, 19-oct-2026)
+Tabla `dbo.UrdEngCalMaquinas` (`database/migrations/urdido/create_UrdEngCalMaquinas.sql`):
+Maquina (= `URDCatalogoMaquinas.Id`), FechaInicio (fecha **y hora**), Minutos, Turno 1..3. Sin fila = no programado.
+- Horario **por máquina** y variable; un turno puede empezar a cualquier hora.
+- Un julio que cruza medianoche empieza en `Fecha` (fin = Fecha + 1 día).
+- Oportunidad = Minutos − producción − paros (el julio manda), todo recortado a [FechaInicio, +Minutos).
+  Producción + paros > Minutos ⇒ aviso "fuera de calendario", no cero silencioso.
+- Pendiente: pantalla de captura (generar mes por máquina + editar excepciones, validar que no se enciman)
+  y modelo Eloquent; ¿480 brutos o netos de comida? (lo decide lo que capturen).
+
 ## Pendientes del owner
-- **Tiempo total** disponible (los 480 / turno) → Disponibilidad = (Total − Paros) ÷ Total y columna
-  "Tiempo sin registrar" prorrateada.
+- Usar el calendario en Disponibilidad = (Total − Paros) ÷ Total y columna "Tiempo sin registrar".
 - Velocidad estándar m/min por máquina → Rendimiento real.
 - ¿Umbral de penalización para Calidad (p. ej. ≥ 25 pts)?
 - Columna Producción (AX).
