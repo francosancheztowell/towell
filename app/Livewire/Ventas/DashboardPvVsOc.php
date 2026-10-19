@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Ventas;
 
+use App\Services\Ventas\VentasDatosVersion;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -22,8 +23,9 @@ class DashboardPvVsOc extends Component
         );
     }
 
+    /** La versión de los datos va en las URLs de datos (?v=) para que el navegador no reutilice una anterior. */
     public function render(): View
     {
-        return view('livewire.ventas.dashboard-pv-vs-oc');
+        return view('livewire.ventas.dashboard-pv-vs-oc', ['versionDatos' => app(VentasDatosVersion::class)->actual()]);
     }
 }

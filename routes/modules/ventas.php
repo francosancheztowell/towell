@@ -22,4 +22,5 @@ Route::controller(VentasDatosController::class)->prefix('ventas/datos')->name('v
     Route::get('/historico', 'historico')->name('historico');
     Route::get('/pedidos', 'pedidos')->name('pedidos');
     Route::get('/pedidos/anios', 'pedidosAnios')->name('pedidos.anios');
+    Route::get('/version', 'version')->name('version');
 });

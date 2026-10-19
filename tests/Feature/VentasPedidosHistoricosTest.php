@@ -96,8 +96,8 @@ class VentasPedidosHistoricosTest extends TestCase
             ->assertExactJson(['anios' => ['2026', '2025']]);
 
         $this->payload('2026');
-        $this->assertTrue(Cache::has('ventas:pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION.':2026'));
-        $this->assertFalse(Cache::has('ventas:pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION.':2025'));
+        $this->assertTrue(Cache::has('ventas:pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION.':0:2026'));
+        $this->assertFalse(Cache::has('ventas:pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION.':0:2025'));
     }
 
     public function test_rechaza_anios_sin_pedidos(): void
@@ -106,7 +106,7 @@ class VentasPedidosHistoricosTest extends TestCase
 
         $this->actingAs($usuario)->get(route('ventas.datos.pedidos', ['anio' => '1999']))->assertStatus(422);
         $this->actingAs($usuario)->get(route('ventas.datos.pedidos'))->assertStatus(422);
-        $this->assertFalse(Cache::has('ventas:pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION.':1999'));
+        $this->assertFalse(Cache::has('ventas:pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION.':0:1999'));
     }
 
     public function test_sin_acceso_no_hay_datos(): void

@@ -5,31 +5,24 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Ventas;
 
 use App\Http\Controllers\Controller;
-use App\Repositories\Ventas\PedidosHistoricosRepository;
-use App\Repositories\Ventas\PvVsOcReportRepository;
-use App\Services\Ventas\PedidosHistoricosPayloadBuilder;
-use App\Services\Ventas\PvVsOcPayloadBuilder;
-use App\Services\Ventas\VentasHistoricasPayloadBuilder;
+use App\Services\Ventas\VentasDatosCache;
+use App\Services\Ventas\VentasDatosVersion;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Datos del dashboard de Ventas. Se piden por separado desde el navegador para que la página
  * cargue al instante en vez de esperar las consultas y viajar con los datos incrustados en el HTML.
+ * La caché (VentasDatosCache) lleva la versión de los datos; las URLs también (?v=), así el
+ * navegador no reutiliza una respuesta de una versión anterior.
  */
 final class VentasDatosController extends Controller
 {
-    /**
-     * [fresco, vencido] en segundos: los primeros 15 min se sirve tal cual; después y hasta 24 h se
-     * sirve el valor anterior al instante y se reconstruye tras enviar la respuesta. Así nadie espera
-     * las consultas en frío (tablas heap sin índices en SQL Server 2008 R2).
-     */
-    private const CACHE_TTL = [15 * 60, 24 * 60 * 60];
-
     /** El navegador reutiliza la respuesta unos minutos al volver a entrar al módulo. */
     private const CACHE_NAVEGADOR = 'private, max-age=300';
+
+    public function __construct(private readonly VentasDatosCache $cache) {}
 
     /**
      * Plan vs Pedido vs Real de un año (~10k combos). El navegador pide primero el más reciente para
@@ -37,85 +30,78 @@ final class VentasDatosController extends Controller
      * Solo se aceptan los años que devuelve comparaAnios(): así la cache tiene a lo más una entrada
      * por año real y nadie la llena pidiendo años inventados.
      */
-    public function compara(Request $request, PvVsOcPayloadBuilder $builder, PvVsOcReportRepository $repository): Response
+    public function compara(Request $request): Response
     {
         $this->autorizar();
 
         $anio = $request->query('anio');
-        if (! is_string($anio) || ! in_array($anio, $this->anios($repository), true)) {
+        if (! is_string($anio) || ! in_array($anio, $this->cache->comparaAnios(), true)) {
             abort(422, 'Año no disponible en Compara.');
         }
 
-        $gzip = Cache::flexible("ventas:compara:v9:{$anio}", self::CACHE_TTL, fn (): string => $builder->build($anio));
-
-        return response($gzip, 200, [
-            'Content-Type' => 'application/json',
-            'Content-Encoding' => 'gzip',
-            'Cache-Control' => self::CACHE_NAVEGADOR,
-        ]);
+        return $this->gzip($this->cache->compara($anio));
     }
 
     /** Años disponibles en Compara, del más reciente al más antiguo: { anios: ["2026", "2025", …] }. */
-    public function comparaAnios(PvVsOcReportRepository $repository): JsonResponse
+    public function comparaAnios(): JsonResponse
     {
         $this->autorizar();
 
-        return response()->json(['anios' => $this->anios($repository)], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
-    }
-
-    /** @return list<string> */
-    private function anios(PvVsOcReportRepository $repository): array
-    {
-        return Cache::flexible('ventas:compara:v9:anios', self::CACHE_TTL, fn (): array => $repository->anios());
+        return response()->json(['anios' => $this->cache->comparaAnios()], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
     }
 
     /**
      * Ventas reales agrupadas por las dimensiones de Ventas históricas (~2k filas).
      */
-    public function historico(VentasHistoricasPayloadBuilder $builder): JsonResponse
+    public function historico(): JsonResponse
     {
         $this->autorizar();
 
-        $payload = Cache::flexible('ventas:historico:payload', self::CACHE_TTL, fn (): array => $builder->build());
-
-        return response()->json($payload, 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
+        return response()->json($this->cache->historico(), 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
     }
 
     /**
      * Pedidos Históricos de un año de creación (~35k líneas), comprimido como Compara. Solo se
      * aceptan los años de pedidosAnios() para que la cache no crezca con años inventados.
      */
-    public function pedidos(Request $request, PedidosHistoricosPayloadBuilder $builder, PedidosHistoricosRepository $repository): Response
+    public function pedidos(Request $request): Response
     {
         $this->autorizar();
 
         $anio = $request->query('anio');
-        if (! is_string($anio) || ! in_array($anio, $this->aniosPedidos($repository), true)) {
+        if (! is_string($anio) || ! in_array($anio, $this->cache->pedidosAnios(), true)) {
             abort(422, 'Año no disponible en Pedidos Históricos.');
         }
 
-        $version = PedidosHistoricosPayloadBuilder::VERSION;
-        $gzip = Cache::flexible("ventas:pedidos:v{$version}:{$anio}", self::CACHE_TTL, fn (): string => $builder->build($anio));
+        return $this->gzip($this->cache->pedidos($anio));
+    }
 
-        return response($gzip, 200, [
+    /** Años de creación con pedidos, del más reciente al más antiguo: { anios: ["2026", "2025"] }. */
+    public function pedidosAnios(): JsonResponse
+    {
+        $this->autorizar();
+
+        return response()->json(['anios' => $this->cache->pedidosAnios()], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
+    }
+
+    /**
+     * Versión vigente de los datos: { version: "1760890000" }. La página la consulta cada minuto y,
+     * si cambió, avisa que hay datos nuevos. Nunca se cachea.
+     */
+    public function version(VentasDatosVersion $version): JsonResponse
+    {
+        $this->autorizar();
+
+        return response()->json(['version' => $version->actual()], 200, ['Cache-Control' => 'no-store']);
+    }
+
+    private function gzip(string $contenido): Response
+    {
+        return response($contenido, 200, [
             'Content-Type' => 'application/json',
             'Content-Encoding' => 'gzip',
             'Cache-Control' => self::CACHE_NAVEGADOR,
         ]);
-    }
-
-    /** Años de creación con pedidos, del más reciente al más antiguo: { anios: ["2026", "2025"] }. */
-    public function pedidosAnios(PedidosHistoricosRepository $repository): JsonResponse
-    {
-        $this->autorizar();
-
-        return response()->json(['anios' => $this->aniosPedidos($repository)], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
-    }
-
-    /** @return list<string> */
-    private function aniosPedidos(PedidosHistoricosRepository $repository): array
-    {
-        return Cache::flexible('ventas:pedidos:anios', self::CACHE_TTL, fn (): array => $repository->anios());
     }
 
     private function autorizar(): void

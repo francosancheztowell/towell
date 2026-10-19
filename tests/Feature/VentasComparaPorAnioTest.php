@@ -94,8 +94,18 @@ class VentasComparaPorAnioTest extends TestCase
         $this->assertContains('2025', $json['dict']);
         $this->assertNotContains('2026', $json['dict']);
 
-        $this->assertTrue(Cache::has('ventas:compara:v9:2025'));
-        $this->assertFalse(Cache::has('ventas:compara:v9:2026'));
+        $this->assertTrue(Cache::has('ventas:compara:v9:0:2025'));
+        $this->assertFalse(Cache::has('ventas:compara:v9:0:2026'));
+    }
+
+    public function test_la_llave_de_cache_lleva_la_version_publicada_de_los_datos(): void
+    {
+        Cache::forever('ventas:datos:version', '1760890000');
+
+        $this->actingAs($this->usuarioConAcceso())->get(route('ventas.datos.compara', ['anio' => '2025', 'v' => '1760890000']))->assertOk();
+
+        $this->assertTrue(Cache::has('ventas:compara:v9:1760890000:2025'));
+        $this->assertFalse(Cache::has('ventas:compara:v9:0:2025'));
     }
 
     public function test_endpoint_compara_rechaza_un_anio_invalido(): void
@@ -112,8 +122,8 @@ class VentasComparaPorAnioTest extends TestCase
         $this->actingAs($usuario)->get(route('ventas.datos.compara', ['anio' => '1999']))->assertStatus(422);
         $this->actingAs($usuario)->get(route('ventas.datos.compara'))->assertStatus(422);
 
-        $this->assertFalse(Cache::has('ventas:compara:v9:1999'));
-        $this->assertFalse(Cache::has('ventas:compara:v9:'));
+        $this->assertFalse(Cache::has('ventas:compara:v9:0:1999'));
+        $this->assertFalse(Cache::has('ventas:compara:v9:0:'));
     }
 
     public function test_endpoint_de_anios(): void

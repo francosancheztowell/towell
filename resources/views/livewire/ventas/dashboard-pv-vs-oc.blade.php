@@ -3,9 +3,17 @@
 <div
     class="ventas-pvoc-dashboard"
     data-ventas-pvoc-dashboard
-    data-compara-url="{{ route('ventas.datos.compara') }}"
-    data-compara-anios-url="{{ route('ventas.datos.compara.anios') }}"
+    data-compara-url="{{ route('ventas.datos.compara', ['v' => $versionDatos]) }}"
+    data-compara-anios-url="{{ route('ventas.datos.compara.anios', ['v' => $versionDatos]) }}"
+    data-version-url="{{ route('ventas.datos.version') }}"
+    data-datos-version="{{ $versionDatos }}"
 >
+    {{-- Aviso de datos nuevos (datos-version.ts): aparece cuando se publica otra versión de los datos. --}}
+    <div class="pvoc-datos-nuevos" role="status" data-pvoc-datos-nuevos hidden>
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+        <span>Hay información nueva de Ventas.</span>
+        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-datos-recargar>Actualizar</button>
+    </div>
     {{-- Sidebar de secciones y subsecciones (sidebar.ts); se oculta con su botón y se recuerda por navegador. --}}
     <div class="pvoc-layout">
     <aside class="pvoc-sidebar" data-pvoc-sidebar aria-label="Secciones de Ventas">
@@ -84,8 +92,8 @@
             class="pvoc-card ph-panel is-hidden"
             data-pvoc-panel="pedidos"
             data-pedidos-historicos
-            data-pedidos-url="{{ route('ventas.datos.pedidos') }}"
-            data-pedidos-anios-url="{{ route('ventas.datos.pedidos.anios') }}"
+            data-pedidos-url="{{ route('ventas.datos.pedidos', ['v' => $versionDatos]) }}"
+            data-pedidos-anios-url="{{ route('ventas.datos.pedidos.anios', ['v' => $versionDatos]) }}"
             aria-label="Pedidos Históricos"
             wire:ignore
         >
@@ -112,7 +120,7 @@
             class="pvoc-card is-hidden"
             data-pvoc-panel="history"
             data-ventas-historicas
-            data-historico-url="{{ route('ventas.datos.historico') }}"
+            data-historico-url="{{ route('ventas.datos.historico', ['v' => $versionDatos]) }}"
             wire:ignore
         >
             {{-- Filtros de Ventas históricas; se abre con el mismo botón "Filtrar" del navbar. --}}

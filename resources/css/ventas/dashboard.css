@@ -377,3 +377,8 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 /* Barra de avance con una marca en lo esperado a hoy. */
 .pvoc-kpi-bar { position: relative; display: block; height: .4rem; margin: .15rem 0 .1rem; border-radius: 999px; background: rgb(255 255 255 / 28%) linear-gradient(90deg, #fff var(--pvoc-kpi-pct, 0%), transparent 0) no-repeat; }
 .pvoc-kpi-bar::after { position: absolute; top: -.2rem; bottom: -.2rem; left: var(--pvoc-kpi-mark, 0%); width: 2px; background: #fde047; content: ""; }
+
+/* --- Aviso de datos nuevos (datos-version.ts) --- */
+.pvoc-datos-nuevos { display: flex; align-items: center; gap: .6rem; border-bottom: 1px solid #bfdbfe; background: #eff6ff; padding: .4rem .75rem; color: #1e3a8a; font-size: .85rem; font-weight: 700; }
+.pvoc-datos-nuevos[hidden] { display: none; }
+.pvoc-datos-nuevos .pvoc-button { margin-left: auto; }

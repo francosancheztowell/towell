@@ -1,5 +1,11 @@
 <?php
 
+use App\Models\Sistema\Monitoreo\MonAcceso;
+use App\Models\Sistema\Monitoreo\MonError;
+use App\Models\Sistema\Monitoreo\MonErrorEvento;
+use App\Models\Sistema\Monitoreo\MonSesion;
+use App\Models\Sistema\Monitoreo\MonVista;
+use App\Services\Monitoreo\SesionService;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -27,14 +33,21 @@ foreach (['05:30', '13:30', '21:30'] as $hora) {
 // Monitoreo (fase 11): poda por retención (config monitoreo.retencion) y cierre
 // de sesiones de monitoreo sin actividad (config monitoreo.sesion_expira_min).
 Schedule::command('model:prune', ['--model' => [
-    App\Models\Sistema\Monitoreo\MonVista::class,
-    App\Models\Sistema\Monitoreo\MonErrorEvento::class,
-    App\Models\Sistema\Monitoreo\MonSesion::class,
-    App\Models\Sistema\Monitoreo\MonAcceso::class,
-    App\Models\Sistema\Monitoreo\MonError::class,
+    MonVista::class,
+    MonErrorEvento::class,
+    MonSesion::class,
+    MonAcceso::class,
+    MonError::class,
 ]])->dailyAt('02:00')->withoutOverlapping(60)->runInBackground();
 
-Schedule::call(fn () => app(App\Services\Monitoreo\SesionService::class)->cerrarExpiradas())
+// Ventas: detecta cargas nuevas en las tablas de ReportesTowell, calienta la caché y publica la
+// versión nueva de los datos (ver VentasDatosVersion).
+Schedule::command('ventas:sincronizar-datos')
+    ->everyMinute()
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+Schedule::call(fn () => app(SesionService::class)->cerrarExpiradas())
     ->name('monitoreo:cerrar-sesiones-expiradas')
     ->everyFifteenMinutes()
     ->withoutOverlapping(10);
