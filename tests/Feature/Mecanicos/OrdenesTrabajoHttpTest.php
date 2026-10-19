@@ -145,6 +145,29 @@ class OrdenesTrabajoHttpTest extends TestCase
         $this->assertSame(1, DB::table('MecOrdenTrabajoLine')->where('Folio', 'MEC00001')->count());
     }
 
+    public function test_crear_orden_sin_tipo_de_falla_responde_422(): void
+    {
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'crear']);
+
+        $this->postJson(self::URL, [
+            'CapturaManual' => '1',
+            'TelarId' => '201',
+            'Falla' => 'Rotura de hilo',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['TipoFalla' => 'Selecciona el tipo de falla.']);
+        $this->assertSame(0, DB::table('MecOrdenTrabajoTable')->count());
+    }
+
+    public function test_editar_cabecera_sin_tipo_de_falla_se_sigue_aceptando(): void
+    {
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'modificar']);
+        $this->orden('MEC00001', 'Activo');
+
+        $this->putJson(self::URL.'/MEC00001', ['TelarId' => '201', 'Falla' => 'Rotura de hilo'])->assertOk();
+        $this->assertSame('Rotura de hilo', DB::table('MecOrdenTrabajoTable')->value('Falla'));
+    }
+
     public function test_crear_sin_paro_ni_captura_manual_responde_422(): void
     {
         $this->comoUsuario('MANTENIMIENTO', ['acceso', 'crear']);

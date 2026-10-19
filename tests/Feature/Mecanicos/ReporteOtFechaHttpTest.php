@@ -39,6 +39,7 @@ class ReporteOtFechaHttpTest extends TestCase
         $schema->create('MecOrdenTrabajoTable', function (Blueprint $table): void {
             $table->string('Folio')->primary();
             $table->string('TelarId')->nullable();
+            $table->string('TipoFalla')->nullable();
             $table->string('Falla')->nullable();
             $table->string('Estatus')->nullable();
         });
@@ -53,18 +54,23 @@ class ReporteOtFechaHttpTest extends TestCase
             $table->string('HoraInicial')->nullable();
             $table->string('HoraFinal')->nullable();
             $table->integer('TotalMinutos')->nullable();
+            $table->integer('Calificacion')->nullable();
+            $table->string('CveTejedor')->nullable();
+            $table->string('NomTejedor')->nullable();
             $table->date('Fecha')->nullable();
             $table->string('comentarios')->nullable();
         });
 
         DB::table('MecOrdenTrabajoTable')->insert([
-            ['Folio' => 'MEC00001', 'TelarId' => '201', 'Falla' => 'Rotura de hilo', 'Estatus' => 'Terminado'],
-            ['Folio' => 'MEC00002', 'TelarId' => '305', 'Falla' => 'Ruido en peine', 'Estatus' => 'Activo'],
+            ['Folio' => 'MEC00001', 'TelarId' => '201', 'TipoFalla' => 'Mecánica', 'Falla' => 'Rotura de hilo', 'Estatus' => 'Terminado'],
+            ['Folio' => 'MEC00002', 'TelarId' => '305', 'TipoFalla' => 'Eléctrica', 'Falla' => 'Ruido en peine', 'Estatus' => 'Activo'],
         ]);
         $this->linea('MEC00001', '2002', 'PEDRO LOPEZ', '2026-10-01', '23:50:00', '00:05:00', 15);
         $this->linea('MEC00002', '3003', 'RAUL ZAPATA', '2026-10-02', '08:00:00', '09:30:00', 90);
         // Placeholder sin captura: no es trabajo de nadie.
         DB::table('MecOrdenTrabajoLine')->insert(['Folio' => 'MEC00002', 'Fecha' => '2026-10-02']);
+        DB::table('MecOrdenTrabajoLine')->where('CveOperador', '2002')
+            ->update(['Calificacion' => 4, 'CveTejedor' => '1001', 'NomTejedor' => 'JUAN TEJEDOR']);
     }
 
     protected function tearDown(): void
@@ -138,6 +144,26 @@ class ReporteOtFechaHttpTest extends TestCase
             ->assertSee('MEC00002')
             ->assertSee('Rotura de hilo')
             ->assertSee('1 h 30 min');
+    }
+
+    public function test_cada_renglon_muestra_numero_de_empleado_y_nombre(): void
+    {
+        $this->conAcceso();
+
+        $this->get(self::URL.'?desde=2026-10-02&hasta=2026-10-02')
+            ->assertOk()
+            ->assertSeeInOrder(['No. Empleado', 'Nombre', 'Fecha', 'Folio'])
+            ->assertSeeInOrder(['<td', '3003', '</td>', '<td', 'RAUL ZAPATA', '</td>', '<td', '02/10/2026', '</td>', '<td', 'MEC00002'], false);
+    }
+
+    public function test_cada_renglon_muestra_tipo_de_falla_calificacion_y_tejedor_que_califico(): void
+    {
+        $this->conAcceso();
+
+        $this->get(self::URL.'?desde=2026-10-01&hasta=2026-10-01')
+            ->assertOk()
+            ->assertSeeInOrder(['Telar', 'Tipo de falla', 'Falla', 'Estatus', 'Calificación', 'Tejedor que calificó', 'Comentarios'])
+            ->assertSeeInOrder(['MEC00001', '201', 'Mecánica', 'Rotura de hilo', 'Terminado', '4', 'JUAN TEJEDOR', 'Trabajo de PEDRO LOPEZ']);
     }
 
     public function test_con_mecanico_solo_muestra_sus_ot(): void

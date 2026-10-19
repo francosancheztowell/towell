@@ -41,6 +41,20 @@ final class OrdenTrabajoDatos
     }
 
     /**
+     * Al crear, el tipo de falla es obligatorio. Editar la cabecera usa reglasCabecera()
+     * para no bloquear órdenes anteriores que se guardaron sin tipo.
+     *
+     * @return array<string, list<mixed>>
+     */
+    public static function reglasCreacion(): array
+    {
+        return [
+            ...self::reglasCabecera(),
+            'TipoFalla' => ['required', 'string', Rule::in(self::TIPOS_FALLA)],
+        ];
+    }
+
+    /**
      * La orden es un folio sin espacios (45867), no texto libre.
      *
      * @return array<string, string>
@@ -49,6 +63,7 @@ final class OrdenTrabajoDatos
     {
         return [
             'TelarId.max' => 'La máquina no puede pasar de 10 caracteres.',
+            'TipoFalla.required' => 'Selecciona el tipo de falla.',
             'TipoFalla.in' => 'Selecciona un tipo de falla válido.',
             'Orden.max' => 'La orden no puede pasar de 20 caracteres.',
             'Orden.regex' => 'La orden no puede llevar espacios.',
