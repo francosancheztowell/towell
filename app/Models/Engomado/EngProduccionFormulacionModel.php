@@ -5,6 +5,12 @@ namespace App\Models\Engomado;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Calculados por EngProduccionFormulacionController::index() para la vista (no son columnas).
+ *
+ * @property string|null $folio_resuelto
+ * @property string|null $programa_status
+ */
 class EngProduccionFormulacionModel extends Model
 {
     use HasFactory;
