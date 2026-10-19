@@ -27,12 +27,16 @@ class ReporteOtFechaServiceTest extends TestCase
             'fecha' => '2026-10-01',
             'folio' => 'MEC00001',
             'telar' => '201',
+            'tipo_falla' => 'Mecánica',
             'falla' => 'Rotura de hilo',
             'trabajos' => ['Ajusto' => true, 'Reparo' => false, 'Cambio' => false, 'Lubrico' => false, 'FaltaRefacc' => false],
             'hora_inicio' => '08:00:00',
             'hora_fin' => '09:15:00',
             'total_minutos' => 75,
             'estatus' => 'Terminado',
+            'calificacion' => 4,
+            'cve_tejedor' => '1001',
+            'nom_tejedor' => 'JUAN TEJEDOR',
             'comentarios' => 'Se ajustó',
         ], $datos);
     }
@@ -122,6 +126,24 @@ class ReporteOtFechaServiceTest extends TestCase
         ]);
 
         $this->assertSame('Ajustó, Reparó, Lubricó', $reporte['mecanicos'][0]['renglones'][0]['trabajo']);
+    }
+
+    public function test_renglon_lleva_tipo_de_falla_calificacion_y_tejedor_que_califico(): void
+    {
+        $reporte = $this->servicio->armarReporte(['desde' => '2026-10-01', 'hasta' => '2026-10-01'], [
+            $this->renglon(),
+            $this->renglon(['hora_inicio' => '10:00:00', 'tipo_falla' => null, 'calificacion' => null, 'cve_tejedor' => null, 'nom_tejedor' => null]),
+            $this->renglon(['hora_inicio' => '12:00:00', 'nom_tejedor' => '']),
+        ]);
+
+        [$calificado, $sinCalificar, $sinNombre] = $reporte['mecanicos'][0]['renglones'];
+        $this->assertSame('Mecánica', $calificado['tipo_falla']);
+        $this->assertSame(4, $calificado['calificacion']);
+        $this->assertSame('JUAN TEJEDOR', $calificado['tejedor']);
+        $this->assertSame('', $sinCalificar['tipo_falla']);
+        $this->assertNull($sinCalificar['calificacion']);
+        $this->assertSame('', $sinCalificar['tejedor']);
+        $this->assertSame('1001', $sinNombre['tejedor']);
     }
 
     public function test_sin_renglones_no_hay_mecanicos(): void

@@ -18,12 +18,16 @@ class ReporteOtFechaExportTest extends TestCase
             'fecha' => '2026-10-01',
             'folio' => 'MEC00001',
             'telar' => '201',
+            'tipo_falla' => 'Mecánica',
             'falla' => 'Rotura de hilo',
             'trabajos' => ['Ajusto' => true],
             'hora_inicio' => '08:00:00',
             'hora_fin' => '09:15:00',
             'total_minutos' => 75,
             'estatus' => 'Terminado',
+            'calificacion' => 4,
+            'cve_tejedor' => '1001',
+            'nom_tejedor' => 'JUAN TEJEDOR',
             'comentarios' => 'Se ajustó',
         ]]);
         $reporte['mecanico_nombre'] = '';
@@ -32,6 +36,9 @@ class ReporteOtFechaExportTest extends TestCase
 
         $this->assertSame(['No. Empleado', 'Nombre', 'Fecha', 'Folio'], array_slice($filas[4], 0, 4));
         $this->assertSame(['2002', 'PEDRO LÓPEZ', '01/10/2026', 'MEC00001'], array_slice($filas[6], 0, 4));
-        $this->assertSame(75, $filas[6][9]);
+        $this->assertSame(['201', 'Mecánica', 'Rotura de hilo'], array_slice($filas[6], 4, 3));
+        $this->assertSame(75, $filas[6][10]);
+        $this->assertSame(['Estatus', 'Calificación', 'Tejedor que calificó', 'Comentarios'], array_slice($filas[4], 12));
+        $this->assertSame(['Terminado', 4, 'JUAN TEJEDOR', 'Se ajustó'], array_slice($filas[6], 12));
     }
 }

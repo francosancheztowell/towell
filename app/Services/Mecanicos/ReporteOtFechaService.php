@@ -181,11 +181,13 @@ final class ReporteOtFechaService
         $inicio = $this->hora($renglon['hora_inicio'] ?? null);
         $fin = $this->hora($renglon['hora_fin'] ?? null);
         $total = $renglon['total_minutos'] ?? null;
+        $calificacion = $renglon['calificacion'] ?? null;
 
         return [
             'fecha' => substr(trim((string) ($renglon['fecha'] ?? '')), 0, 10),
             'folio' => trim((string) ($renglon['folio'] ?? '')),
             'telar' => trim((string) ($renglon['telar'] ?? '')),
+            'tipo_falla' => trim((string) ($renglon['tipo_falla'] ?? '')),
             'falla' => trim((string) ($renglon['falla'] ?? '')),
             'trabajo' => $this->trabajo((array) ($renglon['trabajos'] ?? [])),
             'hora_inicio' => $inicio,
@@ -193,6 +195,9 @@ final class ReporteOtFechaService
             'cruza_dia' => $inicio !== '' && $fin !== '' && $fin < $inicio,
             'minutos' => $total !== null && $total !== '' ? (int) $total : $this->minutosEntre($inicio, $fin),
             'estatus' => trim((string) ($renglon['estatus'] ?? '')) ?: 'Activo',
+            'calificacion' => $calificacion !== null && $calificacion !== '' ? (int) $calificacion : null,
+            // Tejedor que calificó el trabajo (o el que atendió el paro, si la calificación se heredó).
+            'tejedor' => trim((string) ($renglon['nom_tejedor'] ?? '')) ?: trim((string) ($renglon['cve_tejedor'] ?? '')),
             'comentarios' => trim((string) ($renglon['comentarios'] ?? '')),
         ];
     }
@@ -276,7 +281,11 @@ final class ReporteOtFechaService
                 'MecOrdenTrabajoLine.Lubrico',
                 'MecOrdenTrabajoLine.FaltaRefacc',
                 'MecOrdenTrabajoLine.comentarios',
+                'MecOrdenTrabajoLine.Calificacion',
+                'MecOrdenTrabajoLine.CveTejedor',
+                'MecOrdenTrabajoLine.NomTejedor',
                 't.TelarId',
+                't.TipoFalla',
                 't.Falla',
                 't.Estatus',
             ])
@@ -286,6 +295,7 @@ final class ReporteOtFechaService
                 'fecha' => $linea->Fecha?->toDateString() ?? '',
                 'folio' => $linea->Folio,
                 'telar' => $linea->getAttribute('TelarId'),
+                'tipo_falla' => $linea->getAttribute('TipoFalla'),
                 'falla' => $linea->getAttribute('Falla'),
                 'trabajos' => collect(array_keys(self::TRABAJOS))
                     ->mapWithKeys(fn (string $campo): array => [$campo => $linea->getAttribute($campo)])
@@ -294,6 +304,9 @@ final class ReporteOtFechaService
                 'hora_fin' => $linea->HoraFinal,
                 'total_minutos' => $linea->TotalMinutos,
                 'estatus' => $linea->getAttribute('Estatus'),
+                'calificacion' => $linea->Calificacion,
+                'cve_tejedor' => $linea->getAttribute('CveTejedor'),
+                'nom_tejedor' => $linea->getAttribute('NomTejedor'),
                 'comentarios' => $linea->comentarios,
             ])
             ->values()

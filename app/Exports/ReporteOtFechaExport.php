@@ -20,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
  */
 final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
 {
-    public const ENCABEZADOS = ['No. Empleado', 'Nombre', 'Fecha', 'Folio', 'Telar', 'Falla', 'Trabajo realizado', 'Inicio', 'Fin', 'Duración (min)', 'Duración', 'Estatus', 'Comentarios'];
+    public const ENCABEZADOS = ['No. Empleado', 'Nombre', 'Fecha', 'Folio', 'Telar', 'Tipo de falla', 'Falla', 'Trabajo realizado', 'Inicio', 'Fin', 'Duración (min)', 'Duración', 'Estatus', 'Calificación', 'Tejedor que calificó', 'Comentarios'];
 
     private const FILA_ENCABEZADOS = 5;
 
@@ -56,7 +56,7 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
         foreach ($this->reporte['mecanicos'] as $grupo) {
             $filas[] = [
                 $grupo['nombre'].' ('.$grupo['cve'].') · '.$grupo['total_ots'].' OT · '.$grupo['total_trabajos'].' trabajos',
-                '', '', '', '', '', '', '', '',
+                '', '', '', '', '', '', '', '', '',
                 $grupo['total_minutos'],
                 ReporteOtFechaService::duracion($grupo['total_minutos']),
             ];
@@ -69,6 +69,7 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
                     $this->fecha($fila['fecha']),
                     $fila['folio'],
                     $fila['telar'],
+                    $fila['tipo_falla'],
                     $fila['falla'],
                     $fila['trabajo'],
                     $fila['hora_inicio'],
@@ -76,6 +77,8 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
                     $fila['minutos'],
                     ReporteOtFechaService::duracion($fila['minutos']),
                     $fila['estatus'],
+                    $fila['calificacion'],
+                    $fila['tejedor'],
                     $fila['comentarios'],
                 ];
             }
@@ -83,7 +86,7 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
 
         $filas[] = [
             'Total · '.count($this->reporte['mecanicos']).' mecánicos · '.$this->reporte['total_ots'].' OT · '.$this->reporte['total_trabajos'].' trabajos',
-            '', '', '', '', '', '', '', '',
+            '', '', '', '', '', '', '', '', '',
             $this->reporte['total_minutos'],
             ReporteOtFechaService::duracion($this->reporte['total_minutos']),
         ];
@@ -97,7 +100,7 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
         return [
             AfterSheet::class => function (AfterSheet $event): void {
                 $hoja = $event->sheet->getDelegate();
-                $ultima = 'M';
+                $ultima = 'P';
 
                 $hoja->getStyle('A1')->getFont()->setBold(true)->setSize(14);
                 $hoja->getStyle('A'.self::FILA_ENCABEZADOS.':'.$ultima.self::FILA_ENCABEZADOS)->applyFromArray([
@@ -117,10 +120,10 @@ final class ReporteOtFechaExport implements FromArray, WithEvents, WithTitle
                 $hoja->getStyle('A'.self::FILA_ENCABEZADOS.":{$ultima}{$this->filaTotal}")
                     ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-                foreach (['A' => 13, 'B' => 28, 'C' => 12, 'D' => 12, 'E' => 8, 'F' => 30, 'G' => 28, 'H' => 8, 'I' => 14, 'J' => 14, 'K' => 14, 'L' => 12, 'M' => 50] as $columna => $ancho) {
+                foreach (['A' => 13, 'B' => 28, 'C' => 12, 'D' => 12, 'E' => 8, 'F' => 14, 'G' => 30, 'H' => 28, 'I' => 8, 'J' => 14, 'K' => 14, 'L' => 14, 'M' => 12, 'N' => 12, 'O' => 28, 'P' => 50] as $columna => $ancho) {
                     $hoja->getColumnDimension($columna)->setWidth($ancho);
                 }
-                $hoja->getStyle("M1:M{$this->filaTotal}")->getAlignment()->setWrapText(true);
+                $hoja->getStyle("P1:P{$this->filaTotal}")->getAlignment()->setWrapText(true);
                 $hoja->freezePane('A'.(self::FILA_ENCABEZADOS + 1));
                 $hoja->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
             },
