@@ -17,6 +17,12 @@ class CalendarioMaquinasTest extends TestCase
 {
     use UsesSqlsrvSqlite;
 
+    private const VENTANAS = [
+        ['ventana' => 1, 'hora' => '06:30', 'minutos' => 480],
+        ['ventana' => 2, 'hora' => '14:30', 'minutos' => 480],
+        ['ventana' => 3, 'hora' => '22:30', 'minutos' => 480],
+    ];
+
     private int $mcCoy1;
 
     protected function setUp(): void
@@ -63,19 +69,38 @@ class CalendarioMaquinasTest extends TestCase
         $this->get('/urdido/configuracion/calendariourdido')->assertOk()->assertSeeLivewire(CalendarioMaquinas::class);
     }
 
-    public function test_plantilla_del_mes_respeta_dias_y_turnos(): void
+    public function test_plantilla_del_mes_respeta_dias_y_horarios(): void
     {
-        // Octubre 2026: 31 días, 4 domingos. De lunes a sábado con 3 turnos = 27 × 3.
-        $filas = UrdEngCalMaquina::plantillaMes('2026-10', [
-            ['turno' => 1, 'hora' => '06:30', 'minutos' => 480],
-            ['turno' => 2, 'hora' => '14:30', 'minutos' => 480],
-            ['turno' => 3, 'hora' => '22:30', 'minutos' => 480],
-        ], [1, 2, 3, 4, 5, 6]);
+        // Octubre 2026: 31 días, 4 domingos. De lunes a sábado con 3 horarios = 27 × 3.
+        $filas = UrdEngCalMaquina::plantillaMes('2026-10', self::VENTANAS, [1, 2, 3, 4, 5, 6]);
 
         $this->assertCount(81, $filas);
         $this->assertSame('2026-10-01 06:30', $filas[0]['FechaInicio']->format('Y-m-d H:i'));
         $this->assertSame('2026-10-31 22:30', end($filas)['FechaInicio']->format('Y-m-d H:i'));
         $this->assertNotContains('2026-10-04', array_map(fn ($f) => $f['FechaInicio']->format('Y-m-d'), $filas), 'Domingo fuera.');
+    }
+
+    public function test_el_turno_sale_de_la_rotacion_de_la_hoja(): void
+    {
+        $turnos = collect(UrdEngCalMaquina::plantillaMes('2026-10', self::VENTANAS, [1, 2, 3, 4, 5, 6, 7]))
+            ->mapWithKeys(fn ($f) => [$f['FechaInicio']->format('D H:i').' '.$f['FechaInicio']->format('d') => $f['Turno']]);
+
+        // Semana del martes 13 al lunes 19 de octubre, tal cual la hoja impresa.
+        $this->assertSame(1, $turnos['Tue 06:30 13']);
+        $this->assertSame(3, $turnos['Tue 14:30 13']);
+        $this->assertSame(4, $turnos['Tue 22:30 13']);
+        $this->assertSame(2, $turnos['Wed 14:30 14']);
+        $this->assertSame(3, $turnos['Thu 22:30 15']);
+        $this->assertSame(4, $turnos['Fri 22:30 16']);
+        $this->assertSame(3, $turnos['Sun 06:30 18'], 'El domingo en la mañana entra el 3.');
+        $this->assertSame(2, $turnos['Sun 14:30 18']);
+        $this->assertSame(3, $turnos['Mon 14:30 19']);
+        $this->assertSame(4, $turnos['Mon 22:30 19']);
+
+        // Cada día trabajan tres turnos distintos y uno descansa.
+        foreach (UrdEngCalMaquina::ROTACION_URDIDO as $dia => $porVentana) {
+            $this->assertCount(3, array_unique($porVentana), "Día $dia");
+        }
     }
 
     public function test_generar_mes_no_duplica_lo_que_ya_esta(): void
@@ -90,10 +115,12 @@ class CalendarioMaquinasTest extends TestCase
             ->assertHasNoErrors()
             ->assertDispatched('aviso');
 
-        $this->assertSame(81, UrdEngCalMaquina::count());
+        // Por default los 7 días con los 3 horarios: 31 × 3.
+        $this->assertSame(93, UrdEngCalMaquina::count());
+        $this->assertSame(4, UrdEngCalMaquina::where('FechaInicio', '2026-10-20 22:30:00')->value('Turno'), 'Martes noche = turno 4.');
 
         $lw->call('abrirGenerar')->set('generar.Maquina', (string) $this->mcCoy1)->set('generar.mes', '2026-10')->call('generarMes');
-        $this->assertSame(81, UrdEngCalMaquina::count(), 'La segunda vez todo se encima: no agrega nada.');
+        $this->assertSame(93, UrdEngCalMaquina::count(), 'La segunda vez todo se encima: no agrega nada.');
     }
 
     public function test_generar_rechaza_maquina_de_otro_departamento(): void
@@ -119,8 +146,12 @@ class CalendarioMaquinasTest extends TestCase
             ->call('guardar')
             ->assertHasErrors(['form.FechaInicio']);
 
-        $lw->set('form.FechaInicio', '2026-10-20T06:30')->call('guardar')->assertHasNoErrors();
+        // A una hora de ventana el turno se propone con la rotación (martes 22:30 → 4); se puede cambiar.
+        $lw->set('form.FechaInicio', '2026-10-20T22:30')->assertSet('form.Turno', '4');
+        $lw->set('form.FechaInicio', '2026-10-20T06:30')->assertSet('form.Turno', '1')
+            ->set('form.Turno', '4')->call('guardar')->assertHasNoErrors();
         $this->assertSame(2, UrdEngCalMaquina::count());
+        $this->assertSame(4, UrdEngCalMaquina::where('FechaInicio', '2026-10-20 06:30:00')->value('Turno'), 'Se guarda el turno 4.');
 
         // Editar un turno no choca consigo mismo.
         $id = (string) UrdEngCalMaquina::where('Turno', 3)->value('Id');

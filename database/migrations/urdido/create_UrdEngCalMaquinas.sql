@@ -6,7 +6,8 @@
 -- - Cada máquina tiene su propio horario y un turno puede empezar a cualquier hora,
 --   por eso FechaInicio lleva fecha y hora reales (un turno 3 del 19 empieza 2026-10-19 22:30).
 -- - Sin fila = turno no programado. No se guardan ceros.
--- - Turno solo 1..3: el turno 4 cubre descansos y no es una ventana de tiempo.
+-- - Turno = cuadrilla 1..4 (rotación por día de la semana, UrdEngCalMaquina::ROTACION_URDIDO).
+--   Las ventanas siguen siendo 06:30 / 14:30 / 22:30; el turno 4 no agrega tiempo, cubre descansos.
 -- - No hay FechaFin a propósito: se calcula, y así no se desfasa como en ReqCalendarioLine.
 -- - Que dos turnos de la misma máquina no se encimen lo valida la aplicación.
 
@@ -27,8 +28,22 @@ BEGIN
             REFERENCES dbo.URDCatalogoMaquinas(Id),
 
         CONSTRAINT CK_UrdEngCalMaquinas_Minutos CHECK (Minutos > 0 AND Minutos <= 1440),
-        CONSTRAINT CK_UrdEngCalMaquinas_Turno   CHECK (Turno BETWEEN 1 AND 3)
+        CONSTRAINT CK_UrdEngCalMaquinas_Turno   CHECK (Turno BETWEEN 1 AND 4)
     );
+END
+GO
+
+-- 19-oct-2026: el turno 4 entra al calendario (rotación de Urdido). En una tabla creada con el
+-- CHECK de 1..3, se cambia por el de 1..4.
+IF EXISTS (
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id = OBJECT_ID('dbo.UrdEngCalMaquinas')
+      AND name = 'CK_UrdEngCalMaquinas_Turno'
+      AND definition NOT LIKE '%<=(4)%'
+)
+BEGIN
+    ALTER TABLE dbo.UrdEngCalMaquinas DROP CONSTRAINT CK_UrdEngCalMaquinas_Turno;
+    ALTER TABLE dbo.UrdEngCalMaquinas ADD CONSTRAINT CK_UrdEngCalMaquinas_Turno CHECK (Turno BETWEEN 1 AND 4);
 END
 GO
 

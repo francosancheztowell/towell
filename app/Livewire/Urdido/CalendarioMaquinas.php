@@ -38,8 +38,10 @@ class CalendarioMaquinas extends Component
 
     public const DEPARTAMENTO = 'Urdido';
 
-    /** Plantilla por default de "Generar mes": los tres turnos de reloj de TurnoHelper. */
-    public const TURNOS_DEFAULT = [1 => '06:30', 2 => '14:30', 3 => '22:30'];
+    /** Turnos (cuadrillas): el 4 cubre descansos según UrdEngCalMaquina::ROTACION_URDIDO. */
+    public const TURNOS = [1, 2, 3, 4];
+
+    public const NOMBRES_VENTANA = [1 => 'Mañana', 2 => 'Tarde', 3 => 'Noche'];
 
     /** URDCatalogoMaquinas.Id; '' = todas. */
     #[Url(except: '')]
@@ -121,6 +123,19 @@ class CalendarioMaquinas extends Component
         }
     }
 
+    /** Inicio en una ventana de reloj (06:30 / 14:30 / 22:30): el turno lo dice la rotación. */
+    public function updatedFormFechaInicio(string $valor): void
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $valor) !== 1) {
+            return;
+        }
+        $inicio = CarbonImmutable::createFromFormat('Y-m-d\TH:i', $valor);
+        $ventana = array_search($inicio->format('H:i'), UrdEngCalMaquina::VENTANAS, true);
+        if ($ventana !== false) {
+            $this->form['Turno'] = (string) UrdEngCalMaquina::ROTACION_URDIDO[$inicio->dayOfWeekIso][$ventana];
+        }
+    }
+
     public function guardar(): void
     {
         $esAlta = $this->editando === '';
@@ -130,7 +145,7 @@ class CalendarioMaquinas extends Component
             'form.Maquina' => ['required', Rule::in(array_keys($this->maquinas))],
             'form.FechaInicio' => ['required', 'date_format:Y-m-d\TH:i'],
             'form.Minutos' => ['required', 'integer', 'min:1', 'max:'.UrdEngCalMaquina::MAX_MINUTOS],
-            'form.Turno' => ['required', Rule::in(array_keys(self::TURNOS_DEFAULT))],
+            'form.Turno' => ['required', Rule::in(self::TURNOS)],
         ], attributes: [
             'form.Maquina' => 'máquina',
             'form.FechaInicio' => 'inicio',
@@ -166,9 +181,9 @@ class CalendarioMaquinas extends Component
         $this->generar = [
             'Maquina' => $this->maquinaFiltro,
             'mes' => $this->mes ?: now()->format('Y-m'),
-            // 1 = lunes … 7 = domingo; por default de lunes a sábado.
-            'dias' => ['1', '2', '3', '4', '5', '6'],
-            'turnos' => collect(self::TURNOS_DEFAULT)
+            // 1 = lunes … 7 = domingo; con la rotación se trabaja toda la semana.
+            'dias' => ['1', '2', '3', '4', '5', '6', '7'],
+            'ventanas' => collect(UrdEngCalMaquina::VENTANAS)
                 ->map(fn (string $hora): array => ['activo' => true, 'hora' => $hora, 'minutos' => '480'])
                 ->all(),
         ];
@@ -190,30 +205,30 @@ class CalendarioMaquinas extends Component
             'generar.mes' => ['required', 'date_format:Y-m'],
             'generar.dias' => ['required', 'array', 'min:1'],
             'generar.dias.*' => [Rule::in(['1', '2', '3', '4', '5', '6', '7'])],
-            'generar.turnos.*.hora' => ['required', 'date_format:H:i'],
-            'generar.turnos.*.minutos' => ['required', 'integer', 'min:1', 'max:'.UrdEngCalMaquina::MAX_MINUTOS],
+            'generar.ventanas.*.hora' => ['required', 'date_format:H:i'],
+            'generar.ventanas.*.minutos' => ['required', 'integer', 'min:1', 'max:'.UrdEngCalMaquina::MAX_MINUTOS],
         ], attributes: [
             'generar.Maquina' => 'máquina',
             'generar.mes' => 'mes',
             'generar.dias' => 'días',
-            'generar.turnos.*.hora' => 'hora de inicio',
-            'generar.turnos.*.minutos' => 'minutos',
+            'generar.ventanas.*.hora' => 'hora de inicio',
+            'generar.ventanas.*.minutos' => 'minutos',
         ])['generar'];
 
-        $turnos = collect($this->generar['turnos'])
-            ->filter(fn (array $t): bool => (bool) $t['activo'])
-            ->map(fn (array $t, int|string $turno): array => ['turno' => (int) $turno, 'hora' => $t['hora'], 'minutos' => (int) $t['minutos']])
+        $ventanas = collect($this->generar['ventanas'])
+            ->filter(fn (array $v): bool => (bool) $v['activo'])
+            ->map(fn (array $v, int|string $ventana): array => ['ventana' => (int) $ventana, 'hora' => $v['hora'], 'minutos' => (int) $v['minutos']])
             ->values()
             ->all();
 
-        if ($turnos === []) {
-            $this->addError('generar.turnos', 'Marca al menos un turno.');
+        if ($ventanas === []) {
+            $this->addError('generar.ventanas', 'Marca al menos un horario.');
 
             return;
         }
 
         $maquina = (int) $g['Maquina'];
-        $filas = UrdEngCalMaquina::plantillaMes($g['mes'], $turnos, array_map('intval', $g['dias']));
+        $filas = UrdEngCalMaquina::plantillaMes($g['mes'], $ventanas, array_map('intval', $g['dias']));
 
         $creados = DB::connection('sqlsrv')->transaction(function () use ($filas, $maquina): int {
             $creados = 0;

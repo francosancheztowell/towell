@@ -26,6 +26,23 @@ class UrdEngCalMaquina extends Model
     /** Tope de Minutos (CHECK de la tabla): un turno nunca pasa de un día. */
     public const MAX_MINUTOS = 1440;
 
+    /** Ventanas de reloj (TurnoHelper): 1 = mañana, 2 = tarde, 3 = noche (cuenta para el día en que empieza). */
+    public const VENTANAS = [1 => '06:30', 2 => '14:30', 3 => '22:30'];
+
+    /**
+     * Qué turno (cuadrilla 1..4) cubre cada ventana según el día ISO (1 = lunes … 7 = domingo).
+     * Hoja impresa de Urdido (owner, 19-oct-2026); cada día trabajan tres y uno descansa.
+     */
+    public const ROTACION_URDIDO = [
+        1 => [1 => 1, 2 => 3, 3 => 4], // lunes
+        2 => [1 => 1, 2 => 3, 3 => 4], // martes
+        3 => [1 => 1, 2 => 2, 3 => 3], // miércoles
+        4 => [1 => 1, 2 => 2, 3 => 3], // jueves
+        5 => [1 => 1, 2 => 2, 3 => 4], // viernes
+        6 => [1 => 1, 2 => 2, 3 => 4], // sábado
+        7 => [1 => 3, 2 => 2, 3 => 4], // domingo
+    ];
+
     protected $connection = 'sqlsrv';
 
     protected $table = 'UrdEngCalMaquinas';
@@ -75,13 +92,15 @@ class UrdEngCalMaquina extends Model
 
     /**
      * Turnos de un mes según una plantilla: por cada día del mes cuyo día de la semana
-     * esté en $dias (1 = lunes … 7 = domingo), un turno por cada entrada de $turnos.
+     * esté en $dias (1 = lunes … 7 = domingo), un turno por cada ventana (mañana, tarde, noche).
+     * El número de turno (cuadrilla) sale de $rotacion según el día y la ventana.
      *
-     * @param  array<int, array{turno: int, hora: string, minutos: int}>  $turnos  hora 'HH:MM'
+     * @param  array<int, array{ventana: int, hora: string, minutos: int}>  $ventanas  hora 'HH:MM'
      * @param  array<int, int>  $dias
+     * @param  array<int, array<int, int>>  $rotacion  día ISO => [ventana => turno]
      * @return list<array{FechaInicio: CarbonImmutable, Minutos: int, Turno: int}>
      */
-    public static function plantillaMes(string $mes, array $turnos, array $dias): array
+    public static function plantillaMes(string $mes, array $ventanas, array $dias, array $rotacion = self::ROTACION_URDIDO): array
     {
         $dia = CarbonImmutable::createFromFormat('!Y-m', $mes);
         $fin = $dia->addMonth();
@@ -91,9 +110,9 @@ class UrdEngCalMaquina extends Model
             if (! in_array($dia->dayOfWeekIso, $dias, true)) {
                 continue;
             }
-            foreach ($turnos as $t) {
-                [$h, $m] = array_map('intval', explode(':', $t['hora']));
-                $filas[] = ['FechaInicio' => $dia->setTime($h, $m), 'Minutos' => $t['minutos'], 'Turno' => $t['turno']];
+            foreach ($ventanas as $v) {
+                [$h, $m] = array_map('intval', explode(':', $v['hora']));
+                $filas[] = ['FechaInicio' => $dia->setTime($h, $m), 'Minutos' => $v['minutos'], 'Turno' => $rotacion[$dia->dayOfWeekIso][$v['ventana']]];
             }
         }
 

@@ -45,11 +45,12 @@
                         @endforeach
                     </flux:select>
                     <flux:select wire:model="form.Turno" label="Turno" required>
-                        @foreach (array_keys(\App\Livewire\Urdido\CalendarioMaquinas::TURNOS_DEFAULT) as $turno)
+                        @foreach (\App\Livewire\Urdido\CalendarioMaquinas::TURNOS as $turno)
                             <flux:select.option :value="$turno">Turno {{ $turno }}</flux:select.option>
                         @endforeach
                     </flux:select>
-                    <flux:input type="datetime-local" wire:model="form.FechaInicio" label="Inicio" required />
+                    {{-- .live: a las 06:30 / 14:30 / 22:30 el turno se llena con la rotación. --}}
+                    <flux:input type="datetime-local" wire:model.live="form.FechaInicio" label="Inicio" required />
                     <flux:input type="number" wire:model="form.Minutos" label="Minutos" min="1" max="1440" required />
                 </div>
 
@@ -58,7 +59,8 @@
         </dialog>
     @endif
 
-    {{-- Generar mes: un turno por día marcado y por turno activo; lo que se encime con lo existente se omite. --}}
+    {{-- Generar mes: por día marcado, un turno por horario activo; el número de turno sale de la rotación.
+         Lo que se encime con lo existente se omite. --}}
     @if ($generar !== null)
         <dialog wire:key="generar-mes" wire:ignore.self x-data x-init="$el.showModal()"
                 x-on:close="$wire.cerrarGenerar()" x-on:click="if ($event.target === $el) $el.close()"
@@ -84,16 +86,42 @@
                 </flux:checkbox.group>
 
                 <fieldset class="space-y-2">
-                    <legend class="mb-1 text-sm font-medium text-zinc-800">Turnos</legend>
-                    @foreach ($generar['turnos'] as $turno => $t)
-                        <div wire:key="generar-turno-{{ $turno }}" class="grid grid-cols-3 items-end gap-3">
-                            <flux:checkbox wire:model="generar.turnos.{{ $turno }}.activo" label="Turno {{ $turno }}" class="min-h-touch" />
-                            <flux:input type="time" wire:model="generar.turnos.{{ $turno }}.hora" label="Inicio" />
-                            <flux:input type="number" wire:model="generar.turnos.{{ $turno }}.minutos" label="Minutos" min="1" max="1440" />
+                    <legend class="mb-1 text-sm font-medium text-zinc-800">Horarios</legend>
+                    @foreach ($generar['ventanas'] as $ventana => $v)
+                        <div wire:key="generar-ventana-{{ $ventana }}" class="grid grid-cols-3 items-end gap-3">
+                            <flux:checkbox wire:model="generar.ventanas.{{ $ventana }}.activo" :label="\App\Livewire\Urdido\CalendarioMaquinas::NOMBRES_VENTANA[$ventana]" class="min-h-touch" />
+                            <flux:input type="time" wire:model="generar.ventanas.{{ $ventana }}.hora" label="Inicio" />
+                            <flux:input type="number" wire:model="generar.ventanas.{{ $ventana }}.minutos" label="Minutos" min="1" max="1440" />
                         </div>
                     @endforeach
-                    <flux:error name="generar.turnos" />
+                    <flux:error name="generar.ventanas" />
                 </fieldset>
+
+                {{-- Rotación de solo lectura: qué turno cubre cada horario según el día (semana de martes a lunes). --}}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center text-xs">
+                        <caption class="mb-1 text-start text-sm font-medium text-zinc-800">Rotación de turnos</caption>
+                        <thead>
+                            <tr class="bg-slate-100">
+                                <th class="p-1 text-start">Horario</th>
+                                @foreach ([2 => 'Ma', 3 => 'Mi', 4 => 'Ju', 5 => 'Vi', 6 => 'Sá', 7 => 'Do', 1 => 'Lu'] as $nombre)
+                                    <th class="p-1">{{ $nombre }}</th>
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (\App\Models\UrdEngomado\UrdEngCalMaquina::VENTANAS as $ventana => $hora)
+                                <tr class="border-t border-slate-200">
+                                    <th class="p-1 text-start font-normal">{{ $hora }}</th>
+                                    @foreach ([2, 3, 4, 5, 6, 7, 1] as $dia)
+                                        @php $turno = \App\Models\UrdEngomado\UrdEngCalMaquina::ROTACION_URDIDO[$dia][$ventana]; @endphp
+                                        <td class="p-1 {{ $turno === 4 ? 'font-semibold text-blue-700' : '' }}">T{{ $turno }}</td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
 
                 <x-dialogo-botones accion="generarMes" texto="Generar" />
             </form>

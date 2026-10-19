@@ -59,7 +59,7 @@ Rendimiento y OEE siguen en `OeeUrdidoService::indicadores()` (cubierto por test
 
 ## Tiempo total: calendario de máquinas (owner, 19-oct-2026)
 Tabla `dbo.UrdEngCalMaquinas` (`database/migrations/urdido/create_UrdEngCalMaquinas.sql`):
-Maquina (= `URDCatalogoMaquinas.Id`), FechaInicio (fecha **y hora**), Minutos, Turno 1..3. Sin fila = no programado.
+Maquina (= `URDCatalogoMaquinas.Id`), FechaInicio (fecha **y hora**), Minutos, Turno 1..4 (cuadrilla; rotación por día en `UrdEngCalMaquina::ROTACION_URDIDO`, 19-oct). Sin fila = no programado.
 - Horario **por máquina** y variable; un turno puede empezar a cualquier hora.
 - Un julio que cruza medianoche empieza en `Fecha` (fin = Fecha + 1 día).
 - Oportunidad = Minutos − producción − paros (el julio manda), todo recortado a [FechaInicio, +Minutos).
