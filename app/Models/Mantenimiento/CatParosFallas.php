@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $Departamento
  * @property string|null $Falla
  * @property string|null $Descripcion
+ * @property bool|null $Necesario
  */
 class CatParosFallas extends Model
 {
@@ -32,10 +33,12 @@ class CatParosFallas extends Model
         'Descripcion',
         'Abreviado',
         'Seccion',
+        'Necesario',
     ];
 
     protected $casts = [
         'Id' => 'integer',
+        'Necesario' => 'boolean',
     ];
 
     /**
