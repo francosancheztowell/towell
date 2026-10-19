@@ -53,34 +53,20 @@ class TrazabilidadResumenService
         );
         // Sin AX: el pedido cae a lo programado de la tarjeta "Programa tejido" y lo
         // facturado queda sin dato ("—"), no en un 0 que parezca real.
-        $pedido = $facturacion['pedido'] ?? ($tablaAvance !== []
-            ? (float) collect($tablaAvance)->sum(fn (array $fila): float => (float) ($fila['programado'] ?? 0))
-            : ($programas->isNotEmpty()
-                ? (float) $programas->sum(fn ($programa) => (float) ($programa->TotalPedido ?? 0))
-                : null));
-        $facturado = $facturacion['facturado'] ?? null;
-        $pendienteFacturacion = $facturacion['porEntregar'] ?? null;
+        $pedido = $facturacion['pedido'] ?? $this->pedidoSinAx($tablaAvance, $programas);
         $rangos = TrazabilidadFilters::fromArray($filtros)->rangos();
-        if ($rangos !== [] && $flogs->isNotEmpty()) {
-            [$facturado, $pendienteFacturacion] = $this->facturadoDelPeriodo($flogs->all(), $rangos, $pedido);
-        }
-        $produccionPrograma = $programas->isNotEmpty()
-            ? (float) $programas->sum(fn ($programa) => (float) ($programa->Produccion ?? 0))
-            : null;
-        $saldoPedido = $programas->isNotEmpty()
-            ? (float) $programas->sum(fn ($programa) => (float) ($programa->SaldoPedido ?? 0))
-            : null;
+        [$facturado, $pendienteFacturacion] = $rangos !== [] && $flogs->isNotEmpty()
+            ? $this->facturadoDelPeriodo($flogs->all(), $rangos, $pedido)
+            : [$facturacion['facturado'] ?? null, $facturacion['porEntregar'] ?? null];
+        $produccionPrograma = $this->sumaProgramas($programas, 'Produccion');
+        $saldoPedido = $this->sumaProgramas($programas, 'SaldoPedido');
 
         // Los totales por área ya traen todas las fechas del filtro: se reutilizan
         // como respaldo en vez de lanzar un MIN y un MAX extra sobre la tabla.
         $totalesArea = $this->totalesPorArea(clone $query);
 
-        if (! $fechaInicio) {
-            $fechaInicio = $totalesArea->min('Fecha');
-        }
-        if (! $fechaFin) {
-            $fechaFin = $totalesArea->max('Fecha');
-        }
+        $fechaInicio = $fechaInicio ?: $totalesArea->min('Fecha');
+        $fechaFin = $fechaFin ?: $totalesArea->max('Fecha');
 
         return [
             'flogs' => $this->resumirValores($flogs),
@@ -101,6 +87,24 @@ class TrazabilidadResumenService
             'fechaFin' => $this->formatearFecha($fechaFin),
             'trazabilidadAreas' => $this->trazabilidadPorArea($totalesArea),
         ];
+    }
+
+    /** @param  array<int, array<string, mixed>>  $tablaAvance */
+    private function pedidoSinAx(array $tablaAvance, Collection $programas): ?float
+    {
+        if ($tablaAvance !== []) {
+            return (float) collect($tablaAvance)->sum(fn (array $fila): float => (float) ($fila['programado'] ?? 0));
+        }
+
+        return $this->sumaProgramas($programas, 'TotalPedido');
+    }
+
+    /** Suma de una columna de los programas; null (sin dato) si no hay programas. */
+    private function sumaProgramas(Collection $programas, string $campo): ?float
+    {
+        return $programas->isNotEmpty()
+            ? (float) $programas->sum(fn ($programa) => (float) ($programa->{$campo} ?? 0))
+            : null;
     }
 
     /**
