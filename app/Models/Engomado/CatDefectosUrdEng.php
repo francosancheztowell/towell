@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $Id
  * @property string|null $Clave
  * @property string|null $Defecto
+ * @property float $Penalizacion
  */
 class CatDefectosUrdEng extends Model
 {

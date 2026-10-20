@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Tejedores\CalificarJuliosController;
 use App\Http\Controllers\Tejedores\Configuracion\CatalogoCalibres\CatalogoCalibresController;
 use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
@@ -30,6 +31,9 @@ Route::prefix('tejedores')->name('tejedores.')->group(function () {
     Route::redirect('/bpm', '/tejedores/bpmtejedores', 301);
 
     Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
+    // Calificar Julios (idrol 212): captura y historial en el componente Livewire CalificarJulios
+    Route::get('/calificajulios', [CalificarJuliosController::class, 'index'])->name('calificar-julios');
+
     Route::get('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'index'])->name('desarrolladores-muestras');
 });
 
