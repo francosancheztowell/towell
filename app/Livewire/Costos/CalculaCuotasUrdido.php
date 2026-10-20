@@ -9,7 +9,7 @@ use App\Services\Costos\CuotasUrdidoService;
 /**
  * Botón "Calcular Urdido" de Cuotas: cuotas reales de Urdido desde AX, producción y paros
  * (App\Services\Costos\CuotasUrdidoService), mes por mes del rango. Reemplaza las columnas
- * calculadas; lo capturado a mano (prorrateos, maquila) se queda.
+ * calculadas, prorrateos incluidos (desde abr-2026, con kardex); lo capturado a mano (maquila) se queda.
  */
 trait CalculaCuotasUrdido
 {

@@ -14,7 +14,8 @@ use Illuminate\Support\Collection;
  * Lleva la cuota del mes (CosCuotasReal) a cada julio de UrdProduccionUrdido:
  * importe = cuota ($/min) × base del julio, con base = minutos del julio − paro ocurrido durante él
  * (sin paros, default) o los minutos completos (con paros). Igual que la base del mes, así que
- * Σ de los julios = Sab de la cuota. Cuota vacía (no capturada) → la columna queda NULL.
+ * Σ de los julios = Sab de la cuota. Los prorrateos siempre van sobre los minutos completos: su cuota
+ * es Sab ÷ Minutos (CuotasUrdidoService). Cuota vacía (no capturada) → la columna queda NULL.
  */
 final class CostosJulio
 {
@@ -23,6 +24,9 @@ final class CostosJulio
         'MOD' => 'MO', 'MOI' => 'MOI', 'GtsV' => 'GtosVariables', 'GtsF' => 'GtosFijos',
         'Pf' => 'ProrrateoFijo', 'PV' => 'ProrrateoVariable', 'Maquila' => 'Maquila',
     ];
+
+    /** Columnas que absorben los paros: van sobre los minutos completos del julio. */
+    public const CON_PAROS = ['Pf', 'PV'];
 
     /**
      * Guarda solo los julios que cambian.
@@ -35,9 +39,10 @@ final class CostosJulio
     {
         $nuevos = [];
         foreach ($julios as $j) {
-            $base = $j['minutos'] - ($conParos ? 0 : self::paroDurante($j, $paros[$j['maquina']] ?? []));
+            $paro = $conParos ? 0 : self::paroDurante($j, $paros[$j['maquina']] ?? []);
             foreach (self::COLUMNAS as $col => $deCuota) {
                 $cuotaMin = $cuota->getAttribute($deCuota);
+                $base = $j['minutos'] - (in_array($col, self::CON_PAROS, true) ? 0 : $paro);
                 $nuevos[$j['id']][$col] = $cuotaMin === null ? null : round((float) $cuotaMin * max(0.0, $base), 4);
             }
         }

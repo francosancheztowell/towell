@@ -174,7 +174,9 @@
                         <strong>Cuota real del mes.</strong> Sab* = gastos de AX de los centros 003 y 005 (Towel + Textil), por tipo
                         (MOD, MOI, variables, fijos). Minutos = minutos de los julios urdidos en el mes; Min. paro = paros que
                         ocurrieron durante esos julios. Cuota (MO, MOI, Gtos. variables, Gtos. fijos) = Sab ÷ minutos.
-                        Reemplaza esas columnas; prorrateos y maquila capturados se conservan.
+                        Prorrateo fijo = lo que le toca a urdido de los centros de servicio (mecánicos, eléctricos, almacén de hilo…),
+                        con cuota = Sab ÷ minutos totales (absorbe los paros); prorrateo variable = 0.
+                        Reemplaza esas columnas; la maquila capturada se conserva.
                     </li>
                     <li>
                         <strong>Costo de cada julio.</strong> Reescribe MOD, MOI, GtsV, GtsF, Pf, PV y Maquila de todos los julios

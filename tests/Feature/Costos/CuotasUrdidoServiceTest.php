@@ -23,6 +23,9 @@ class CuotasUrdidoServiceTest extends TestCase
     /** @var array<string, string> regla cuenta+centro → tipo */
     private array $reglas = [];
 
+    /** @var array{sab: array<string, float>, pHilo: float}|null centros de servicio de la sábana y % de hilo; null = sin kardex */
+    private ?array $servicios = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -61,6 +64,7 @@ class CuotasUrdidoServiceTest extends TestCase
         $this->partialMock(CuotasUrdidoService::class, function ($m) {
             $m->shouldReceive('movimientos')->andReturnUsing(fn () => collect($this->movimientos));
             $m->shouldReceive('reglas')->andReturnUsing(fn () => $this->reglas);
+            $m->shouldReceive('servicios')->andReturnUsing(fn () => $this->servicios);
         });
     }
 
@@ -177,7 +181,7 @@ class CuotasUrdidoServiceTest extends TestCase
         $this->assertSame(2, $r['Julios']);
         $j = fn () => DB::connection('sqlsrv')->table('UrdProduccionUrdido')->orderBy('Folio')->get();
         $this->assertSame([625.0, 375.0], $j()->pluck('MOD')->map(fn ($v) => (float) $v)->all(), '6.25 × (120 − 20) y 6.25 × 60: suman SabMO.');
-        $this->assertSame([50.0, 30.0], $j()->pluck('Pf')->map(fn ($v) => (float) $v)->all(), 'Prorrateo capturado × la misma base.');
+        $this->assertSame([60.0, 30.0], $j()->pluck('Pf')->map(fn ($v) => (float) $v)->all(), 'Prorrateo capturado × los minutos completos: absorbe los paros.');
         $this->assertSame([0.0, 0.0], $j()->pluck('GtsV')->map(fn ($v) => (float) $v)->all());
         $this->assertSame([null, null], $j()->pluck('Maquila')->all(), 'Cuota no capturada: queda vacío.');
 
@@ -215,6 +219,7 @@ class CuotasUrdidoServiceTest extends TestCase
         $this->reglas = ['702-002-000-0|003' => 'MOD'];
         $this->partialMock(CuotasUrdidoService::class, function ($m) use (&$leidas) {
             $m->shouldReceive('movimientos')->andReturnUsing(fn () => collect($this->movimientos));
+            $m->shouldReceive('servicios')->andReturnUsing(fn () => $this->servicios);
             $m->shouldReceive('reglas')->andReturnUsing(function () use (&$leidas) {
                 $leidas++;
 
@@ -317,6 +322,39 @@ class CuotasUrdidoServiceTest extends TestCase
         $r = $servicio->actualizarRango(2026, 4, 4);
 
         $this->assertSame('Urdido: 1 mes(es) calculado(s), 1 julio(s) revisados, 0 con cambios. Ya tenían estos costos.', $r['texto']);
+    }
+
+    public function test_prorrateo_fijo_reproduce_la_regla_de_reportes(): void
+    {
+        // Sábana de septiembre 2026 (Towel) de los centros de servicio y 80.19 % del hilo surtido a urdido:
+        // TwProrrateoGastos le dio 134,332.94 a urdido con el % redondeado a 80.19.
+        $sab = ['028' => 207629.28, '023' => 54081.90, '018' => 88071.87, '024' => 39296.76, '025' => 202596.67, '026' => 220628.36, '027' => 483222.63];
+
+        $this->assertEqualsWithDelta(134335.10, CuotasUrdidoService::prorrateoFijo($sab, 0.80191954), 0.01);
+        $this->assertEqualsWithDelta(134332.94, CuotasUrdidoService::prorrateoFijo($sab, 0.8019), 0.02, 'La tabla redondea cada celda.');
+        $this->assertSame(0.0, CuotasUrdidoService::prorrateoFijo([], 0.8));
+    }
+
+    public function test_prorrateo_sobre_minutos_totales_llega_completo_a_los_julios(): void
+    {
+        $this->julios([
+            ['00001', 'Mc Coy 1', '2026-04-10', '10:00:00', '12:00:00'], // 120 min, 20 de paro dentro
+            ['00002', 'Mc Coy 2', '2026-04-11', '08:00:00', '09:00:00'], // 60 min
+        ]);
+        $this->paros([['Mc Coy 1', 'Mecanico', '2026-04-10 11:00:00', '2026-04-10 11:20:00']]);
+        $this->movimientos = [(object) ['cuenta' => '702-002-000-0', 'centro' => '003', 'tipo' => 'MOD', 'total' => 1000]];
+        $this->servicios = ['sab' => ['027' => 9000.0], 'pHilo' => 0.8]; // 6 % de control de producción = 540
+        CosCuotasReal::create(['Depto' => 'Urdido', 'Año' => 2026, 'Mes' => 4, 'ProrrateoFijo' => 0.5]);
+
+        app(CuotasUrdidoService::class)->actualizar(2026, 4);
+
+        $c = CosCuotasReal::existente('Urdido', 2026, 4);
+        $this->assertSame('540.0000', $c->SabProrrateoFijo);
+        $this->assertSame('3.0000', $c->ProrrateoFijo, '540 ÷ 180 min totales, aunque el resto vaya sin paros; reemplaza lo capturado.');
+        $this->assertSame('0.0000', $c->ProrrateoVariable, 'Urdido no recibe Calderas.');
+        $j = DB::connection('sqlsrv')->table('UrdProduccionUrdido')->orderBy('Folio')->get();
+        $this->assertSame([360.0, 180.0], $j->pluck('Pf')->map(fn ($v) => (float) $v)->all(), 'Suman la sábana del prorrateo.');
+        $this->assertSame([0.0, 0.0], $j->pluck('PV')->map(fn ($v) => (float) $v)->all());
     }
 
     public function test_mes_sin_julios_deja_la_cuota_vacia(): void

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Planeacion\CatalogoPlaneacion\ModelosCodificados\CodificacionController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Database\Schema\Blueprint;
@@ -519,5 +520,39 @@ class CodificacionFormularioTest extends TestCase
 
         $this->putJson('/planeacion/catalogos/codificacion-modelos/'.$modelo->Id, $datos + ['CuentaBarra1' => '2028'])
             ->assertOk();
+    }
+
+    public function test_cada_encabezado_de_la_lista_apunta_a_su_campo(): void
+    {
+        // La vista pintaba el encabezado i con COLUMNAS[i] y la celda i con CAMPOS_MODELO[i]:
+        // desde "FibraId" cada titulo mostraba el dato de otro campo.
+        $html = $this->get('/planeacion/catalogos/codificacion-modelos')->assertOk()->getContent();
+
+        preg_match_all('/<th\s[^>]*data-column="([^"]*)"[^>]*>\s*<div[^>]*>\s*<span[^>]*>([^<]*)<\/span>/', $html, $th);
+        $encabezados = array_combine(
+            array_map(fn ($t) => html_entity_decode($t), $th[2]),
+            $th[1]
+        );
+        $this->assertCount(count(CodificacionController::COLUMNAS), $th[1]);
+
+        // Celdas: el JS las pinta en el orden de CONFIG.camposModelo; debe ser el de los <th>.
+        $this->assertMatchesRegularExpression('/camposModelo: (\[[^\]]*\])/', $html);
+        preg_match('/camposModelo: (\[[^\]]*\])/', $html, $js);
+        $this->assertSame($th[1], json_decode($js[1], true));
+
+        $tipos = (new \ReflectionClass(CodificacionController::class))->getConstant('CAMPOS_MODELO');
+        foreach ($th[1] as $campo) {
+            $this->assertArrayHasKey($campo, $tipos, "La columna {$campo} no se carga en la lista");
+        }
+
+        foreach ([
+            'FibraId' => 'FibraId',
+            'Tipo plano' => 'DobladilloId',
+            'Med plano' => 'MedidaPlano',
+            'Hilo' => 'CalibreTrama2',
+            'Comprobar modelos duplicados' => 'ComprobarModDup',
+        ] as $titulo => $campo) {
+            $this->assertSame($campo, $encabezados[$titulo] ?? null, "Encabezado {$titulo}");
+        }
     }
 }
