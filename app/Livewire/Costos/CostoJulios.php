@@ -47,7 +47,7 @@ class CostoJulios extends Component
 
     /** Columna del julio => columnas de la sábana de la cuota real que la cubren: Σ julios del mes = Σ Sab (CostosJulio). */
     public const SABANA = ['MOD' => ['SabMO'], 'MOI' => ['SabMOI'], 'GtsV' => ['SabGtosVariable'], 'GtsF' => ['SabGtosFijos'],
-        self::GASTOS => ['SabGtosVariable', 'SabGtosFijos']];
+        self::GASTOS => ['SabGtosVariable', 'SabGtosFijos'], 'Pf' => ['SabProrrateoFijo'], 'PV' => ['SabProrrateoVariable']];
 
     /** Método de costeo: 'directo' deja fuera los fijos. Mismo switch del navbar que Cuotas y la Hoja de costos. */
     #[Url(except: 'absorbente')]
@@ -299,7 +299,7 @@ class CostoJulios extends Component
 
         $fijos = [];
         foreach (self::FIJOS as $col) {
-            $sab = $cuota === null || ! isset(self::SABANA[$col]) ? null : self::sabana($cuota, $col);
+            $sab = $cuota === null ? null : self::sabana($cuota, $col);
             $importe = (float) $julios->sum($col);
             if (abs($importe) > 0.0001 || abs((float) $sab) > 0.0001) {
                 $fijos[$col] = ['nombre' => self::CONCEPTOS[$col], 'julios' => $importe, 'sab' => $sab];

@@ -6,6 +6,7 @@ namespace App\Services\Costos;
 
 use App\Models\Costos\CosCuota;
 use App\Models\Costos\CosCuotasReal;
+use App\Models\Inventario\InvKardexMPConsol;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
@@ -31,7 +32,12 @@ use Illuminate\Support\Facades\DB;
  * con la máquina sin julio no estaba en Minutos y no se resta. Tipos: sin 'Tiempo Muerto' (default) o total.
  *
  * Cuota ($/min): sin paros (default) = Sab ÷ (Minutos − MinParo), solo el tiempo productivo; con paros =
- * Sab ÷ Minutos, el producto absorbe los paros. Solo se escriben estas columnas: Prorrateo* y Maquila se capturan.
+ * Sab ÷ Minutos, el producto absorbe los paros.
+ *
+ * SabProrrateoFijo = lo que le toca a urdido de los centros de servicio de la sábana (prorrateoFijo(), la regla de
+ * TwProrrateoGastos de ReportesTowel). Su cuota siempre es Sab ÷ Minutos: el prorrateo absorbe los paros, como en
+ * los costos unitarios del contador. Urdido no recibe nada de Calderas, el único servicio variable: Prorrateo variable = 0.
+ * Mes sin kardex de MP (antes de abr-2026) no se calcula y se conserva lo capturado. Maquila se captura.
  */
 class CuotasUrdidoService
 {
@@ -44,6 +50,17 @@ class CuotasUrdidoService
     private const TIPOS = ['MOD' => 'SabMO', 'VARIABLES' => 'SabGtosVariable', 'FIJOS' => 'SabGtosFijos', 'MOI' => 'SabMOI'];
 
     private const CUOTA = ['SabMO' => 'MO', 'SabGtosVariable' => 'GtosVariables', 'SabGtosFijos' => 'GtosFijos', 'SabMOI' => 'MOI'];
+
+    /**
+     * Centros de servicio => % que reciben los centros de urdido (TwProrrateoGastos, fijos ene–sep 2026, Towel y Textil).
+     * null = almacén de hilo, que va por kg del kardex (prorrateoFijo()).
+     */
+    private const SERVICIOS = ['018' => null, '023' => 0.08, '024' => 0.02, '025' => 0.01, '026' => 0.03, '027' => 0.06, '028' => 0.01];
+
+    /** Antes del reparto, Calidad (028) y luego Refacciones (023) reparten a otros centros de servicio. */
+    private const DE_CALIDAD = ['018' => 0.11, '023' => 0.01, '024' => 0.01, '025' => 0.01, '026' => 0.02];
+
+    private const DE_REFACCIONES = ['024' => 0.05, '025' => 0.01, '026' => 0.05, '027' => 0.02];
 
     /** @var array<string, mixed> lecturas ya hechas en este cálculo (julios, reglas, sábana del rango) */
     private array $memo = [];
@@ -148,7 +165,91 @@ class CuotasUrdidoService
             $valores[self::CUOTA[$col]] = $sinAx || $base <= 0 ? null : round($total / $base, 4);
         }
 
-        return $valores + ['SinClasificar' => round($sinClasificar, 2), 'SinAx' => $sinAx];
+        return $valores + $this->prorrateos($año, $mes, $minutos) + ['SinClasificar' => round($sinClasificar, 2), 'SinAx' => $sinAx];
+    }
+
+    /**
+     * Prorrateo fijo y variable del mes con su cuota sobre los minutos totales. [] = sin sábana o kardex: no se toca.
+     *
+     * @return array<string, float|null>
+     */
+    private function prorrateos(int $año, int $mes, float $minutos): array
+    {
+        $servicios = $this->servicios($año, $mes);
+        if ($servicios === null) {
+            return [];
+        }
+        $prorrateo = self::prorrateoFijo($servicios['sab'], $servicios['pHilo']);
+
+        return [
+            'SabProrrateoFijo' => round($prorrateo, 4),
+            'ProrrateoFijo' => $minutos > 0 ? round($prorrateo / $minutos, 4) : null,
+            'SabProrrateoVariable' => 0.0,
+            'ProrrateoVariable' => 0.0,
+        ];
+    }
+
+    /**
+     * Lo que le toca a urdido de los centros de servicio: Calidad reparte primero (también a otros servicios),
+     * luego Refacciones, y cada centro da su % (SERVICIOS) de lo propio más lo recibido. El almacén de hilo da
+     * $pHilo, la parte de urdido en los kg de hilo surtidos (kardex). Lineal: sirve con Towel + Textil sumados.
+     *
+     * @param  array<string, float>  $sab  centro de servicio => gasto del mes en la sábana
+     */
+    public static function prorrateoFijo(array $sab, float $pHilo): float
+    {
+        $calidad = $sab['028'] ?? 0.0;
+        $refacciones = ($sab['023'] ?? 0.0) + self::DE_CALIDAD['023'] * $calidad;
+
+        $total = 0.0;
+        foreach (self::SERVICIOS as $centro => $pct) {
+            $gasto = match ($centro) {
+                '028' => $calidad,
+                '023' => $refacciones,
+                default => ($sab[$centro] ?? 0.0) + (self::DE_CALIDAD[$centro] ?? 0.0) * $calidad
+                    + (self::DE_REFACCIONES[$centro] ?? 0.0) * $refacciones,
+            };
+            $total += ($pct ?? $pHilo) * $gasto;
+        }
+
+        return $total;
+    }
+
+    /**
+     * Gasto de los centros de servicio en la sábana (Towel + Textil) y la parte de urdido en el hilo surtido
+     * (kardex: Mc Coy + Karl Mayer contra eso más Itema, Jacquard y Smit). null = sin kardex o sin sábana del mes.
+     * Dentro de actualizarRango() la sábana se lee de una vez para todos los meses, como movimientos().
+     *
+     * @return array{sab: array<string, float>, pHilo: float}|null
+     */
+    public function servicios(int $año, int $mes): ?array
+    {
+        $meses = $this->rango !== null && in_array($mes, $this->rango, true) ? $this->rango : [$mes];
+        $porMes = $this->memo['servicios|'.$año.'|'.implode(',', $meses)] ??= collect(self::BASES)
+            ->flatMap(fn (string $base) => DB::connection('sqlsrv_tow_pro')
+                ->table("{$base}.dbo.TWEXPORTATRANSACCIONES")
+                ->where('YEARDATE', $año)
+                ->whereIn('MONTHDATE', array_map(fn ($m) => CosCuota::MESES[$m], $meses))
+                ->whereIn('DIMENSION2_', array_keys(self::SERVICIOS))
+                ->groupBy('MONTHDATE', 'DIMENSION2_')
+                ->select('MONTHDATE as mes', 'DIMENSION2_ as centro')
+                ->selectRaw('SUM(AMOUNTMST) AS total') // agregado agrupado: el builder no lo expresa sin raw
+                ->get())
+            ->groupBy(fn ($r) => trim((string) $r->mes));
+
+        $sab = [];
+        foreach ($porMes->get(CosCuota::MESES[$mes], collect()) as $r) {
+            $centro = trim((string) $r->centro);
+            $sab[$centro] = ($sab[$centro] ?? 0.0) + (float) $r->total;
+        }
+
+        // Kg surtidos por área en el mes: el builder no expresa la suma de columnas sin raw. Columnas fijas.
+        $kg = InvKardexMPConsol::query()->where('YEARDATE', $año)->where('MONTHDATE', $mes)
+            ->selectRaw('SUM(MC1KG + MC2KG + MC3KG + KMKG) AS urdido, SUM(ITEMAKG + JAQCUARDKG + SMITHKG) AS tejido')
+            ->toBase()->first();
+        $hilo = (float) ($kg->urdido ?? 0) + (float) ($kg->tejido ?? 0);
+
+        return $sab === [] || $hilo <= 0 ? null : ['sab' => $sab, 'pHilo' => (float) $kg->urdido / $hilo];
     }
 
     /**
