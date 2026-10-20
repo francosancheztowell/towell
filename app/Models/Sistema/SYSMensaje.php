@@ -3,6 +3,7 @@
 namespace App\Models\Sistema;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Modelo para dbo.SYSMensajes
@@ -70,12 +71,14 @@ class SYSMensaje extends Model
         'Andon' => 'boolean',
     ];
 
-    public function departamento()
+    /** @return BelongsTo<SysDepartamento, $this> */
+    public function departamento(): BelongsTo
     {
         return $this->belongsTo(SysDepartamento::class, 'DepartamentoId', 'id');
     }
 
-    public function usuario()
+    /** @return BelongsTo<Usuario, $this> */
+    public function usuario(): BelongsTo
     {
         return $this->belongsTo(Usuario::class, 'UsuarioId', 'idusuario');
     }

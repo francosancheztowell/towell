@@ -871,30 +871,6 @@ parameters:
 			path: app/Http/Controllers/Configuracion/MensajesController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Sistema\\SYSMensaje\:\:\$departamento\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Configuracion/MensajesController.php
-
-		-
-			message: '#^Expression on left side of \?\? is not nullable\.$#'
-			identifier: nullCoalesce.expr
-			count: 28
-			path: app/Http/Controllers/Configuracion/MensajesController.php
-
-		-
-			message: '#^Relation ''departamento'' is not found in App\\Models\\Sistema\\SYSMensaje model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Configuracion/MensajesController.php
-
-		-
-			message: '#^Relation ''usuario'' is not found in App\\Models\\Sistema\\SYSMensaje model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Configuracion/MensajesController.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>correo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -1004,12 +980,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Engomado\\EngProduccionFormulacionModel\:\:\$Folio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Engomado/CapturaFormulas/EngProduccionFormulacionController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Engomado\\EngProduccionFormulacionModel\:\:\$folio_resuelto\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/Engomado/CapturaFormulas/EngProduccionFormulacionController.php
@@ -1166,12 +1136,6 @@ parameters:
 
 		-
 			message: '#^Parameter \#1 \$formulacionId of static method Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\Engomado\\EngFormulacionLineModel\>\:\:byFormulacionId\(\) expects int, \(array\|string\) given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Engomado/CapturaFormulas/EngProduccionFormulacionController.php
-
-		-
-			message: '#^Parameter \#1 \$string of function str_pad expects string, int given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/Http/Controllers/Engomado/CapturaFormulas/EngProduccionFormulacionController.php
@@ -1597,12 +1561,6 @@ parameters:
 			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoProduccion\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProducto\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1648,18 +1606,6 @@ parameters:
 			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 3
-			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
-
-		-
-			message: '#^Variable \$ordCompartida on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.variable
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
-
-		-
-			message: '#^Variable \$ordenTejido on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.variable
-			count: 1
 			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
 
 		-
@@ -7087,12 +7033,6 @@ parameters:
 			path: app/Http/Controllers/Tejido/Reportes/ReporteMarcasFinalesController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Tejido\\TejMarcasLine\:\:\$Folio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Tejido/Reportes/ReporteMarcasFinalesController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Tejido\\TejMarcasLine\:\:\$NoTelarId\.$#'
 			identifier: property.notFound
 			count: 2
@@ -7102,18 +7042,6 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Tejido\\TejMarcasLine\:\:\$Turno\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejido/Reportes/ReporteMarcasFinalesController.php
-
-		-
-			message: '#^Anonymous function should return object\{fecha\: string, turnos\: Illuminate\\Support\\Collection\<int, object\{turno\: int, maquinas\: Illuminate\\Support\\Collection\<int, mixed\>\}&stdClass\>\}&stdClass but returns object\{fecha\: string, turnos\: Illuminate\\Support\\Collection\<int, object\{turno\: int, maquinas\: Illuminate\\Support\\Collection\<int, object\{maquina\: string, telares\: Illuminate\\Support\\Collection\<int, object\{telar\: int, marcas\: int, horas\: float\}&stdClass\>\}&stdClass\>\}&stdClass\>\}&stdClass\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Http/Controllers/Tejido/Reportes/ReporteMarcasFinalesController.php
-
-		-
-			message: '#^Anonymous function should return object\{turno\: int, maquinas\: Illuminate\\Support\\Collection\<int, object\{maquina\: string, total_telares\: int\<0, max\>, total_marcas\: int, telares\: Illuminate\\Support\\Collection\<int, mixed\>\}&stdClass\>\}&stdClass but returns object\{turno\: int, maquinas\: Illuminate\\Support\\Collection\<int, object\{maquina\: string, total_telares\: int\<0, max\>, total_marcas\: int, telares\: Illuminate\\Support\\Collection\<int, object\{telar\: int, marcas\: int, horas\: float, trama\: int, pie\: int, rizo\: int, otros\: int\}&stdClass\>\}&stdClass\>\}&stdClass\.$#'
-			identifier: return.type
-			count: 1
 			path: app/Http/Controllers/Tejido/Reportes/ReporteMarcasFinalesController.php
 
 		-
@@ -9693,24 +9621,6 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$TelarId\.$#'
 			identifier: property.notFound
-			count: 1
-			path: app/Services/Planeacion/RevivirOrdenProgramaDesdeCatService.php
-
-		-
-			message: '#^Offset ''AnchoToalla''\|''LargoToalla'' does not exist on non\-empty\-array\<''Ancho''\|''CalibreComb1''\|''CalibreComb12''\|''CalibreComb2''\|''CalibreComb22''\|''CalibreComb3''\|''CalibreComb32''\|''CalibreComb4''\|''CalibreComb42''\|''CalibrePie''\|''CalibrePie2''\|''CalibreRizo''\|''CalibreRizo2''\|''CalibreTrama''\|''CalibreTrama2''\|''CodColorComb1''\|''CodColorComb2''\|''CodColorComb3''\|''CodColorComb4''\|''CodColorTrama''\|''ColorTrama''\|''CreatedAt''\|''CuentaPie''\|''CuentaRizo''\|''CustName''\|''DobladilloId''\|''EficienciaSTD''\|''EnProceso''\|''FibraComb1''\|''FibraComb2''\|''FibraComb3''\|''FibraComb4''\|''FibraPie''\|''FibraRizo''\|''FibraTrama''\|''FlogsId''\|''InventSizeId''\|''ItemId''\|''Luchaje''\|''Maquina''\|''MedidaPlano''\|''NombreCC1''\|''NombreCC2''\|''NombreCC3''\|''NombreProducto''\|''NombreProyecto''\|''NoProduccion''\|''NoTelarId''\|''NoTiras''\|''PasadasComb1''\|''PasadasComb2''\|''PasadasComb3''\|''PasadasComb4''\|''PasadasComb5''\|''PasadasTrama''\|''Peine''\|''PesoCrudo''\|''Posicion''\|''Rasurado''\|''Repeticiones''\|''SalonTejidoId''\|''TamanoClave''\|''UpdatedAt''\|''VelocidadSTD'', mixed\>\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: app/Services/Planeacion/RevivirOrdenProgramaDesdeCatService.php
-
-		-
-			message: '#^Offset ''AnchoToalla''\|''LargoToalla'' on non\-empty\-array\<''Ancho''\|''CalibreComb1''\|''CalibreComb12''\|''CalibreComb2''\|''CalibreComb22''\|''CalibreComb3''\|''CalibreComb32''\|''CalibreComb4''\|''CalibreComb42''\|''CalibrePie''\|''CalibrePie2''\|''CalibreRizo''\|''CalibreRizo2''\|''CalibreTrama''\|''CalibreTrama2''\|''CodColorComb1''\|''CodColorComb2''\|''CodColorComb3''\|''CodColorComb4''\|''CodColorTrama''\|''ColorTrama''\|''CreatedAt''\|''CuentaPie''\|''CuentaRizo''\|''CustName''\|''DobladilloId''\|''EficienciaSTD''\|''EnProceso''\|''FibraComb1''\|''FibraComb2''\|''FibraComb3''\|''FibraComb4''\|''FibraPie''\|''FibraRizo''\|''FibraTrama''\|''FlogsId''\|''InventSizeId''\|''ItemId''\|''Luchaje''\|''Maquina''\|''MedidaPlano''\|''NombreCC1''\|''NombreCC2''\|''NombreCC3''\|''NombreProducto''\|''NombreProyecto''\|''NoProduccion''\|''NoTelarId''\|''NoTiras''\|''PasadasComb1''\|''PasadasComb2''\|''PasadasComb3''\|''PasadasComb4''\|''PasadasComb5''\|''PasadasTrama''\|''Peine''\|''PesoCrudo''\|''Posicion''\|''Rasurado''\|''Repeticiones''\|''SalonTejidoId''\|''TamanoClave''\|''UpdatedAt''\|''VelocidadSTD'', mixed\> in empty\(\) does not exist\.$#'
-			identifier: empty.offset
-			count: 1
-			path: app/Services/Planeacion/RevivirOrdenProgramaDesdeCatService.php
-
-		-
-			message: '#^Result of \|\| is always true\.$#'
-			identifier: booleanOr.alwaysTrue
 			count: 1
 			path: app/Services/Planeacion/RevivirOrdenProgramaDesdeCatService.php
 

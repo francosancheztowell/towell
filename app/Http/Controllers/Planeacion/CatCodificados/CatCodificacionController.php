@@ -167,7 +167,7 @@ class CatCodificacionController extends Controller
                     'nombreProducto' => $r->NombreProducto,
                 ];
             })
-            ->filter(fn ($r) => $r['noProduccion'] !== null)
+            ->whereNotNull('noProduccion')
             ->values();
 
         return response()->json([

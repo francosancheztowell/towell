@@ -132,40 +132,9 @@ class ReporteMarcasFinalesController extends Controller
             })
             ->groupBy('turno')
             ->map(function (Collection $itemsTurno, int|string $turno) {
-                $maquinas = $itemsTurno
-                    ->groupBy('maquina')
-                    ->map(function (Collection $itemsMaquina, string $maquina) {
-                        $telares = $itemsMaquina
-                            ->groupBy('telar')
-                            ->map(function (Collection $lineas, int|string $telar) {
-                                return (object) [
-                                    'telar' => (int) $telar,
-                                    'marcas' => (int) $lineas->sum('marcas'),
-                                    'horas' => (float) $lineas->sum('horas'),
-                                    'trama' => (int) $lineas->sum('trama'),
-                                    'pie' => (int) $lineas->sum('pie'),
-                                    'rizo' => (int) $lineas->sum('rizo'),
-                                    'otros' => (int) $lineas->sum('otros'),
-                                ];
-                            })
-                            ->sortBy('telar')
-                            ->values();
-
-                        return (object) [
-                            'maquina' => $maquina,
-                            'total_telares' => $telares->count(),
-                            'total_marcas' => (int) round((float) $telares->sum('marcas')),
-                            'telares' => $telares,
-                        ];
-                    })
-                    ->sortBy(function ($grupoMaquina) {
-                        return $this->ordenMaquina($grupoMaquina->maquina);
-                    })
-                    ->values();
-
                 return (object) [
                     'turno' => (int) $turno,
-                    'maquinas' => $maquinas,
+                    'maquinas' => $this->resumenMaquinas($itemsTurno),
                 ];
             })
             ->sortBy(function ($grupoTurno) {
@@ -266,31 +235,9 @@ class ReporteMarcasFinalesController extends Controller
                 $turnos = $itemsDia
                     ->groupBy('turno')
                     ->map(function (Collection $itemsTurno, int|string $turno) {
-                        $maquinas = $itemsTurno
-                            ->groupBy('maquina')
-                            ->map(function (Collection $itemsMaquina, string $maquina) {
-                                $telares = $itemsMaquina
-                                    ->sortBy('telar')
-                                    ->values()
-                                    ->map(fn ($item) => (object) [
-                                        'telar' => $item->telar,
-                                        'marcas' => $item->marcas,
-                                        'horas' => $item->horas,
-                                    ]);
-
-                                return (object) [
-                                    'maquina' => $maquina,
-                                    'telares' => $telares,
-                                ];
-                            })
-                            ->sortBy(function ($grupoMaquina) {
-                                return $this->ordenMaquina($grupoMaquina->maquina);
-                            })
-                            ->values();
-
                         return (object) [
                             'turno' => (int) $turno,
-                            'maquinas' => $maquinas,
+                            'maquinas' => $this->detalleMaquinas($itemsTurno),
                         ];
                     })
                     ->sortBy('turno')
@@ -302,6 +249,62 @@ class ReporteMarcasFinalesController extends Controller
                 ];
             })
             ->sortBy('fecha')
+            ->values();
+    }
+
+    /**
+     * Líneas de un turno agrupadas por máquina, con sus telares en orden.
+     * Método aparte (y no closure anidado) para que phpstan no tenga que inferir genéricos en tres niveles.
+     */
+    private function detalleMaquinas(Collection $itemsTurno): Collection
+    {
+        return $itemsTurno
+            ->groupBy('maquina')
+            ->map(fn (Collection $itemsMaquina, string $maquina) => (object) [
+                'maquina' => $maquina,
+                'telares' => $itemsMaquina
+                    ->sortBy('telar')
+                    ->values()
+                    ->map(fn ($item) => (object) [
+                        'telar' => $item->telar,
+                        'marcas' => $item->marcas,
+                        'horas' => $item->horas,
+                    ]),
+            ])
+            ->sortBy(fn ($grupoMaquina) => $this->ordenMaquina($grupoMaquina->maquina))
+            ->values();
+    }
+
+    /**
+     * Líneas de un turno agrupadas por máquina, con marcas sumadas por telar.
+     */
+    private function resumenMaquinas(Collection $itemsTurno): Collection
+    {
+        return $itemsTurno
+            ->groupBy('maquina')
+            ->map(function (Collection $itemsMaquina, string $maquina) {
+                $telares = $itemsMaquina
+                    ->groupBy('telar')
+                    ->map(fn (Collection $lineas, int|string $telar) => (object) [
+                        'telar' => (int) $telar,
+                        'marcas' => (int) $lineas->sum('marcas'),
+                        'horas' => (float) $lineas->sum('horas'),
+                        'trama' => (int) $lineas->sum('trama'),
+                        'pie' => (int) $lineas->sum('pie'),
+                        'rizo' => (int) $lineas->sum('rizo'),
+                        'otros' => (int) $lineas->sum('otros'),
+                    ])
+                    ->sortBy('telar')
+                    ->values();
+
+                return (object) [
+                    'maquina' => $maquina,
+                    'total_telares' => $telares->count(),
+                    'total_marcas' => (int) round((float) $telares->sum('marcas')),
+                    'telares' => $telares,
+                ];
+            })
+            ->sortBy(fn ($grupoMaquina) => $this->ordenMaquina($grupoMaquina->maquina))
             ->values();
     }
 }

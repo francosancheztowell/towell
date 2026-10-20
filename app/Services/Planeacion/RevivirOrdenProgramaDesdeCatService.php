@@ -320,7 +320,7 @@ class RevivirOrdenProgramaDesdeCatService
             if (is_array($datosModelo)) {
                 foreach (['AnchoToalla', 'LargoToalla'] as $campoModelo) {
                     if (
-                        (empty($base[$campoModelo]) || $base[$campoModelo] === 0)
+                        empty($base[$campoModelo])
                         && array_key_exists($campoModelo, $datosModelo)
                         && $datosModelo[$campoModelo] !== null && $datosModelo[$campoModelo] !== ''
                     ) {

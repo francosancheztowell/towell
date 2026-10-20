@@ -64,7 +64,7 @@ class CatCodificadosDesarrolladorService
 
         $numeric = [];
         foreach (Schema::getColumns($table) as $column) {
-            $type = strtolower((string) ($column['type_name'] ?? $column['type'] ?? ''));
+            $type = strtolower($column['type_name']);
             if (preg_match('/int|float|real|double|decimal|numeric|money|bit/', $type) !== 1) {
                 continue;
             }
