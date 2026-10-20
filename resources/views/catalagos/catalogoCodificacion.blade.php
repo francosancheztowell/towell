@@ -41,17 +41,17 @@
         >
             <table id="mainTable" class="w-full min-w-full">
                 <colgroup id="mainTable-colgroup">
-                    @foreach($columnas as $idx => $col)
-                        <col data-index="{{ $idx }}">
+                    @foreach($columnas as $col)
+                        <col data-index="{{ $loop->index }}">
                     @endforeach
                 </colgroup>
                 <thead class="bg-blue-500">
                     <tr>
-                        @foreach($columnas as $idx => $col)
+                        @foreach($columnas as $campo => $col)
                             <th
-                                class="column-{{ $idx }} px-3 py-2 text-left text-sm font-medium text-white whitespace-nowrap border-b border-blue-400 bg-blue-500"
-                                data-index="{{ $idx }}"
-                                data-column="{{ $camposModelo[$idx] ?? '' }}"
+                                class="column-{{ $loop->index }} px-3 py-2 text-left text-sm font-medium text-white whitespace-nowrap border-b border-blue-400 bg-blue-500"
+                                data-index="{{ $loop->index }}"
+                                data-column="{{ $campo }}"
                             >
                                 <div class="flex items-center gap-2">
                                     <span class="truncate">{{ $col }}</span>
@@ -517,7 +517,8 @@
     const CONFIG = {
         apiUrl: @json($apiUrl),
         columnas: @json($columnasConfig),
-        camposModelo: @json(array_keys($camposModelo)),
+        // Campo de cada columna, en el orden de los encabezados
+        camposModelo: @json(array_keys($columnas)),
         tiposCampo: @json($camposModelo),
         totalEstimado: {{ $totalRegistros }}
     };
@@ -1687,20 +1688,6 @@ function eliminarCodificacion() {
             html: `
                 <div class="relative text-left">
                     <div class="space-y-4">
-                        <div class="">
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    id="btn-quick-ordcompartida"
-                                    class="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors flex items-center gap-2"
-                                    title="Solo registros con OrdCompartida y OrdCompartidaLider llenos"
-                                >
-                                    <i class="fas fa-link"></i>
-                                    Obtener OrdCompartida
-                                </button>
-                            </div>
-                        </div>
-
                         <div class="flex gap-2">
                             <select
                                 id="filtro-columna"
@@ -1762,14 +1749,6 @@ function eliminarCodificacion() {
                 if (clearBtn) {
                     clearBtn.onclick = () => {
                         limpiarFiltrosCodificacion();
-                        window.notify.close();
-                    };
-                }
-
-                const btnQuickOrdCompartida = $('#btn-quick-ordcompartida');
-                if (btnQuickOrdCompartida) {
-                    btnQuickOrdCompartida.onclick = () => {
-                        aplicarAccionRapidaOrdCompartida();
                         window.notify.close();
                     };
                 }
@@ -1879,37 +1858,6 @@ function eliminarCodificacion() {
         aplicarFiltrosAND();
         updateColumnFilterIcons();
         showToast('Filtros limpiados', 'info');
-    }
-
-    /**
-     * Acción rápida: filtrar solo registros con OrdCompartida y OrdCompartidaLider llenos.
-     */
-    function aplicarAccionRapidaOrdCompartida() {
-        if (!state.rawData.length) {
-            showToast('Espera a que carguen los datos', 'warning');
-            return;
-        }
-
-        state.filteredData = state.rawData.filter(row => {
-            const ordCompartida = row.OrdCompartida;
-            const ordCompartidaLider = row.OrdCompartidaLider;
-
-            const hasOrdCompartida = ordCompartida != null && ordCompartida !== '' && String(ordCompartida).trim() !== '';
-            const hasOrdCompartidaLider = ordCompartidaLider != null && ordCompartidaLider !== '' && String(ordCompartidaLider).trim() !== '';
-
-            return hasOrdCompartida && hasOrdCompartidaLider;
-        });
-
-        state.currentPage = 1;
-        renderPage();
-        updatePagination();
-        updateColumnFilterIcons();
-        showToast(
-            state.filteredData.length
-                ? `${state.filteredData.length} de ${state.rawData.length} registros con OrdCompartida`
-                : 'No hay registros con OrdCompartida y OrdCompartidaLider llenos',
-            state.filteredData.length ? 'success' : 'warning'
-        );
     }
 
     // ============================================
