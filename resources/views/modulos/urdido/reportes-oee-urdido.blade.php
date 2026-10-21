@@ -4,7 +4,10 @@
 @section('page-title', 'OEE Urdido')
 
 @php
+    use App\Services\Urdido\OeeUrdidoTurnos;
     $num = fn (float $v, int $d = 0) => number_format($v, $d);
+    // Sin calendario capturado no hay tiempo programado: guion en vez de un cero engañoso.
+    $sinReg = fn (array $t) => ($v = App\Services\Urdido\OeeUrdidoService::sinRegistrar($t)) === null ? '—' : $num($v);
     $opcionesMes = collect(range(0, 17))->map(fn ($i) => now()->startOfMonth()->subMonths($i));
 @endphp
 
@@ -41,7 +44,7 @@
                 </div>
             @else
                 {{-- Resumen del periodo. Sin Calidad ni OEE por ahora (decisión del owner): solo lo medido, para analizarlo. --}}
-                <section class="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 tabular-nums md:grid-cols-5" aria-label="Resumen del periodo">
+                <section class="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 tabular-nums md:grid-cols-4 lg:grid-cols-7" aria-label="Resumen del periodo">
                     <div class="bg-white px-4 py-3">
                         <p class="text-sm text-slate-500">Julios</p>
                         <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['julios']) }}</p>
@@ -62,6 +65,49 @@
                         <p class="text-sm text-slate-500">Min. oportunidad</p>
                         <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['paro_oport']) }}</p>
                     </div>
+                    <div class="bg-white px-4 py-3">
+                        <p class="text-sm text-slate-500">Min. programados</p>
+                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['programado']) }}</p>
+                    </div>
+                    {{-- 7 tarjetas: la última ocupa el hueco que queda en 2 y 4 columnas. --}}
+                    <div class="col-span-2 bg-white px-4 py-3 lg:col-span-1">
+                        <p class="text-sm text-slate-500">Min. sin registrar</p>
+                        <p class="text-2xl font-semibold text-slate-900">{{ $sinReg($reporte['tot']) }}</p>
+                    </div>
+                </section>
+
+                {{-- Mismo resumen por turno de reloj (OeeUrdidoTurnos): los tres suman el total. --}}
+                <section class="shrink-0 overflow-x-auto rounded-xl border border-slate-200" aria-label="Por turno">
+                    <table class="w-full whitespace-nowrap text-sm tabular-nums text-slate-700 [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2 [&_.n]:text-right">
+                        <thead class="bg-slate-100 text-left font-semibold text-slate-700">
+                            <tr>
+                                <th>Turno</th>
+                                <th class="n">Programado</th>
+                                <th class="n">Producción</th>
+                                <th class="n">% prod.</th>
+                                <th class="n">Paro nec.</th>
+                                <th class="n">Oportunidad</th>
+                                <th class="n">Sin registrar</th>
+                                <th class="n">Julios</th>
+                                <th class="n">Kg</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            @foreach ([...array_map(null, OeeUrdidoTurnos::NOMBRES, $reporte['turnos']), ['Total', $reporte['tot']]] as [$nombre, $t])
+                                <tr @class(['bg-slate-50 font-semibold text-slate-900' => $loop->last])>
+                                    <td>{{ $nombre }}</td>
+                                    <td class="n">{{ $num($t['programado']) }}</td>
+                                    <td class="n">{{ $num($t['minutos']) }}</td>
+                                    <td class="n">{{ $t['programado'] > 0 ? $num(100 * $t['minutos'] / $t['programado'], 1).' %' : '—' }}</td>
+                                    <td class="n">{{ $num($t['paro_nec']) }}</td>
+                                    <td class="n">{{ $num($t['paro_oport']) }}</td>
+                                    <td class="n">{{ $sinReg($t) }}</td>
+                                    <td class="n">{{ $num($t['julios']) }}</td>
+                                    <td class="n">{{ $num($t['kg'], 1) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </section>
 
                 @foreach ($reporte['meses'] as $mes)
@@ -79,17 +125,18 @@
                                 <details class="group">
                                     {{-- Una máquina por renglón. Anchos fijos: los números de todas las máquinas quedan en columna.
                                          Abierta se pinta de azul para separarla de las demás. --}}
-                                    <summary class="sticky top-0 z-20 grid min-h-touch sm:h-16 cursor-pointer list-none grid-cols-2 bg-white items-center gap-x-6 gap-y-2 px-4 py-2.5 hover:bg-slate-50 group-open:bg-blue-600 group-open:text-white group-open:hover:bg-blue-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500 sm:grid-cols-[minmax(10rem,1fr)_repeat(5,8rem)] [&::-webkit-details-marker]:hidden">
-                                        <span class="col-span-2 flex items-center gap-3 sm:col-span-1">
+                                    <summary class="sticky top-0 z-20 grid min-h-touch md:h-16 cursor-pointer list-none grid-cols-4 bg-white items-center gap-x-2 gap-y-2 px-4 py-2.5 lg:gap-x-3 hover:bg-slate-50 group-open:bg-blue-600 group-open:text-white group-open:hover:bg-blue-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500 md:grid-cols-[minmax(7rem,1fr)_repeat(7,minmax(4.5rem,6.5rem))] [&::-webkit-details-marker]:hidden">
+                                        <span class="col-span-4 flex items-center gap-2 whitespace-nowrap md:col-span-1">
                                             <i class="fa-solid fa-chevron-right w-3 text-xs text-slate-400 transition-transform group-open:rotate-90 group-open:text-blue-100" aria-hidden="true"></i>
                                             <i class="fa-solid fa-gears text-blue-600 group-open:text-blue-100" aria-hidden="true"></i>
                                             <span class="text-base font-semibold text-slate-900 group-open:text-white">{{ $maq['nombre'] }}</span>
                                         </span>
                                         @foreach ([['Julios', $num($maq['tot']['julios'])], ['Kg', $num($maq['tot']['kg'], 1)],
                                             ['Min prod.', $num($maq['tot']['minutos'])], ['Paro nec.', $num($maq['tot']['paro_nec'])],
-                                            ['Oportunidad', $num($maq['tot']['paro_oport'])]] as [$etq, $valor])
-                                            <span class="tabular-nums sm:text-right">
-                                                <span class="block text-caption text-slate-500 group-open:text-blue-100">{{ $etq }}</span>
+                                            ['Oportunidad', $num($maq['tot']['paro_oport'])], ['Programado', $num($maq['tot']['programado'])],
+                                            ['Sin registrar', $sinReg($maq['tot'])]] as [$etq, $valor])
+                                            <span class="tabular-nums md:text-right">
+                                                <span class="block whitespace-nowrap text-caption text-slate-500 group-open:text-blue-100">{{ $etq }}</span>
                                                 <span class="block font-semibold text-slate-900 group-open:text-white">{{ $valor }}</span>
                                             </span>
                                         @endforeach
@@ -102,12 +149,12 @@
                                              tardaban 7 s y 7.5 MB por mes. Los estilos de celda viven en la <table> ([&_td]) para no
                                              repetirse en cada celda. .n = número (derecha); .g = inicia bloque (medidas | calidad). --}}
                                         {{-- Sin overflow propio: un solo scroll (el de la página) para que el encabezado se pegue bajo el renglón
-                                             de la máquina (sm:h-16 → top-16). Dos scrolls anidados lo escondían. --}}
+                                             de la máquina (md:h-16 → top-16). Dos scrolls anidados lo escondían. --}}
                                         <div>
                                             <table class="w-full border-collapse whitespace-nowrap text-sm tabular-nums text-slate-700
                                                 [&_td]:border [&_td]:border-slate-200 [&_td]:px-3 [&_td]:py-1.5
                                                 [&_th]:border [&_th]:px-3 [&_.n]:text-right [&_.g]:border-l-2 [&_.g]:border-l-slate-300">
-                                                <thead class="sticky top-[7.5rem] z-10 bg-slate-100 sm:top-16 text-left text-sm font-semibold text-slate-700 shadow-[0_2px_0_var(--color-slate-300)]">
+                                                <thead class="sticky top-[7.5rem] z-10 bg-slate-100 md:top-16 text-left text-sm font-semibold text-slate-700 shadow-[0_2px_0_var(--color-slate-300)]">
                                                     <tr class="[&>th]:border-slate-200 [&>th]:border-b-2 [&>th]:border-b-slate-300 [&>th]:py-2">
                                                         @foreach (['Orden', 'Julio', 'Config.', 'Tamaño'] as $col)
                                                             <th>{{ $col }}</th>

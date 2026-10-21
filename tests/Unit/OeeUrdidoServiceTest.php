@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Urdido\OeeUrdidoService;
+use App\Services\Urdido\OeeUrdidoTurnos;
 use Tests\TestCase;
 
 class OeeUrdidoServiceTest extends TestCase
@@ -59,5 +60,36 @@ class OeeUrdidoServiceTest extends TestCase
 
         $this->assertEqualsWithDelta(60.0, $r['tot']['paro_nec'], 0.01);
         $this->assertEqualsWithDelta(60.0, $r['tot']['paro_oport'], 0.01);
+    }
+
+    public function test_el_paro_solo_cuenta_dentro_del_calendario(): void
+    {
+        // Turno 06:30–14:30 (480 min). Paro abierto de 13:00 a las 10:00 del día siguiente (sin turno): cuentan 90 min.
+        $paros = ['MCCOY1' => [[strtotime('2026-10-07 13:00'), strtotime('2026-10-08 10:00')]]];
+        $cal = ['MCCOY1' => [[strtotime('2026-10-07 06:30'), strtotime('2026-10-07 14:30')]]];
+
+        $r = OeeUrdidoService::armar(['2026-10'], [$this->julio('2026-10-07', '08:00', 60)], $paros, $cal);
+
+        $this->assertEqualsWithDelta(90.0, $r['tot']['paro_oport'], 0.01);
+        $this->assertEqualsWithDelta(480.0, $r['tot']['programado'], 0.01);
+        $this->assertEqualsWithDelta(330.0, OeeUrdidoService::sinRegistrar($r['tot']), 0.01); // 480 − 60 − 90
+        $this->assertNull(OeeUrdidoService::sinRegistrar(OeeUrdidoService::armar(['2026-10'], [], $paros)['tot']));
+    }
+
+    public function test_desglose_por_turno_parte_por_reloj(): void
+    {
+        // Calendario 06:30–22:30; julio 13:30–15:30 (cruza las 14:30); paro 22:00–23:00 (lo de 22:30 en adelante no está programado).
+        $cal = ['MCCOY1' => [[strtotime('2026-10-07 06:30'), strtotime('2026-10-07 22:30')]]];
+        $paros = ['MCCOY1' => [[strtotime('2026-10-07 22:00'), strtotime('2026-10-07 23:00')]]];
+
+        $t = OeeUrdidoTurnos::desglose(['2026-10'], [$this->julio('2026-10-07', '13:30', 120)], $paros, $cal);
+
+        $this->assertEqualsWithDelta(480.0, $t[1]['programado'], 0.01);
+        $this->assertEqualsWithDelta(480.0, $t[2]['programado'], 0.01);
+        $this->assertEqualsWithDelta(60.0, $t[1]['minutos'], 0.01);
+        $this->assertEqualsWithDelta(60.0, $t[2]['minutos'], 0.01);
+        $this->assertSame([0, 1, 0], [$t[1]['julios'], $t[2]['julios'], $t[3]['julios']]); // terminó en el 2do
+        $this->assertEqualsWithDelta(30.0, $t[2]['paro_oport'], 0.01);
+        $this->assertEqualsWithDelta(0.0, $t[3]['paro_oport'], 0.01);
     }
 }

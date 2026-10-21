@@ -67,8 +67,14 @@ Maquina (= `URDCatalogoMaquinas.Id`), FechaInicio (fecha **y hora**), Minutos, T
 - Pendiente: pantalla de captura (generar mes por máquina + editar excepciones, validar que no se enciman)
   y modelo Eloquent; ¿480 brutos o netos de comida? (lo decide lo que capturen).
 
+21-oct-2026: calendario cargado del 1-ene al 16-oct desde los avisos de Dirección
+(`database/migrations/urdido/carga_UrdEngCalMaquinas_avisos_2026.sql`, reglas en su encabezado). El reporte
+recorta los paros al calendario, muestra Programado y Sin registrar (programado − producción − paros) por
+máquina, y el desglose por turno de reloj (`OeeUrdidoTurnos`). El paro se parte en necesario
+(`CatParosFallas.Necesario = 1`) y oportunidad (el resto); el filtro por tipo de paro se quitó.
+
 ## Pendientes del owner
-- Usar el calendario en Disponibilidad = (Total − Paros) ÷ Total y columna "Tiempo sin registrar".
+- Usar el calendario en Disponibilidad = (Total − Paros) ÷ Total (la columna "Sin registrar" ya está).
 - Velocidad estándar m/min por máquina → Rendimiento real.
 - ¿Umbral de penalización para Calidad (p. ej. ≥ 25 pts)?
 - Columna Producción (AX).

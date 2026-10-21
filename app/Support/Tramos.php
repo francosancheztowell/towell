@@ -34,6 +34,37 @@ final class Tramos
     }
 
     /**
+     * Segundos que suman tramos ya unidos.
+     *
+     * @param  list<array{0: int, 1: int}>  $tramos
+     */
+    public static function segundos(array $tramos): int
+    {
+        return array_sum(array_map(fn ($t) => $t[1] - $t[0], $tramos));
+    }
+
+    /**
+     * Pedazos de $tramos que caen dentro de $ventanas (ya unidas), sin unir.
+     *
+     * @param  array<int, array{0: int, 1: int}>  $tramos
+     * @param  list<array{0: int, 1: int}>  $ventanas
+     * @return list<array{0: int, 1: int}>
+     */
+    public static function recortar(array $tramos, array $ventanas): array
+    {
+        $pedazos = [];
+        foreach ($ventanas as $v) {
+            foreach ($tramos as $t) {
+                if (min($t[1], $v[1]) > max($t[0], $v[0])) {
+                    $pedazos[] = [max($t[0], $v[0]), min($t[1], $v[1])];
+                }
+            }
+        }
+
+        return $pedazos;
+    }
+
+    /**
      * Segundos en común de dos listas de tramos ya unidas y ordenadas.
      *
      * @param  list<array{0: int, 1: int}>  $a

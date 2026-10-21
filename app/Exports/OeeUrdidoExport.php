@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exports;
 
+use App\Services\Urdido\OeeUrdidoService;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -18,10 +19,10 @@ class OeeUrdidoExport implements FromArray, WithColumnWidths, WithStyles, WithTi
 {
     private const ENCABEZADO = ['Mes', 'Máquina', 'Fecha', 'Día', 'Hora', 'Orden', 'No. julio', 'Número de L.MAT', 'Código de artículo',
         'Configuración', 'Tamaño', 'Color', 'Almacén', 'Kg', 'Minutos prod', 'Min paro necesario', 'Min oportunidad',
-        'Defecto', 'Penalización (pts)', 'Julios', 'Oficial'];
+        'Min programados', 'Min sin registrar', 'Defecto', 'Penalización (pts)', 'Julios', 'Oficial'];
 
     /** Ancho por columna, en el orden de ENCABEZADO. */
-    private const ANCHOS = [14, 11, 11, 16, 7, 8, 9, 24, 15, 14, 12, 7, 11, 13, 12, 18, 15, 9, 17, 8, 45];
+    private const ANCHOS = [14, 11, 11, 16, 7, 8, 9, 24, 15, 14, 12, 7, 11, 13, 12, 18, 15, 16, 17, 9, 17, 8, 45];
 
     /** @var list<int> filas (1-based) de subtotales, en negritas */
     private array $subtotales = [];
@@ -51,7 +52,7 @@ class OeeUrdidoExport implements FromArray, WithColumnWidths, WithStyles, WithTi
                 foreach ($maq['julios'] as $j) {
                     $filas[] = [$mes['etiqueta'], $maq['nombre'], $j['fecha'], $j['dia'], $j['hora'], $j['orden'], $j['julio'],
                         $j['lmat'], 'JULIO-URDIDO', $j['config'], $j['tamano'], '1000', 'A-JUL/URD',
-                        ...$this->medidas($j), $j['defecto'], $j['penalizacion'], null, $j['oficiales']];
+                        ...$this->medidas($j), null, null, $j['defecto'], $j['penalizacion'], null, $j['oficiales']];
                 }
                 $filas[] = $this->subtotal($filas, [$mes['etiqueta'], 'Total '.$maq['nombre']], $maq['tot']);
             }
@@ -71,7 +72,11 @@ class OeeUrdidoExport implements FromArray, WithColumnWidths, WithStyles, WithTi
     {
         $this->subtotales[] = count($filas) + 1;
 
-        return [...$etiquetas, ...array_fill(0, 11, null), ...$this->medidas($t), null, null, $t['julios'], null];
+        $sinRegistrar = OeeUrdidoService::sinRegistrar($t);
+
+        // El calendario es por máquina, no por julio: programados y sin registrar solo en subtotales.
+        return [...$etiquetas, ...array_fill(0, 11, null), ...$this->medidas($t), round($t['programado']),
+            $sinRegistrar === null ? null : round($sinRegistrar), null, null, $t['julios'], null];
     }
 
     /** Cantidad, Minutos prod, Min paro necesario, Min oportunidad. Sin porcentajes por ahora: los calcula quien analiza. */
