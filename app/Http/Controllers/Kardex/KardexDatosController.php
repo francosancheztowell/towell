@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Datos del módulo Kardex: el libro (hojas Kdx) de un mes. La página se sirve vacía y el navegador
- * los pide aquí. El acceso lo valida la ruta (module.permission:acceso,210).
+ * los pide aquí. El acceso lo valida la ruta (module.permission:acceso,209).
  */
 final class KardexDatosController extends Controller
 {

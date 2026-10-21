@@ -19,7 +19,8 @@ final class KardexRouteContractTest extends TestCase
         $this->assertEqualsCanonicalizing(['GET', 'HEAD'], $route->methods());
         $this->assertContains('web', $route->gatherMiddleware());
         $this->assertContains('auth', $route->gatherMiddleware());
-        $this->assertContains('module.permission:acceso,210', $route->gatherMiddleware()); // SYSRoles Kardex
+        // SYSRoles Kardex is idrol 209 (210 is "Calificar Julios").
+        $this->assertContains('module.permission:acceso,209', $route->gatherMiddleware());
     }
 
     public function test_guest_is_redirected_to_login(): void
