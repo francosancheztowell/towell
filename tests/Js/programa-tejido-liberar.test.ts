@@ -8,6 +8,7 @@ import {
     faltaLMat,
     filaPasaFiltros,
     mensajeLiberar,
+    opcionesFlog,
     parseNumeroGrid,
     prioridadesIniciales,
     sinComas,
@@ -16,6 +17,16 @@ import {
     valoresUnicos,
     type RegistroLiberar,
 } from '../../resources/js/modulos/programa-tejido/liberar-ordenes/logica.ts';
+
+test('opcionesFlog: los del artículo primero, sin repetirlos en el resto', () => {
+    assert.deepEqual(opcionesFlog(['CE-100', 'CE-99'], ['CE-1', 'CE-99', 'CE-100', 'RS-5']), [
+        { valor: 'CE-100', delArticulo: true },
+        { valor: 'CE-99', delArticulo: true },
+        { valor: 'CE-1', delArticulo: false },
+        { valor: 'RS-5', delArticulo: false },
+    ]);
+    assert.deepEqual(opcionesFlog([], ['CE-1']), [{ valor: 'CE-1', delArticulo: false }]);
+});
 
 test('parseNumeroGrid y sinComas', () => {
     assert.equal(parseNumeroGrid('1,234.5'), 1234.5);

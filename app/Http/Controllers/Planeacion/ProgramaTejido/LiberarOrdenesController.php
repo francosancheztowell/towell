@@ -166,14 +166,14 @@ class LiberarOrdenesController extends Controller
                 $registro->RequiereDecisionFlog = isset($articulosConFlog[LiberarFlogSugeridoService::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')]);
             });
 
-            // El flog sugerido se resuelve aquí, en UNA consulta para todo el lote. Antes el
-            // front lo pedía por renglón (una petición HTTP cada uno, en serie).
-            $flogsSugeridos = $this->flogSugerido->flogsSugeridosDelLote($registros->filter(fn ($r) => $r->RequiereDecisionFlog));
-            $registros->each(function ($registro) use ($flogsSugeridos) {
-                $registro->FlogSugerido = $registro->RequiereDecisionFlog
-                    ? ($flogsSugeridos[LiberarFlogSugeridoService::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')] ?? null)
-                    : null;
+            // Flogs vigentes del artículo+talla de cada renglón, en UNA consulta para todo el lote:
+            // van primero en la lista de la celda Flog, y el más reciente es el sugerido.
+            $flogsDelLote = $this->flogSugerido->flogsDelLote($registros);
+            $registros->each(function ($registro) use ($flogsDelLote) {
+                $registro->FlogsArticulo = $flogsDelLote[LiberarFlogSugeridoService::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')] ?? [];
+                $registro->FlogSugerido = $registro->RequiereDecisionFlog ? ($registro->FlogsArticulo[0] ?? null) : null;
             });
+            $flogsVigentes = $registros->isEmpty() ? [] : $this->flogSugerido->flogsVigentes();
 
             // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId).
             // El DISTINCT recorre todo INVENTTABLE de AX y el catálogo casi no cambia: 1 h en caché.
@@ -198,7 +198,7 @@ class LiberarOrdenesController extends Controller
                 Cache::forget('liberar_ordenes.hilos_options'); // AX sin filas por un momento: no dejar el select vacío 1 h
             }
 
-            return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias', 'hilosOptions'));
+            return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias', 'hilosOptions', 'flogsVigentes'));
         } catch (\Throwable $e) {
             // SEC-07: el detalle (SQL, AX) va al log y a SYSMonError; la vista solo muestra la referencia.
             report($e);

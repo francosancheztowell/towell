@@ -168,6 +168,8 @@
                     $valorFlog = trim((string) ($registro->FlogSugerido ?? ''));
                 }
                 $valorEsc = htmlspecialchars($valorFlog, ENT_QUOTES, 'UTF-8');
+                // Flogs vigentes de este artículo+talla (más reciente primero): encabezan la lista.
+                $flogsArticuloEsc = htmlspecialchars(implode(',', $registro->FlogsArticulo ?? []), ENT_QUOTES, 'UTF-8');
 
                 $check = !$decide ? '' :
                     '<div class="flex items-center gap-1 mb-1 whitespace-nowrap">
@@ -188,6 +190,7 @@
                                    list="flog-options"
                                    autocomplete="off"
                                    data-row-id="' . $rowId . '"
+                                   data-flogs-articulo="' . $flogsArticuloEsc . '"
                                    value="' . $valorEsc . '"
                                    maxlength="60"
                                    placeholder="Flog">
@@ -462,9 +465,10 @@
                 'bom' => route('programa-tejido.liberar-ordenes.bom'),
                 'codigoDibujo' => route('programa-tejido.liberar-ordenes.codigo-dibujo'),
                 'flog' => route('programa-tejido.liberar-ordenes.flog'),
-                'flogs' => url('/programa-tejido/flogs-id-from-twflogs'),
             ],
             'columnas' => $columns,
+            // Flogs vigentes de AX (estado vigente + línea abierta), misma regla que valida el servidor.
+            'flogsVigentes' => $flogsVigentes ?? [],
             'pesoKarlMayer' => (string) \App\Services\Planeacion\Liberar\LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER,
         ];
         @endphp
@@ -559,7 +563,7 @@
     </div>
 </div>
 
-{{-- Flogs vigentes de AX para el autocompletado de la columna Flog (una sola lista para toda la grilla) --}}
+{{-- Autocompletado de la columna Flog: se rearma al enfocar cada celda (los del artículo primero) --}}
 <datalist id="flog-options"></datalist>
 
 {{-- Menú contextual en encabezados (clic derecho): Filtrar, Fijar, Ocultar --}}

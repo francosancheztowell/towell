@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Route as IlluminateRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -47,7 +48,7 @@ class LiberarFlogSugeridoTest extends TestCase
             "IDFLOG" TEXT, "NAMEPROYECT" TEXT, "CUSTNAME" TEXT, "ESTADOFLOG" INTEGER
         )');
         $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsItemLine" (
-            "IDFLOG" TEXT, "ITEMID" TEXT, "INVENTSIZEID" TEXT
+            "IDFLOG" TEXT, "ITEMID" TEXT, "INVENTSIZEID" TEXT, "ESTADOLINEA" INTEGER DEFAULT 0
         )');
     }
 
@@ -88,7 +89,7 @@ class LiberarFlogSugeridoTest extends TestCase
         ];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('flogRoutes')]
+    #[DataProvider('flogRoutes')]
     public function test_ruta_flog_sugerido_existe_y_exige_auth(string $name): void
     {
         $route = Route::getRoutes()->getByName($name);
