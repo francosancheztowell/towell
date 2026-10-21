@@ -180,7 +180,7 @@
                             Número de Empleado <span class="text-red-500">*</span>
                         </label>
                         <input type="text" id="numero_empleado_modal" name="numero_empleado" required
-                            pattern="[0-9]*" inputmode="numeric"
+                            maxlength="30" autocomplete="off"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                             placeholder="Ej: 2045">
                     </div>
@@ -289,7 +289,7 @@
                         Número de Empleado <span class="text-red-500">*</span>
                     </label>
                     <input type="text" id="duplicar_numero_empleado" name="numero_empleado" required
-                           maxlength="50" pattern="[0-9]*" inputmode="numeric" autocomplete="off"
+                           maxlength="30" autocomplete="off"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                            placeholder="Ej: 2045">
                 </div>

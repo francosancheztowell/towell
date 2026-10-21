@@ -39,11 +39,15 @@
                 Número de Empleado
             </label>
             <input
-                type="number"
+                type="text"
                 name="numero_empleado"
                 id="numero_empleado"
                 placeholder="Ingresa tu número de empleado"
                 required
+                maxlength="30"
+                autocomplete="username"
+                autocapitalize="off"
+                spellcheck="false"
                 class="w-full px-4 py-4 border border-gray-300 rounded-lg text-base transition-all duration-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
         </div>
@@ -57,14 +61,12 @@
             <div class="relative">
                 <input
                     type="password"
-                    inputmode="numeric"
                     name="contrasenia"
                     id="password"
-                    placeholder="Ingresa tu contraseña numérica"
+                    placeholder="Ingresa tu contraseña"
                     required
-                    pattern="[0-9]*"
+                    autocomplete="current-password"
                     class="w-full px-4 py-4 pr-12 border border-gray-300 rounded-lg text-base transition-all duration-200 bg-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                 />
 
                 <!-- Botón para mostrar/ocultar contraseña -->

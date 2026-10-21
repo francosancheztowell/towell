@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoría de julios · Towell</title>
+<style>
+:root{
+  --bg:#f4f4f5;--card:#fff;--line:#e4e4e7;--text:#18181b;--muted:#71717a;--primary:#2563eb;--primary-soft:#dbeafe;
+  --ok:#16a34a;--ok-soft:#dcfce7;--warn:#d97706;--warn-soft:#fef3c7;--bad:#dc2626;--bad-soft:#fee2e2;--gray-soft:#f4f4f5;--na:#52525b;--na-soft:#e4e4e7;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#09090b;--card:#18181b;--line:#27272a;--text:#fafafa;--muted:#a1a1aa;--primary:#60a5fa;--primary-soft:#1e3a5f;
+  --ok:#4ade80;--ok-soft:#14532d;--warn:#fbbf24;--warn-soft:#451a03;--bad:#f87171;--bad-soft:#450a0a;--gray-soft:#27272a;--na:#d4d4d8;--na-soft:#3f3f46;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.nav{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.nav h1{font-size:18px;margin:0;flex:1 1 auto}
+.nav .meta{color:var(--muted);font-size:13px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:0 14px;min-height:44px;font:inherit;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.warn{background:var(--warn);border-color:var(--warn);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+main{max-width:1280px;margin:0 auto;padding:16px}
+.aviso{background:var(--primary-soft);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.kpi b{display:block;font-size:24px}
+.kpi span{color:var(--muted);font-size:12px}
+.bar{height:8px;background:var(--gray-soft);border-radius:99px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--primary)}
+.grid2{display:grid;grid-template-columns:1fr 340px;gap:12px;align-items:start}
+@media (max-width:980px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel h2{font-size:15px;margin:0 0 8px}
+.alertas li{margin:0 0 8px;padding:8px 10px;border-radius:8px;font-size:13px;list-style:none;cursor:pointer}
+.alertas ul{padding:0;margin:0}
+.alertas .a-warn{background:var(--warn-soft)}
+.alertas .a-bad{background:var(--bad-soft)}
+.alertas .a-info{background:var(--gray-soft)}
+.alertas small{color:var(--muted)}
+.filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:0 14px;min-height:40px;font:inherit;font-size:14px;cursor:pointer;color:var(--text)}
+.chip[aria-pressed=true]{background:var(--text);color:var(--card);border-color:var(--text)}
+.filtros input{min-height:40px;border:1px solid var(--line);border-radius:99px;padding:0 14px;font:inherit;background:var(--card);color:var(--text);width:140px}
+.salon{margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.telares{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.telar{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.telar header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:700}
+.telar header small{color:var(--muted);font-weight:500}
+.slot{display:grid;grid-template-columns:52px 1fr auto;gap:8px;align-items:center;padding:8px 12px;border-left:5px solid var(--line);cursor:pointer;width:100%;background:none;border-top:0;border-right:0;border-bottom:1px solid var(--line);text-align:left;color:inherit;font:inherit;min-height:56px}
+.slot:last-child{border-bottom:0}
+.slot:hover{background:var(--gray-soft)}
+.slot .tipo{font-weight:700;font-size:13px}
+.slot .jul{font-size:20px;font-weight:800;letter-spacing:.02em}
+.slot .det{font-size:12px;color:var(--muted)}
+.slot.r-ok{border-left-color:var(--ok)}
+.slot.r-siguiente{border-left-color:var(--warn)}
+.slot.r-otro{border-left-color:var(--bad)}
+.slot.r-sin,.slot.r-ilegible{border-left-color:var(--na)}
+.pill{font-size:12px;font-weight:700;border-radius:99px;padding:3px 9px;white-space:nowrap}
+.p-pend{background:var(--gray-soft);color:var(--muted)}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-siguiente{background:var(--warn-soft);color:var(--warn)}
+.p-otro{background:var(--bad-soft);color:var(--bad)}
+.p-sin,.p-ilegible{background:var(--na-soft);color:var(--na)}
+.badge{font-size:11px;border-radius:6px;padding:1px 6px;background:var(--warn-soft);color:var(--warn);font-weight:700;margin-left:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:600}
+.tabla-wrap{overflow-x:auto}
+dialog{border:0;border-radius:16px;padding:0;width:min(560px,calc(100vw - 32px));background:var(--card);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.dlg-h h3{margin:0;font-size:17px}
+.dlg-b{padding:14px 16px;display:grid;gap:12px;overflow:auto;max-height:calc(100dvh - 170px)}
+.dlg-f{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.pan{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pan div{border:1px solid var(--line);border-radius:10px;padding:10px}
+.pan .lbl{font-size:12px;color:var(--muted)}
+.pan .big{font-size:28px;font-weight:800}
+.pregunta{font-weight:700}
+.opciones{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opciones .btn{min-height:56px}
+.opciones .btn[aria-pressed=true]{outline:3px solid var(--primary);outline-offset:1px}
+.campo label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.campo input,.campo textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;background:var(--card);color:var(--text)}
+.campo input{font-size:22px;font-weight:700;letter-spacing:.04em}
+.hallazgo{border-radius:10px;padding:10px 12px;font-size:14px}
+.oculto{display:none!important}
+.vacio{color:var(--muted);font-size:13px;padding:8px 0}
+</style>
+</head>
+<body>
+<div class="nav">
+  <h1>Auditoría de julios</h1>
+  <span class="meta">Recorrido #1 · 21-oct-2026 · Turno 1 · Auditor: (usuario en sesión)</span>
+  <button class="btn" id="reiniciar" type="button">Reiniciar demo</button>
+  <button class="btn primary" id="terminar" type="button">Terminar recorrido</button>
+</div>
+
+<main>
+  <p class="aviso">Prototipo con los datos reales del 20-oct (último atado por telar y tipo en <code>AtaMontadoTelas</code> y siguiente reservado en <code>tej_inventario_telares</code>). Las capturas son de ejemplo: no se guarda nada.</p>
+
+  <section class="kpis" aria-label="Avance del recorrido">
+    <div class="kpi"><b id="k-rev">0/0</b><span>Revisados</span><div class="bar"><i id="k-bar" style="width:0"></i></div></div>
+    <div class="kpi"><b id="k-ok" style="color:var(--ok)">0</b><span>Coinciden</span></div>
+    <div class="kpi"><b id="k-sig" style="color:var(--warn)">0</b><span>Ya está el siguiente (atado sin registrar)</span></div>
+    <div class="kpi"><b id="k-otro" style="color:var(--bad)">0</b><span>Julio distinto</span></div>
+    <div class="kpi"><b id="k-na">0</b><span>Sin julio / no legible</span></div>
+    <div class="kpi"><b id="k-pct">–</b><span>% de acierto</span></div>
+  </section>
+
+  <div class="grid2">
+    <section>
+      <div class="filtros" role="group" aria-label="Filtros">
+        <span id="f-salon"></span>
+        <button class="chip" data-estado="todos" aria-pressed="true" type="button">Todos</button>
+        <button class="chip" data-estado="pend" aria-pressed="false" type="button">Pendientes</button>
+        <button class="chip" data-estado="dif" aria-pressed="false" type="button">Con diferencia</button>
+        <input id="f-buscar" type="search" inputmode="numeric" placeholder="Telar o julio" aria-label="Buscar telar o julio">
+      </div>
+      <div id="lista"></div>
+    </section>
+
+    <aside class="panel alertas">
+      <h2>Antes de salir a piso</h2>
+      <p class="vacio" style="padding-top:0">Lo que el sistema ya ve raro. Toca uno para ir a ese telar.</p>
+      <ul id="alertas"></ul>
+    </aside>
+  </div>
+
+  <section class="panel" style="margin-top:12px">
+    <h2>Diferencias del recorrido</h2>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>Hora</th><th>Telar</th><th>Tipo</th><th>Sistema</th><th>Físico</th><th>Resultado</th><th>Dónde estaba el físico</th><th>Obs.</th></tr></thead>
+        <tbody id="difs"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlg-t">
+  <form method="dialog" id="frm">
+    <div class="dlg-h"><h3 id="dlg-t">Telar</h3><button class="btn" value="cancel" type="submit" aria-label="Cerrar">✕</button></div>
+    <div class="dlg-b">
+      <div class="pan">
+        <div><span class="lbl">Montado según sistema</span><div class="big" id="d-mont">–</div><span class="lbl" id="d-mont-det"></span></div>
+        <div><span class="lbl">Siguiente reservado</span><div class="big" id="d-sig">–</div><span class="lbl" id="d-sig-det"></span></div>
+      </div>
+      <div class="pregunta">¿Qué julio está físicamente en el telar?</div>
+      <div class="opciones" id="opciones">
+        <button class="btn" type="button" data-res="ok" id="o-ok">Es el montado</button>
+        <button class="btn" type="button" data-res="siguiente" id="o-sig">Es el siguiente</button>
+        <button class="btn" type="button" data-res="otro">Es otro julio</button>
+        <button class="btn" type="button" data-res="sin">Telar sin julio</button>
+        <button class="btn" type="button" data-res="ilegible">No se puede leer</button>
+      </div>
+      <div class="campo oculto" id="c-otro">
+        <label for="i-otro">Número que ves en el julio</label>
+        <input id="i-otro" inputmode="text" autocomplete="off" placeholder="Ej. 529">
+      </div>
+      <div class="hallazgo oculto" id="hallazgo"></div>
+      <div class="campo">
+        <label for="i-obs">Observación (opcional)</label>
+        <textarea id="i-obs" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="dlg-f">
+      <button class="btn" value="cancel" type="submit">Cancelar</button>
+      <button class="btn primary" id="guardar" type="button" disabled>Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const HOY = new Date('2026-10-21T12:00:00');
+// [telar, tipo, julio, orden, fecha atado, estatus, salón]  (AtaMontadoTelas, último por telar+tipo)
+const MONTADOS = [
+["201","Rizo","01448-445","01448","2026-10-16","Autorizado","Jacquard"],["201","Pie","01397-442","01397","2026-10-07","Autorizado","Jacquard"],
+["202","Rizo","01287-523","01287","2026-09-30","Autorizado","Jacquard"],["202","Pie","01401-449","01401","2026-10-16","Autorizado","Jacquard"],
+["203","Rizo","01460-579","01460","2026-10-16","Autorizado","Jacquard"],["203","Pie","01401-461","01401","2026-10-15","Autorizado","Jacquard"],
+["204","Rizo","01446-500","01446","2026-10-16","Autorizado","Jacquard"],["204","Pie","01325-441","01325","2026-10-05","Autorizado","Jacquard"],
+["205","Rizo","01411-527","01411","2026-10-17","Autorizado","Jacquard"],["205","Pie","01339-456","01339","2026-10-09","Autorizado","Jacquard"],
+["206","Rizo","01442-513","01442","2026-10-15","Autorizado","Jacquard"],["206","Pie","01437-578","01437","2026-10-18","Autorizado","Jacquard"],
+["207","Rizo","01449-418","01449","2026-10-15","Autorizado","Jacquard"],["207","Pie","01452-402","01452","2026-10-17","Autorizado","Jacquard"],
+["208","Rizo","01412-412","01412","2026-10-11","Autorizado","Jacquard"],["208","Pie","01407-424","01407","2026-10-10","Autorizado","Jacquard"],
+["209","Rizo","01438-429","01438","2026-10-14","Autorizado","Jacquard"],["209","Pie","01407-572","01407","2026-10-13","Autorizado","Jacquard"],
+["210","Rizo","01445-417","01445","2026-10-18","Autorizado","Jacquard"],["210","Pie","01452-406","01452","2026-10-18","Autorizado","Jacquard"],
+["211","Rizo","01460-413","01460","2026-10-17","Autorizado","Jacquard"],["211","Pie","01378-575","01378","2026-10-08","Autorizado","Jacquard"],
+["213","Rizo","01457-525","01457","2026-10-17","Autorizado","Jacquard"],["213","Pie","01454-530","01454","2026-10-17","Autorizado","Jacquard"],
+["214","Rizo","01456-438","01456","2026-10-17","Autorizado","Jacquard"],["214","Pie","01285-496","GRAL","2026-10-13","Autorizado","Jacquard"],
+["215","Rizo","01451-511","01451","2026-10-17","Autorizado","Jacquard"],["215","Pie","01413-472","01413","2026-10-14","Autorizado","Jacquard"],
+["299","Rizo","01422-713","01422","2026-10-12","Autorizado","Smith"],["299","Pie","01413-740","01413","2026-10-12","Autorizado","Smith"],
+["300","Rizo","01467-729","01467","2026-10-18","Terminado","Smith"],["300","Pie","01379-741","01379","2026-10-07","Autorizado","Smith"],
+["301","Rizo","01421-714","01421","2026-10-11","Autorizado","Smith"],["301","Pie","01444-726","01444","2026-10-17","Autorizado","Smith"],
+["302","Rizo","01417-733","01417","2026-10-11","Autorizado","Smith"],["302","Pie","01424-717","01424","2026-10-15","Autorizado","Smith"],
+["303","Rizo","01417-604","01417","2026-10-11","Autorizado","Smith"],["303","Pie","01424-582","01424","2026-10-18","Autorizado","Smith"],
+["304","Rizo","01461-601","01461","2026-10-18","Autorizado","Smith"],["304","Pie","01463-739","01463","2026-10-19","Autorizado","Smith"],
+["305","Rizo","01419-448","01419","2026-10-13","Autorizado","Smith"],["305","Pie","01316-577","01316","2026-10-13","Autorizado","Smith"],
+["306","Rizo","01420-730","01420","2026-10-12","Autorizado","Smith"],["306","Pie","01433-359","01433","2026-10-14","Autorizado","Smith"],
+["307","Rizo","01469-486","01469","2026-10-18","Terminado","Smith"],["307","Pie","01424-464","01424","2026-10-14","Autorizado","Smith"],
+["308","Rizo","01346-437","01346","2026-10-19","Autorizado","Smith"],["308","Pie","01399-520","01399","2026-10-09","Autorizado","Smith"],
+["309","Rizo","01440-738","01440","2026-10-14","Autorizado","Smith"],["309","Pie","01413-338","01413","2026-10-14","Autorizado","Smith"],
+["310","Rizo","01400-506","01400","2026-10-09","Autorizado","Smith"],["310","Pie","01397-518","01397","2026-10-14","Autorizado","Smith"],
+["311","Rizo","01451-488","01451","2026-10-18","Autorizado","Smith"],["311","Pie","01413-477","01413","2026-10-14","Autorizado","Smith"],
+["312","Rizo","01414-707","01414","2026-10-10","Autorizado","Smith"],["312","Pie","01433-478","01433","2026-10-13","Autorizado","Smith"],
+["313","Rizo","01440-503","01440","2026-10-17","Autorizado","Smith"],["313","Pie","01350-468","01350","2026-10-08","Autorizado","Smith"],
+["314","Rizo","01434-471","01434","2026-10-19","Terminado","Smith"],["314","Pie","01433-453","01433","2026-10-13","Autorizado","Smith"],
+["315","Rizo","01466-533","01466","2026-10-19","Terminado","Smith"],["315","Pie","01385-470","01385","2026-10-17","Autorizado","Smith"],
+["316","Rizo","01431-428","01431","2026-10-17","Autorizado","Smith"],["316","Pie","01387-498","01387","2026-10-06","Autorizado","Smith"],
+["317","Rizo","01468-583","01468","2026-10-18","Autorizado","Smith"],["317","Pie","01405-591","01405","2026-10-16","Autorizado","Smith"],
+["318","Rizo","01423-599","01423","2026-10-15","Autorizado","Smith"],["318","Pie","01030-580","01030","2026-10-03","Autorizado","Smith"],
+["319","Rizo","01422-431","01422","2026-10-15","Autorizado","Smith"],["319","Pie","01413-704","01413","2026-10-14","Autorizado","Smith"],
+["320","Rizo","01421-725","01421","2026-10-13","Autorizado","Smith"],["320","Pie","01424-732","01424","2026-10-14","Autorizado","Smith"],
+["401","Rizo","00","GRAL","2026-01-31","Autorizado","Karl Mayer"],["402","Rizo","00","GRAL","2026-01-31","Autorizado","Karl Mayer"],
+["402","4","01471-K13","01471","2026-10-19","Autorizado","Karl Mayer"],["402","3","01473-K35","01473","2026-10-19","Terminado","Karl Mayer"]
+];
+// [telar, tipo, julio, orden, fecha requerida, status, reservado]  (tej_inventario_telares)
+const SIGUIENTES = [
+["201","Pie","01458-514","01458","2026-10-20","Activo",1],["201","Rizo",null,"01480","2026-10-21","Activo",0],["202","Rizo","01475-535","01475","2026-10-21","Activo",1],
+["206","Rizo","01465-493","01465","2026-10-19","Activo",1],["208","Pie","01470-419","01470","2026-10-19","Activo",1],["208","Rizo","01412-414","01412","2026-10-19","Activo",1],
+["209","Pie",null,null,"2026-10-20","Activo",0],["210","Pie",null,"01476","2026-10-21","Activo",0],["211","Pie",null,null,"2026-10-19","Activo",0],
+["211","Rizo",null,"01477","2026-10-20","Activo",0],["213","Pie","01450-480","01450","2026-10-20","Activo",1],["214","Rizo","01459-s507","01459","2026-10-21","Activo",1],
+["215","Pie",null,"01464","2026-10-19","Activo",0],["299","Pie",null,null,"2026-10-21","Activo",0],["299","Rizo",null,"01478","2026-10-21","Activo",0],
+["300","Pie","01444-716","01444","2026-10-19","Activo",1],["300","Rizo","01467-729","01467","2026-10-18","Terminado",1],["302","Rizo","01467-744","01467","2026-10-19","Activo",1],
+["303","Rizo",null,null,"2026-10-20","Activo",0],["305","Pie",null,"01474","2026-10-19","Activo",0],["305","Rizo",null,null,"2026-10-19","Activo",0],
+["307","Rizo","01469-486","01469","2026-10-18","Terminado",1],["308","Pie","01399-465","01399","2026-10-21","Activo",1],["310","Rizo","01448-467","01448","2026-10-21","Activo",1],
+["312","Rizo","01451-573","01451","2026-10-18","Activo",1],["313","Rizo",null,null,"2026-10-21","Activo",0],["314","Pie",null,null,"2026-10-19","Activo",0],
+["314","Rizo","01434-471","01434","2026-10-19","Terminado",1],["315","Rizo","01466-533","01466","2026-10-19","Terminado",1],["316","Pie",null,"01450","2026-10-19","Activo",0],
+["317","Rizo",null,null,"2026-10-22","Activo",0],["318","Pie","593","GRAL","2026-10-18","Activo",1],["318","Rizo","01468-595","01468","2026-10-19","Activo",1],
+["402","3","01473-K35","01473","2026-10-19","Terminado",1]
+];
+// Capturas de ejemplo para que el prototipo muestre cada caso.
+const DEMO = {
+  "201|Rizo":{res:"ok"}, "201|Pie":{res:"siguiente",obs:"Ya trae el 514; el atado no se registró"},
+  "202|Rizo":{res:"otro",fisico:"604"}, "202|Pie":{res:"ok"},
+  "203|Rizo":{res:"ok"}, "203|Pie":{res:"ok"}, "204|Rizo":{res:"ok"}, "204|Pie":{res:"otro",fisico:"472"},
+  "205|Rizo":{res:"ok"}, "205|Pie":{res:"ilegible",obs:"Etiqueta rota"}, "206|Rizo":{res:"ok"}, "206|Pie":{res:"ok"}
+};
+
+const KM = s => s === 'Karl Mayer';
+const TIPOS = s => KM(s) ? ['1','2','3','4'] : ['Rizo','Pie'];
+const etiquetaTipo = t => /^[1-4]$/.test(t) ? 'Barra ' + t : t;
+const num = j => { if (!j) return null; const i = j.lastIndexOf('-'); return (i >= 0 ? j.slice(i + 1) : j).toUpperCase(); };
+const dias = f => Math.round((HOY - new Date(f + 'T12:00:00')) / 864e5);
+const fCorta = f => { const [y, m, d] = f.split('-'); return d + '-' + ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][m - 1]; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hora = () => new Date().toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+
+// Un "slot" = telar + tipo, con lo montado y lo siguiente.
+const salonDe = {};
+MONTADOS.forEach(m => salonDe[m[0]] = m[6]);
+const telares = [...new Set([...MONTADOS.map(m => m[0]), ...SIGUIENTES.map(s => s[0])])].sort((a, b) => a - b);
+const slots = [];
+telares.forEach(t => {
+  const salon = salonDe[t] || 'Jacquard';
+  TIPOS(salon).forEach(tipo => {
+    const m = MONTADOS.find(x => x[0] === t && x[1] === tipo);
+    const s = SIGUIENTES.find(x => x[0] === t && x[1] === tipo);
+    slots.push({
+      key: t + '|' + tipo, telar: t, tipo, salon,
+      mont: m ? {julio: num(m[2]), orden: m[3], fecha: m[4], estatus: m[5]} : null,
+      sig: s && s[2] && s[2] !== (m && m[2]) ? {julio: num(s[2]), orden: s[3], fecha: s[4]} : null,
+      sigOrden: s && !s[2] ? s[3] : null
+    });
+  });
+});
+
+let capturas = {};
+const reset = () => { capturas = {}; Object.entries(DEMO).forEach(([k, v]) => capturas[k] = {...v, hora: '07:' + String(10 + Object.keys(capturas).length * 3).padStart(2, '0')}); };
+reset();
+
+let fSalon = 'todos', fEstado = 'todos', fTexto = '';
+
+function dondeEsta(julio, keyActual) {
+  if (!julio) return '';
+  const n = julio.toUpperCase();
+  const enM = slots.filter(s => s.key !== keyActual && s.mont && s.mont.julio === n);
+  const enS = slots.filter(s => s.key !== keyActual && s.sig && s.sig.julio === n);
+  const partes = [];
+  enM.forEach(s => partes.push(`registrado montado en telar ${s.telar} ${etiquetaTipo(s.tipo)} (orden ${s.mont.orden}, ${fCorta(s.mont.fecha)})`));
+  enS.forEach(s => partes.push(`reservado para telar ${s.telar} ${etiquetaTipo(s.tipo)} (orden ${s.sig.orden}, ${fCorta(s.sig.fecha)})`));
+  return partes.length ? 'El ' + n + ' está ' + partes.join(' y ') : `El ${n} no está en atados ni reservas: se busca su último folio en Engomado`;
+}
+
+const RES = {
+  ok: ['p-ok', 'Coincide'], siguiente: ['p-siguiente', 'Ya está el siguiente'], otro: ['p-otro', 'Distinto'],
+  sin: ['p-sin', 'Sin julio'], ilegible: ['p-ilegible', 'No legible']
+};
+
+function render() {
+  // KPIs
+  const total = slots.length, cap = Object.values(capturas);
+  const c = r => cap.filter(x => x.res === r).length;
+  const rev = cap.length, ok = c('ok');
+  document.getElementById('k-rev').textContent = rev + '/' + total;
+  document.getElementById('k-bar').style.width = (rev / total * 100) + '%';
+  document.getElementById('k-ok').textContent = ok;
+  document.getElementById('k-sig').textContent = c('siguiente');
+  document.getElementById('k-otro').textContent = c('otro');
+  document.getElementById('k-na').textContent = c('sin') + c('ilegible');
+  const leidos = rev - c('ilegible');
+  document.getElementById('k-pct').textContent = leidos ? Math.round(ok / leidos * 100) + '%' : '–';
+
+  // Chips de salón
+  const salones = ['todos', ...new Set(slots.map(s => s.salon))];
+  document.getElementById('f-salon').innerHTML = salones.map(s =>
+    `<button class="chip" type="button" data-salon="${esc(s)}" aria-pressed="${s === fSalon}">${s === 'todos' ? 'Todos los salones' : esc(s)}</button>`).join(' ');
+
+  // Lista de telares
+  const visibles = slots.filter(s => {
+    const r = capturas[s.key];
+    if (fSalon !== 'todos' && s.salon !== fSalon) return false;
+    if (fEstado === 'pend' && r) return false;
+    if (fEstado === 'dif' && (!r || r.res === 'ok')) return false;
+    if (fTexto && !(s.telar.includes(fTexto) || (s.mont && s.mont.julio.includes(fTexto.toUpperCase())) || (s.sig && s.sig.julio.includes(fTexto.toUpperCase())))) return false;
+    return true;
+  });
+  let html = '';
+  [...new Set(visibles.map(s => s.salon))].forEach(salon => {
+    html += `<div class="salon">${esc(salon)}</div><div class="telares">`;
+    [...new Set(visibles.filter(s => s.salon === salon).map(s => s.telar))].forEach(t => {
+      html += `<article class="telar"><header>Telar ${esc(t)} <small>${esc(salon)}</small></header>`;
+      visibles.filter(s => s.telar === t).forEach(s => {
+        const r = capturas[s.key];
+        const pill = r ? `<span class="pill ${RES[r.res][0]}">${RES[r.res][1]}${r.fisico ? ' · ' + esc(r.fisico) : ''}</span>` : '<span class="pill p-pend">Pendiente</span>';
+        const det = s.mont
+          ? `orden ${esc(s.mont.orden)} · ${fCorta(s.mont.fecha)} (${dias(s.mont.fecha)} d)${s.mont.estatus !== 'Autorizado' ? '<span class="badge">' + esc(s.mont.estatus) + '</span>' : ''}`
+          : 'sin atado registrado';
+        const sig = s.sig ? `<br>siguiente: <b>${esc(s.sig.julio)}</b> para ${fCorta(s.sig.fecha)}` : (s.sigOrden ? `<br>siguiente: orden ${esc(s.sigOrden)} sin julio` : '');
+        html += `<button class="slot ${r ? 'r-' + r.res : ''}" type="button" data-key="${esc(s.key)}">
+          <span class="tipo">${esc(etiquetaTipo(s.tipo))}</span>
+          <span><span class="jul">${s.mont ? esc(s.mont.julio) : '—'}</span><br><span class="det">${det}${sig}</span></span>
+          ${pill}</button>`;
+      });
+      html += '</article>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('lista').innerHTML = html || '<p class="vacio">No hay telares con ese filtro.</p>';
+
+  // Alertas del sistema (antes de salir a piso)
+  const al = [];
+  slots.forEach(s => {
+    const lugar = `Telar ${s.telar} · ${etiquetaTipo(s.tipo)}`;
+    if (!s.mont) al.push(['a-bad', lugar, 'No hay ningún atado registrado.', s.key]);
+    else if (s.mont.estatus !== 'Autorizado') al.push(['a-warn', lugar, `Atado ${s.mont.estatus.toLowerCase()} sin autorizar (julio ${s.mont.julio}, ${fCorta(s.mont.fecha)}).`, s.key]);
+    if (s.mont && s.mont.orden === 'GRAL') al.push(['a-warn', lugar, `Atado con orden GRAL (julio ${s.mont.julio}).`, s.key]);
+    if (s.mont && dias(s.mont.fecha) > 14) al.push(['a-info', lugar, `Julio ${s.mont.julio} lleva ${dias(s.mont.fecha)} días según el sistema.`, s.key]);
+    if (s.sig && dias(s.sig.fecha) > 0) al.push(['a-warn', lugar, `El ${s.sig.julio} estaba reservado para el ${fCorta(s.sig.fecha)}: puede que ya esté montado.`, s.key]);
+  });
+  MONTADOS.filter(m => KM(m[6]) && m[1] === 'Rizo').forEach(m =>
+    al.push(['a-bad', `Telar ${m[0]} · Rizo`, `Registro inválido en Karl Mayer: julio "${m[2]}", orden ${m[3]} del ${fCorta(m[4])}.`, null]));
+  document.getElementById('alertas').innerHTML = al.map(a =>
+    `<li class="${a[0]}" ${a[3] ? `data-key="${esc(a[3])}"` : ''}><b>${esc(a[1])}</b><br><small>${esc(a[2])}</small></li>`).join('');
+
+  // Tabla de diferencias
+  const difs = slots.filter(s => capturas[s.key] && capturas[s.key].res !== 'ok');
+  document.getElementById('difs').innerHTML = difs.length ? difs.map(s => {
+    const r = capturas[s.key];
+    const fis = r.res === 'siguiente' ? s.sig.julio : (r.fisico || '—');
+    return `<tr><td>${esc(r.hora)}</td><td>${esc(s.telar)}</td><td>${esc(etiquetaTipo(s.tipo))}</td><td>${s.mont ? esc(s.mont.julio) : '—'}</td>
+      <td><b>${esc(fis)}</b></td><td><span class="pill ${RES[r.res][0]}">${RES[r.res][1]}</span></td>
+      <td>${r.res === 'otro' ? esc(dondeEsta(r.fisico, s.key)) : (r.res === 'siguiente' ? 'Era el reservado: falta registrar el atado' : '')}</td><td>${esc(r.obs || '')}</td></tr>`;
+  }).join('') : '<tr><td colspan="8" class="vacio">Sin diferencias todavía.</td></tr>';
+}
+
+// Captura
+const dlg = document.getElementById('dlg');
+let actual = null, elegido = null;
+function abrir(key) {
+  actual = slots.find(s => s.key === key); elegido = null;
+  const r = capturas[key] || {};
+  document.getElementById('dlg-t').textContent = `Telar ${actual.telar} · ${etiquetaTipo(actual.tipo)}`;
+  document.getElementById('d-mont').textContent = actual.mont ? actual.mont.julio : '—';
+  document.getElementById('d-mont-det').textContent = actual.mont ? `orden ${actual.mont.orden} · atado ${fCorta(actual.mont.fecha)} · ${actual.mont.estatus}` : 'sin atado registrado';
+  document.getElementById('d-sig').textContent = actual.sig ? actual.sig.julio : '—';
+  document.getElementById('d-sig-det').textContent = actual.sig ? `orden ${actual.sig.orden} · para ${fCorta(actual.sig.fecha)}` : (actual.sigOrden ? `orden ${actual.sigOrden}, sin julio reservado` : 'nada reservado');
+  document.getElementById('o-ok').textContent = actual.mont ? `Es el ${actual.mont.julio} ✓` : 'Es el montado';
+  document.getElementById('o-ok').disabled = !actual.mont;
+  document.getElementById('o-sig').textContent = actual.sig ? `Es el siguiente (${actual.sig.julio})` : 'Es el siguiente';
+  document.getElementById('o-sig').disabled = !actual.sig;
+  document.getElementById('i-otro').value = r.fisico || '';
+  document.getElementById('i-obs').value = r.obs || '';
+  elegir(r.res || null);
+  dlg.showModal();
+}
+function elegir(res) {
+  elegido = res;
+  document.querySelectorAll('#opciones .btn').forEach(b => b.setAttribute('aria-pressed', b.dataset.res === res));
+  document.getElementById('c-otro').classList.toggle('oculto', res !== 'otro');
+  actualizarHallazgo();
+}
+function actualizarHallazgo() {
+  const h = document.getElementById('hallazgo');
+  const v = document.getElementById('i-otro').value.trim();
+  let txt = '', cls = '';
+  if (elegido === 'otro' && v) {
+    const n = v.toUpperCase();
+    if (actual.mont && n === actual.mont.julio) { txt = 'Ese es el mismo que tiene el sistema: usa “Es el ' + n + '”.'; cls = 'p-ok'; }
+    else if (actual.sig && n === actual.sig.julio) { txt = 'Ese es el siguiente reservado: usa “Es el siguiente”.'; cls = 'p-siguiente'; }
+    else { txt = dondeEsta(n, actual.key); cls = 'p-otro'; }
+  } else if (elegido === 'siguiente') { txt = 'Se va a reportar como atado montado sin registrar en el sistema.'; cls = 'p-siguiente'; }
+  h.textContent = txt; h.className = 'hallazgo ' + cls + (txt ? '' : ' oculto');
+  document.getElementById('guardar').disabled = !elegido || (elegido === 'otro' && !v);
+}
+document.getElementById('opciones').addEventListener('click', e => { const b = e.target.closest('[data-res]'); if (b && !b.disabled) elegir(b.dataset.res); });
+document.getElementById('i-otro').addEventListener('input', actualizarHallazgo);
+document.getElementById('guardar').addEventListener('click', () => {
+  const v = document.getElementById('i-otro').value.trim().toUpperCase();
+  capturas[actual.key] = {res: elegido, fisico: elegido === 'otro' ? v : null, obs: document.getElementById('i-obs').value.trim(), hora: hora()};
+  dlg.close(); render();
+});
+
+// Filtros y navegación
+document.addEventListener('click', e => {
+  const slot = e.target.closest('.slot, .alertas li[data-key]');
+  if (slot) return abrir(slot.dataset.key);
+  const cs = e.target.closest('[data-salon]');
+  if (cs) { fSalon = cs.dataset.salon; render(); }
+  const ce = e.target.closest('[data-estado]');
+  if (ce) { fEstado = ce.dataset.estado; document.querySelectorAll('[data-estado]').forEach(b => b.setAttribute('aria-pressed', b === ce)); render(); }
+});
+document.getElementById('f-buscar').addEventListener('input', e => { fTexto = e.target.value.trim(); render(); });
+document.getElementById('reiniciar').addEventListener('click', () => { reset(); render(); });
+document.getElementById('terminar').addEventListener('click', () => {
+  const pend = slots.length - Object.keys(capturas).length;
+  alert(pend ? `Faltan ${pend} por revisar. En el sistema real se puede cerrar con pendientes y quedan como "no revisado".` : 'Recorrido completo.');
+});
+
+render();
+</script>
+</body>
+</html>
