@@ -249,7 +249,7 @@ class EdicionOrden extends Component
                 ? UrdConsumoHilo::where('Folio', $orden->Folio)->whereNotNull('FechaRequerimiento')->value('FechaRequerimiento')
                 : null,
             'opcionesFibra' => $this->catalogo('hilos'),
-            'opcionesTamano' => $this->catalogo('tamanos'),
+            'opcionesTamano' => $this->catalogo('tamanos', $this->tipoJulio($orden)),
             'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
             'rutaVolver' => $this->rutaVolver(),
         ]);
@@ -358,6 +358,17 @@ class EdicionOrden extends Component
 
         if ($campo === 'InventSizeId' && StringTruncator::exceedsLimit('InventSizeId', $texto)) {
             abort(422, 'Tamaño demasiado largo. Máximo '.StringTruncator::getLimit('InventSizeId').' caracteres.');
+        }
+
+        if ($campo === 'InventSizeId') {
+            $tipo = $this->tipoJulio($this->orden());
+            abort_unless(
+                $this->bomMateriales->existeTamano($texto, $tipo),
+                422,
+                'El tamaño '.$texto.' no existe en AX para '.$this->bomMateriales->julioItemId($tipo).'.'
+            );
+
+            return;
         }
 
         $existe = match ($campo) {
@@ -689,13 +700,13 @@ class EdicionOrden extends Component
      *
      * @return array<int, string>
      */
-    private function catalogo(string $que): array
+    private function catalogo(string $que, string $tipo = ''): array
     {
-        return Cache::remember('urdeng_catalogo_'.$que, 3600, function () use ($que): array {
+        return Cache::remember('urdeng_catalogo_'.$que.'_'.$tipo, 3600, function () use ($que, $tipo): array {
             try {
                 return $que === 'hilos'
                     ? array_column($this->bomMateriales->obtenerHilos(), 'ConfigId')
-                    : array_column($this->bomMateriales->obtenerTamanos(), 'InventSizeId');
+                    : array_column($this->bomMateriales->obtenerTamanos($tipo), 'InventSizeId');
             } catch (Throwable $e) {
                 // Si AX no responde la pantalla sigue abriendo: el campo queda con su valor actual.
                 // Se reporta (queda en monitoreo); el [] se cachea la hora, así que es un aviso por hora.
@@ -723,7 +734,7 @@ class EdicionOrden extends Component
         }
 
         $tamano = $cuenta.'-'.rtrim(rtrim(number_format((float) $calibre, 2, '.', ''), '0'), '.').'/1';
-        if ($tamano === ($this->form['InventSizeId'] ?? '') || ! in_array($tamano, $this->catalogo('tamanos'), true)) {
+        if ($tamano === ($this->form['InventSizeId'] ?? '') || ! in_array($tamano, $this->catalogo('tamanos', $this->tipoJulio($orden)), true)) {
             return;
         }
 
@@ -796,6 +807,12 @@ class EdicionOrden extends Component
     {
         return stripos(trim((string) $orden->SalonTejidoId), 'karl') !== false
             && stripos(trim((string) ($orden->MaquinaId ?? '')), 'karl') !== false;
+    }
+
+    /** Catálogo de tamaños en AX: Karl Mayer = JULIO-URDIDO; MC Coy = JU-ENG-RI-C (Rizo) o JU-ENG-PI-C (Pie). */
+    private function tipoJulio(Model $orden): string
+    {
+        return $this->isKarlMayer($orden) ? 'Urdido' : trim((string) $orden->getAttribute('RizoPie'));
     }
 
     /** @return array<int, string> */

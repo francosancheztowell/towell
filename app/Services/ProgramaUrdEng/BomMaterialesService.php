@@ -7,6 +7,7 @@ namespace App\Services\ProgramaUrdEng;
 use App\Models\Engomado\EngAnchoBalonaCuenta;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Models\Urdido\UrdConsumoHilo;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -505,7 +506,7 @@ class BomMaterialesService
      * catálogo (445 tamaños sin depurar) no refleja lo que hoy se puede pedir.
      * Los mismos artículos son los que usa CatLMat para las recetas.
      */
-    private function julioItemId(?string $tipo): string
+    public function julioItemId(?string $tipo): string
     {
         $t = trim((string) $tipo);
 
@@ -541,18 +542,29 @@ class BomMaterialesService
 
     public function obtenerTamanos(?string $tipo = null): array
     {
-        $itemId = $this->julioItemId($tipo);
-
-        return DB::connection(self::CONN)
-            ->table('InventSize')
+        return $this->tamanos($tipo)
             ->select('InventSizeId')
-            ->where('ItemId', $itemId)
-            ->where('DATAAREAID', self::DATAAREA)
-            ->when($itemId !== 'JULIO-URDIDO', fn ($q) => $q->where('TwVigente', 1))
             ->orderBy('InventSizeId')
             ->distinct()
             ->get()
             ->toArray();
+    }
+
+    /** Mismo catálogo que obtenerTamanos(): 'Urdido' (Karl Mayer), 'Pie' o Rizo. */
+    public function existeTamano(string $tamano, ?string $tipo): bool
+    {
+        return $this->tamanos($tipo)->where('InventSizeId', trim($tamano))->exists();
+    }
+
+    private function tamanos(?string $tipo): Builder
+    {
+        $itemId = $this->julioItemId($tipo);
+
+        return DB::connection(self::CONN)
+            ->table('InventSize')
+            ->where('ItemId', $itemId)
+            ->where('DATAAREAID', self::DATAAREA)
+            ->when($itemId !== 'JULIO-URDIDO', fn ($q) => $q->where('TwVigente', 1));
     }
 
     /**

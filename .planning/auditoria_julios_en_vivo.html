@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoría en vivo · Towell</title>
+<style>
+:root{--bg:#fff;--card:#fff;--line:#ececee;--text:#18181b;--muted:#8a8a93;--pend:#e9e9ec;
+  --ok:#22c55e;--warn:#f59e0b;--vio:#8b5cf6;--bad:#ef4444;--na:#71717a;--ring:#2563eb}
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.num{font-variant-numeric:tabular-nums}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:4}
+header h1{font-size:16px;font-weight:650;margin:0}
+.vivo{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--bad)}
+.vivo i{width:8px;height:8px;border-radius:50%;background:var(--bad);animation:latido 1.4s infinite}
+.vivo.pausa{color:var(--muted)}.vivo.pausa i{background:var(--muted);animation:none}
+@keyframes latido{0%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.meta{color:var(--muted);font-size:13px;flex:1 1 auto}
+.ctl{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:8px;min-height:36px;padding:0 12px;font:inherit;font-size:13px;cursor:pointer}
+main{max-width:1240px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 330px;gap:28px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.fuentes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;font-size:12px;color:var(--muted)}
+.fuentes span{border:1px solid var(--line);border-radius:99px;padding:3px 10px;background:var(--card)}
+.fuentes b{color:var(--text);font-weight:600}
+.cifras{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px}
+.cifra b{display:block;font-size:28px;font-weight:650;line-height:1}
+.cifra span{font-size:12px;color:var(--muted)}
+.prog{height:3px;background:var(--pend);border-radius:3px;overflow:hidden;margin:14px 0 26px}
+.prog i{display:block;height:100%;background:var(--text);transition:width .4s}
+.salon{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.mapa{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:8px;margin-bottom:24px}
+.tl{background:none;border:0;padding:0;cursor:pointer;color:inherit;font:inherit;text-align:center;position:relative}
+.tl .cel{display:flex;gap:2px;height:30px;border-radius:7px;overflow:hidden;outline:2px solid transparent;outline-offset:2px;transition:outline-color .2s}
+.tl .cel s{flex:1;background:var(--pend);transition:background .35s;position:relative}
+.tl .cel s.pre::after{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:var(--warn)}
+.tl.ahora .cel{outline-color:var(--ring);animation:foco 1.2s infinite}
+@keyframes foco{50%{outline-color:transparent}}
+.tl small{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+:is(.cel s,.leyenda i).ok{background:var(--ok)}:is(.cel s,.leyenda i).ax{background:var(--warn)}:is(.cel s,.leyenda i).atado{background:var(--vio)}
+:is(.cel s,.leyenda i).otro{background:var(--bad)}:is(.cel s,.leyenda i):is(.sin,.ilegible){background:var(--na)}
+.leyenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.leyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--pend);position:relative}
+.leyenda i.pre::after{content:"";position:absolute;left:2px;top:2px;width:6px;height:6px;border-radius:50%;background:var(--warn)}
+aside h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 10px;display:flex;justify-content:space-between}
+aside section{margin-bottom:24px}
+.alerta{border-left:3px solid var(--bad);padding:6px 0 6px 10px;margin-bottom:8px;font-size:13px;animation:entra .3s;cursor:pointer}
+.alerta.ax{border-color:var(--warn)}.alerta.atado{border-color:var(--vio)}.alerta.pre{border-color:var(--warn);border-left-style:dashed}
+.alerta.hecha{opacity:.45}
+.alerta b{display:block}
+.alerta span{color:var(--muted)}
+.feed{list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto}
+.feed li{display:grid;grid-template-columns:44px 8px 1fr;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;animation:entra .3s}
+.feed .h{color:var(--muted);font-size:12px}
+.feed .d{width:8px;height:8px;border-radius:50%;align-self:center}
+.feed em{font-style:normal;color:var(--muted)}
+@keyframes entra{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.vacio{color:var(--muted);font-size:13px;margin:0}
+#toasts{position:fixed;right:16px;top:70px;display:grid;gap:8px;z-index:9;width:min(330px,calc(100vw - 32px))}
+.toast{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:10px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.08);font-size:13px;animation:entra .3s}
+.toast.ax{border-left-color:var(--warn)}.toast.atado{border-left-color:var(--vio)}
+.det{position:fixed;right:16px;bottom:16px;width:min(360px,calc(100vw - 32px));background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.1);z-index:8}
+.det h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.det table{width:100%;font-size:13px;border-collapse:collapse}
+.det th{font-weight:500;color:var(--muted);text-align:left;font-size:12px;padding:4px 0}
+.det td{padding:5px 0;border-top:1px solid var(--line);vertical-align:top}
+.det td small{display:block;color:var(--muted);font-size:11px}
+.dif{color:var(--bad);font-weight:600}
+.nota{font-size:12px;color:var(--muted);margin-top:28px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Auditoría de julios</h1>
+  <span class="vivo" id="vivo"><i></i><span id="vivo-t">En vivo</span></span>
+  <span class="meta">Recorrido #1 · Auditor: (en sesión) · inició <span class="num">07:02</span> · <span class="num" id="trans">00:00</span></span>
+  <button class="ctl" id="pausa" type="button">Pausar</button>
+  <button class="ctl" id="vel" type="button">×1</button>
+  <button class="ctl" id="reini" type="button">Reiniciar</button>
+</header>
+
+<main>
+  <section>
+    <div class="fuentes">
+      <span><b>Atador</b> · AtaMontadoTelas</span>
+      <span><b>AX</b> · A-EP-TEJID (ubicación = telar)</span>
+      <span><b>Piso</b> · captura del auditor</span>
+    </div>
+    <div class="cifras">
+      <div class="cifra"><b class="num" id="c-rev">0</b><span>revisados</span></div>
+      <div class="cifra"><b class="num" id="c-pct">–</b><span>acierto del atador</span></div>
+      <div class="cifra"><b class="num" id="c-pctax">–</b><span>acierto de AX</span></div>
+      <div class="cifra"><b class="num" id="c-ok" style="color:var(--ok)">0</b><span>coinciden los 3</span></div>
+      <div class="cifra"><b class="num" id="c-ax" style="color:var(--warn)">0</b><span>AX atrasado</span></div>
+      <div class="cifra"><b class="num" id="c-atado" style="color:var(--vio)">0</b><span>atado mal</span></div>
+      <div class="cifra"><b class="num" id="c-otro" style="color:var(--bad)">0</b><span>ninguno</span></div>
+    </div>
+    <div class="prog"><i id="prog" style="width:0"></i></div>
+    <div id="mapa"></div>
+    <div class="leyenda">
+      <span><i class="pre"></i>Pendiente, atador ≠ AX</span><span><i class="ok"></i>Coinciden los 3</span>
+      <span><i class="ax"></i>Piso = atador, AX atrasado</span><span><i class="atado"></i>Piso = AX, atado mal registrado</span>
+      <span><i class="otro"></i>Piso no coincide con ninguno</span><span><i class="sin"></i>Sin julio / no legible</span>
+      <span>Cada cuadro: Rizo | Pie</span>
+    </div>
+    <p class="nota">Fotografía al 11-oct (la copia de AX que se puede consultar llega a esa fecha): atador = último atado hasta el 11-oct, AX = julio en el almacén A-EP-TEJID de cada telar. Lo que “encuentra” el auditor es simulado. Karl Mayer (401, 402) queda fuera: en AX sus julios no llevan número (serie “00”).</p>
+  </section>
+
+  <aside>
+    <section>
+      <h2>Alertas <span class="num" id="n-al">0</span></h2>
+      <div id="alertas"></div>
+    </section>
+    <section>
+      <h2>Actividad</h2>
+      <ul class="feed" id="feed"></ul>
+    </section>
+  </aside>
+</main>
+
+<div id="toasts" aria-live="polite"></div>
+<div class="det" id="det" hidden></div>
+
+<script>
+// [telar, tipo, julio del atador, fecha del atado, julio en AX ("=" si es el mismo), kg que AX le da]  al 11-oct
+const D = [
+["201","Pie","01397-442","10-07","=",644],["201","Rizo","01241-488","10-08","=",259],["202","Pie","01296-473","09-25","=",240],["202","Rizo","01287-523","09-30","01252-509",456],
+["203","Pie","01401-573","10-08","=",430],["203","Rizo","01383-445","10-08","=",231],["204","Pie","01325-441","10-05","=",45],["204","Rizo","01383-499","10-07","=",474],
+["205","Pie","01339-456","10-09","01339-464",38],["205","Rizo","01411-533","10-06","=",696],["206","Pie","01220-512","10-02","=",122],["206","Rizo","01375-493","10-05","=",217],
+["207","Pie","01378-404","10-06","=",273],["207","Rizo","01391-536","10-07","=",444],["208","Pie","01407-424","10-10","01341-405",23],["208","Rizo","01412-412","10-11","01321-431",46],
+["209","Pie","01385-402","10-07","=",158],["209","Rizo","01388-413","10-06","=",361],["210","Pie","01378-408","10-08","=",359],["210","Rizo","01418-415","10-10","=",919],
+["211","Pie","01378-575","10-08","=",686],["211","Rizo","01391-429","10-08","=",323],["213","Pie","01325-467","09-30","=",491],["213","Rizo","01391-525","10-08","=",161],
+["214","Pie","01285-356","10-03","=",394],["214","Rizo","01393-471","10-05","=",424],["215","Pie","01357-469","10-04","=",77],["215","Rizo","01384-476","10-07","=",296],
+["299","Pie","01357-711","10-03","=",168],["299","Rizo","01362-738","10-03","=",5],["300","Pie","01379-741","10-07","=",535],["300","Rizo","01380-701","10-09","01356-725",5],
+["301","Pie","01379-702","10-05","=",281],["301","Rizo","01421-714","10-11","01362-729",156],["302","Pie","01379-731","10-07","=",329],["302","Rizo","01417-733","10-11","01356-713",4],
+["303","Pie","01357-596","10-06","=",518],["303","Rizo","01417-604","10-11","01367-592",93],["304","Pie","01405-603","10-11","=",124],["304","Rizo","01390-583","10-06","=",42],
+["305","Pie","01316-332","09-26","=",66],["305","Rizo","01369-507","10-05","=",257],["306","Pie","01311-497","09-25","=",26],["306","Rizo","01368-500","10-05","=",386],
+["307","Pie","01357-514","10-02","=",348],["307","Rizo","01420-455","10-08","01368-503",0],["308","Pie","01399-520","10-09","=",478],["308","Rizo","01410-503","10-10","=",439],
+["309","Pie","01350-530","10-02","=",408],["309","Rizo","01392-579","10-08","=",413],["310","Pie","01237-516","09-26","=",171],["310","Rizo","01400-506","10-09","=",1056],
+["311","Pie","01324-578","09-27","=",10],["311","Rizo","01414-737","10-10","01373-455",48],["312","Pie","01324-513","09-29","=",43],["312","Rizo","01414-707","10-10","01373-448",38],
+["313","Pie","01350-468","10-08","=",589],["313","Rizo","01404-486","10-10","=",837],["314","Pie","01311-326","09-27","=",22],["314","Rizo","01371-438","10-10","=",542],
+["315","Pie","01372-491","10-04","=",73],["315","Rizo","01333-534","10-04","=",18],["316","Pie","01387-498","10-06","=",614],["316","Rizo","01377-489","10-05","=",70],
+["317","Pie","01264-581","10-03","=",266],["317","Rizo","01394-601","10-10","=",377],["318","Pie","01030-580","10-03","=",489],["318","Rizo","01394-595","10-10","=",850],
+["319","Pie","01350-716","10-03","=",220],["319","Rizo","01380-709","10-08","=",274],["320","Pie","01350-726","10-03","=",168],["320","Rizo","01367-744","10-05","=",27]];
+// Dónde tiene AX el julio que el atador dice que montó (cuando no está en el telar).
+const AX_ALMACEN = {"01417-733":"rack P1, 1,002 kg","01414-737":"rack I2, 811 kg","01414-707":"rack P1, 808 kg","01412-412":"rack B1, 800 kg",
+  "01407-424":"rack A3, 469 kg","01380-701":"rack I2, 906 kg","01339-456":"rack B3, 607 kg"};
+
+const corto = s => s.slice(s.lastIndexOf('-') + 1);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fC = f => { const [m, d] = f.split('-'); return d + '-' + ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][m - 1]; };
+const slots = D.map(r => ({key: r[0] + '|' + r[1], telar: r[0], tipo: r[1], salon: +r[0] < 299 ? 'Jacquard' : 'Smith',
+  ata: r[2], fecha: r[3], ax: r[4] === '=' ? r[2] : r[4], kg: r[5]}));
+slots.forEach(s => s.pre = s.ata !== s.ax);
+const axDe = j => AX_ALMACEN[j] ? 'AX lo tiene en almacén (' + AX_ALMACEN[j] + ')' : 'no está en el inventario de AX';
+
+// Lo que encuentra el auditor (simulado, semilla fija): si atador y AX difieren, casi siempre gana el atador.
+let semilla = 11;
+const azar = () => (semilla = (semilla * 16807) % 2147483647) / 2147483647;
+function simular(s) {
+  const r = azar();
+  if (s.pre) return r < .8 ? {res: 'ax', piso: s.ata} : r < .92 ? {res: 'atado', piso: s.ax} : {res: 'otro', piso: slots[Math.floor(azar() * slots.length)].ata};
+  if (r < .03) return {res: 'otro', piso: slots[Math.floor(azar() * slots.length)].ata};
+  if (r < .06) return {res: 'ilegible'};
+  if (r < .07) return {res: 'sin'};
+  return {res: 'ok', piso: s.ata};
+}
+function dondeEsta(j, key) {
+  const a = slots.find(s => s.key !== key && s.ata === j), x = slots.find(s => s.key !== key && s.ax === j);
+  const p = [];
+  if (a) p.push(`el atador lo registró en ${a.telar} ${a.tipo}`);
+  if (x) p.push(`AX lo tiene en ${x.telar} ${x.tipo}`);
+  return p.length ? p.join('; ') : 'no aparece en ningún telar';
+}
+function mensaje(s, c) {
+  const A = corto(s.ata), X = corto(s.ax), P = c.piso && corto(c.piso);
+  return {
+    ok: `${A} · atador, AX y piso coinciden`,
+    ax: `piso ${P} = atador. AX sigue con el ${X} (${s.kg} kg). Falta transferir en AX.`,
+    atado: `piso ${P} = AX. El atador registró el ${A}. Revisar el atado.`,
+    otro: `piso ${P}; atador ${A}, AX ${X}. El ${P}: ${c.piso ? dondeEsta(c.piso, s.key) : ''}.`,
+    sin: 'telar sin julio', ilegible: 'etiqueta no legible'
+  }[c.res];
+}
+const COLOR = {ok: 'var(--ok)', ax: 'var(--warn)', atado: 'var(--vio)', otro: 'var(--bad)', sin: 'var(--na)', ilegible: 'var(--na)'};
+
+let caps, alertas, i, vel = 1, pausado, seg, timer;
+function iniciar() {
+  caps = {}; i = 0; seg = 0; semilla = 11; pausado = false;
+  // Antes de salir a piso: donde atador y AX no coinciden.
+  alertas = slots.filter(s => s.pre).map(s => ({key: s.key, clase: 'pre', lugar: `Telar ${s.telar} · ${s.tipo}`,
+    texto: `Atador ${corto(s.ata)} (${fC(s.fecha)}) ≠ AX ${corto(s.ax)} (${s.kg} kg). El ${corto(s.ata)}: ${axDe(s.ata)}.`}));
+  document.getElementById('feed').innerHTML = '';
+  document.getElementById('pausa').textContent = 'Pausar';
+  vivo('En vivo', false);
+  render(); ciclo();
+}
+const ahora = () => { const m = 2 + Math.floor(seg / 60); return '07:' + String(m).padStart(2, '0'); };
+
+function paso() {
+  if (i >= slots.length) return terminar();
+  const s = slots[i++], c = {...simular(s), hora: ahora()};
+  caps[s.key] = c;
+  const lugar = `Telar ${s.telar} · ${s.tipo}`;
+  const li = document.createElement('li');
+  li.innerHTML = `<span class="h num">${c.hora}</span><span class="d" style="background:${COLOR[c.res]}"></span><span><b>${esc(lugar)}</b> <em>${esc(mensaje(s, c))}</em></span>`;
+  document.getElementById('feed').prepend(li);
+  const previa = alertas.find(a => a.key === s.key && a.clase === 'pre');
+  if (previa) previa.hecha = true;
+  if (['ax', 'atado', 'otro'].includes(c.res)) {
+    const a = {key: s.key, clase: c.res, lugar, texto: mensaje(s, c)};
+    alertas.unshift(a); toast(a);
+  }
+  render();
+}
+function toast(a) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + a.clase;
+  t.innerHTML = `<b>${esc(a.lugar)}</b><br>${esc(a.texto)}`;
+  document.getElementById('toasts').prepend(t);
+  setTimeout(() => t.remove(), 5000);
+}
+
+function render() {
+  const v = Object.values(caps), n = r => v.filter(x => x.res === r).length;
+  const leidos = v.length - n('ilegible') - n('sin');
+  const pct = x => leidos ? Math.round(x / leidos * 100) + '%' : '–';
+  document.getElementById('c-rev').innerHTML = `${v.length}<small style="font-size:15px;color:var(--muted)">/${slots.length}</small>`;
+  document.getElementById('c-pct').textContent = pct(n('ok') + n('ax'));
+  document.getElementById('c-pctax').textContent = pct(n('ok') + n('atado'));
+  ['ok', 'ax', 'atado', 'otro'].forEach(r => document.getElementById('c-' + r).textContent = n(r));
+  document.getElementById('prog').style.width = (v.length / slots.length * 100) + '%';
+
+  const actual = slots[i]?.telar;
+  let h = '';
+  ['Jacquard', 'Smith'].forEach(salon => {
+    h += `<p class="salon">${salon}</p><div class="mapa">`;
+    [...new Set(slots.filter(s => s.salon === salon).map(s => s.telar))].forEach(t => {
+      const cel = ['Rizo', 'Pie'].map(tp => { const s = slots.find(x => x.telar === t && x.tipo === tp); const c = caps[s.key];
+        return `<s class="${c ? c.res : (s.pre ? 'pre' : '')}"></s>`; }).join('');
+      h += `<button class="tl${t === actual && !pausado ? ' ahora' : ''}" type="button" data-t="${t}" aria-label="Telar ${t}"><span class="cel">${cel}</span><small class="num">${t}</small></button>`;
+    });
+    h += '</div>';
+  });
+  document.getElementById('mapa').innerHTML = h;
+
+  const abiertas = alertas.filter(a => !a.hecha);
+  document.getElementById('n-al').textContent = abiertas.length;
+  const orden = [...abiertas, ...alertas.filter(a => a.hecha)];
+  document.getElementById('alertas').innerHTML = orden.length
+    ? orden.slice(0, 8).map(a => `<div class="alerta ${a.clase}${a.hecha ? ' hecha' : ''}" data-t="${a.key.split('|')[0]}"><b>${esc(a.lugar)}${a.clase === 'pre' ? ' · antes de salir' : ''}</b><span>${esc(a.texto)}</span></div>`).join('')
+      + (orden.length > 8 ? `<p class="vacio">y ${orden.length - 8} más</p>` : '')
+    : '<p class="vacio">Sin alertas.</p>';
+}
+
+function detalle(t) {
+  const filas = slots.filter(s => s.telar === t).map(s => {
+    const c = caps[s.key];
+    const piso = c ? (c.piso ? corto(c.piso) : (c.res === 'sin' ? 'sin julio' : 'no legible')) : 'pendiente';
+    const difPiso = c && c.piso && (c.piso !== s.ata || c.piso !== s.ax);
+    return `<tr><td>${s.tipo}</td>
+      <td>${corto(s.ata)}<small>${fC(s.fecha)}</small></td>
+      <td class="${s.pre ? 'dif' : ''}">${corto(s.ax)}<small>${s.kg} kg</small></td>
+      <td class="${difPiso ? 'dif' : ''}" style="${c ? 'color:' + COLOR[c.res] : 'color:var(--muted)'}">${esc(piso)}</td></tr>`;
+  }).join('');
+  const notas = slots.filter(s => s.telar === t && s.pre).map(s => `<p class="vacio" style="margin-top:8px">${s.tipo}: el ${corto(s.ata)} del atador → ${esc(axDe(s.ata))}.</p>`).join('');
+  const d = document.getElementById('det');
+  d.innerHTML = `<h3>Telar ${esc(t)} <button class="ctl" type="button" id="cerrar-det" aria-label="Cerrar">✕</button></h3>
+    <table><tr><th></th><th>Atador</th><th>AX</th><th>Piso</th></tr>${filas}</table>${notas}`;
+  d.hidden = false;
+}
+
+function ciclo() { clearInterval(timer); timer = setInterval(() => { if (!pausado) { seg += 23; paso(); document.getElementById('trans').textContent = String(Math.floor(seg / 60)).padStart(2, '0') + ':' + String(seg % 60).padStart(2, '0'); } }, 1500 / vel); }
+function vivo(texto, pausa) { document.getElementById('vivo').classList.toggle('pausa', pausa); document.getElementById('vivo-t').textContent = texto; }
+function terminar() { clearInterval(timer); pausado = true; vivo('Recorrido terminado', true); render(); }
+
+document.getElementById('pausa').onclick = e => {
+  if (i >= slots.length) return;
+  pausado = !pausado; e.target.textContent = pausado ? 'Reanudar' : 'Pausar';
+  vivo(pausado ? 'En pausa' : 'En vivo', pausado); render();
+};
+document.getElementById('vel').onclick = e => { vel = vel === 1 ? 4 : 1; e.target.textContent = '×' + vel; ciclo(); };
+document.getElementById('reini').onclick = iniciar;
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-t]'); if (t) return detalle(t.dataset.t);
+  if (e.target.id === 'cerrar-det') document.getElementById('det').hidden = true;
+});
+
+iniciar();
+</script>
+</body>
+</html>
