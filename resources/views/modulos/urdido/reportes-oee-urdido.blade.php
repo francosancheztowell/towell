@@ -4,10 +4,8 @@
 @section('page-title', 'OEE Urdido')
 
 @php
-    use App\Services\Urdido\OeeUrdidoService;
     $num = fn (float $v, int $d = 0) => number_format($v, $d);
     $opcionesMes = collect(range(0, 17))->map(fn ($i) => now()->startOfMonth()->subMonths($i));
-    $nombreTipo = ['Mecanico' => 'Mecánico', 'Electrico' => 'Eléctrico'];
 @endphp
 
 @section('navbar-right')
@@ -21,7 +19,7 @@
 @section('content')
     <div class="pantalla-completa bg-white">
         <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-2 pb-6 md:px-4">
-            {{-- Consulta: meses (varios) y qué paros cuentan. Siempre solo julios finalizados. --}}
+            {{-- Consulta: meses (varios). Siempre solo julios finalizados; cuentan todos los paros de Urdido. --}}
             <form id="oee-consulta" method="GET" action="{{ route('urdido.reportes.urdido.oee') }}" class="flex shrink-0 flex-wrap items-end gap-x-6 gap-y-3">
                 <div class="w-full sm:w-80">
                     <flux:label for="oee-meses" class="mb-1.5">Meses</flux:label>
@@ -33,17 +31,6 @@
                         @endforeach
                     </select>
                 </div>
-                <fieldset>
-                    <legend class="mb-1.5 text-sm font-medium text-zinc-800">Paros que cuentan</legend>
-                    <div class="flex flex-wrap gap-x-5">
-                        @foreach (OeeUrdidoService::TIPOS as $tipo)
-                            <label class="flex min-h-touch items-center gap-2 text-sm text-zinc-700">
-                                <flux:checkbox name="tipos[]" value="{{ $tipo }}" :checked="in_array($tipo, $tipos, true)" />
-                                {{ $nombreTipo[$tipo] ?? $tipo }}
-                            </label>
-                        @endforeach
-                    </div>
-                </fieldset>
                 <flux:button type="submit" variant="primary" icon="magnifying-glass" class="min-h-touch">Consultar</flux:button>
             </form>
 
@@ -54,7 +41,7 @@
                 </div>
             @else
                 {{-- Resumen del periodo. Sin Calidad ni OEE por ahora (decisión del owner): solo lo medido, para analizarlo. --}}
-                <section class="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 tabular-nums md:grid-cols-4" aria-label="Resumen del periodo">
+                <section class="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 tabular-nums md:grid-cols-5" aria-label="Resumen del periodo">
                     <div class="bg-white px-4 py-3">
                         <p class="text-sm text-slate-500">Julios</p>
                         <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['julios']) }}</p>
@@ -68,8 +55,12 @@
                         <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['minutos']) }}</p>
                     </div>
                     <div class="bg-white px-4 py-3">
-                        <p class="text-sm text-slate-500">Min. paro</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['paro']) }}</p>
+                        <p class="text-sm text-slate-500">Min. paro necesario</p>
+                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['paro_nec']) }}</p>
+                    </div>
+                    <div class="bg-white px-4 py-3">
+                        <p class="text-sm text-slate-500">Min. oportunidad</p>
+                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['paro_oport']) }}</p>
                     </div>
                 </section>
 
@@ -88,14 +79,15 @@
                                 <details class="group">
                                     {{-- Una máquina por renglón. Anchos fijos: los números de todas las máquinas quedan en columna.
                                          Abierta se pinta de azul para separarla de las demás. --}}
-                                    <summary class="sticky top-0 z-20 grid min-h-touch sm:h-16 cursor-pointer list-none grid-cols-2 bg-white items-center gap-x-6 gap-y-2 px-4 py-2.5 hover:bg-slate-50 group-open:bg-blue-600 group-open:text-white group-open:hover:bg-blue-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500 sm:grid-cols-[minmax(10rem,1fr)_repeat(4,8rem)] [&::-webkit-details-marker]:hidden">
+                                    <summary class="sticky top-0 z-20 grid min-h-touch sm:h-16 cursor-pointer list-none grid-cols-2 bg-white items-center gap-x-6 gap-y-2 px-4 py-2.5 hover:bg-slate-50 group-open:bg-blue-600 group-open:text-white group-open:hover:bg-blue-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500 sm:grid-cols-[minmax(10rem,1fr)_repeat(5,8rem)] [&::-webkit-details-marker]:hidden">
                                         <span class="col-span-2 flex items-center gap-3 sm:col-span-1">
                                             <i class="fa-solid fa-chevron-right w-3 text-xs text-slate-400 transition-transform group-open:rotate-90 group-open:text-blue-100" aria-hidden="true"></i>
                                             <i class="fa-solid fa-gears text-blue-600 group-open:text-blue-100" aria-hidden="true"></i>
                                             <span class="text-base font-semibold text-slate-900 group-open:text-white">{{ $maq['nombre'] }}</span>
                                         </span>
                                         @foreach ([['Julios', $num($maq['tot']['julios'])], ['Kg', $num($maq['tot']['kg'], 1)],
-                                            ['Min prod.', $num($maq['tot']['minutos'])], ['Min paro', $num($maq['tot']['paro'])]] as [$etq, $valor])
+                                            ['Min prod.', $num($maq['tot']['minutos'])], ['Paro nec.', $num($maq['tot']['paro_nec'])],
+                                            ['Oportunidad', $num($maq['tot']['paro_oport'])]] as [$etq, $valor])
                                             <span class="tabular-nums sm:text-right">
                                                 <span class="block text-caption text-slate-500 group-open:text-blue-100">{{ $etq }}</span>
                                                 <span class="block font-semibold text-slate-900 group-open:text-white">{{ $valor }}</span>
@@ -125,7 +117,8 @@
                                                         <th>H. inicio</th>
                                                         <th>H. final</th>
                                                         <th class="n">Min prod.</th>
-                                                        <th class="n">Min paro</th>
+                                                        <th class="n">Paro nec.</th>
+                                                        <th class="n">Oport.</th>
                                                         <th class="g">Defecto</th>
                                                         <th class="n">Pen.</th>
                                                         <th>Oficial</th>
@@ -135,7 +128,7 @@
                                                     @foreach (collect($maq['julios'])->groupBy('dia') as $dia => $delDia)
                                                         {{-- Fila del día arriba de sus julios (en vez de repetirlo en cada renglón). --}}
                                                         <tr class="bg-slate-200/70 text-slate-800 [&>td]:border-slate-300">
-                                                            <td colspan="13" class="py-1! font-semibold">
+                                                            <td colspan="14" class="py-1! font-semibold">
                                                                 <i class="fa-regular fa-calendar me-1.5 text-slate-500" aria-hidden="true"></i>{{ $dia }}
                                                                 <span class="ms-2 font-normal text-slate-600">· {{ $delDia->count() }} julios · {{ $num($delDia->sum('kg'), 1) }} kg</span>
                                                             </td>
@@ -151,7 +144,8 @@
                                                                 <td>{{ $j['hora'] }}</td>
                                                                 <td>{{ $j['hora_fin'] }}</td>
                                                                 <td class="n">{{ $num($j['minutos']) }}</td>
-                                                                <td class="n">{{ $num($j['paro'], 1) }}</td>
+                                                                <td class="n">{{ $num($j['paro_nec'], 1) }}</td>
+                                                                <td class="n">{{ $num($j['paro_oport'], 1) }}</td>
                                                                 <td class="g">
                                                                     @if ($j['defecto'])
                                                                         <span title="{{ $j['defecto_nombre'] }}" class="cursor-help rounded-md bg-red-400/15 px-1.5 py-0.5 text-xs font-medium text-red-700">{{ $j['defecto'] }}</span>
@@ -169,7 +163,8 @@
                                                         <td class="n">{{ $num($maq['tot']['metros']) }}</td>
                                                         <td colspan="2"></td>
                                                         <td class="n">{{ $num($maq['tot']['minutos']) }}</td>
-                                                        <td class="n">{{ $num($maq['tot']['paro'], 1) }}</td>
+                                                        <td class="n">{{ $num($maq['tot']['paro_nec'], 1) }}</td>
+                                                        <td class="n">{{ $num($maq['tot']['paro_oport'], 1) }}</td>
                                                         <td colspan="2" class="g"></td>
                                                         <td></td>
                                                     </tr>

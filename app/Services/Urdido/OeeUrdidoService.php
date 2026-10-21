@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Urdido;
 
+use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Services\Costos\CuotasUrdidoService;
@@ -17,28 +18,27 @@ use Carbon\CarbonImmutable;
  *    (los paros se cierran días tarde mientras la máquina sigue urdiendo).
  *  - Los minutos de paro de cada máquina+semana ISO (partida por mes) se prorratean entre sus julios por
  *    minutos de producción; un paro sin julios en esa semana queda en el total de la máquina.
+ *  - El paro se parte en necesario (CatParosFallas.Necesario = 1) y de oportunidad (el resto); un tramo
+ *    con paros de las dos clases a la vez cuenta como necesario, para no contarlo dos veces.
  *  - Disponibilidad = prod ÷ (prod + paro); Rendimiento = 100 % (no hay velocidad estándar);
  *    Calidad = kg sin defecto ÷ kg.
  */
 final class OeeUrdidoService
 {
-    public const TIPOS = ['Tiempo Muerto', 'Mecanico', 'Electrico', 'Calidad'];
-
     public const MAQUINAS = ['MCCOY1' => 'Mc Coy 1', 'MCCOY2' => 'Mc Coy 2', 'MCCOY3' => 'Mc Coy 3', 'KM1' => 'KM1'];
 
-    private const SUMAS = ['julios' => 0, 'kg' => 0.0, 'kg_buenos' => 0.0, 'metros' => 0.0, 'minutos' => 0.0, 'paro' => 0.0];
+    private const SUMAS = ['julios' => 0, 'kg' => 0.0, 'kg_buenos' => 0.0, 'metros' => 0.0, 'minutos' => 0.0, 'paro_nec' => 0.0, 'paro_oport' => 0.0];
 
     /**
      * @param  list<string>  $meses  'Y-m'
-     * @param  list<string>  $tipos  subconjunto de TIPOS
      */
-    public function reporte(array $meses, array $tipos): array
+    public function reporte(array $meses): array
     {
         sort($meses);
         $desde = CarbonImmutable::parse($meses[0].'-01');
         $hasta = CarbonImmutable::parse(end($meses).'-01')->addMonth();
 
-        return self::armar($meses, $this->julios($desde, $hasta), $tipos === [] ? [] : $this->paros($desde, $hasta, $tipos));
+        return self::armar($meses, $this->julios($desde, $hasta), $this->paros($desde, $hasta));
     }
 
     /**
@@ -46,7 +46,7 @@ final class OeeUrdidoService
      *
      * @param  list<string>  $meses
      * @param  list<array<string, mixed>>  $julios  ver julios(); 'finalizado' false solo sirve de ventana
-     * @param  array<string, list<array{0: int, 1: int}>>  $paros  por máquina, sin unir
+     * @param  array<string, list<array{0: int, 1: int, 2?: bool}>>  $paros  por máquina, sin unir; [2] = necesario
      */
     public static function armar(array $meses, array $julios, array $paros): array
     {
@@ -59,13 +59,13 @@ final class OeeUrdidoService
                 // el reporte agrupa Mes → Máquina.
                 $maquina = ['nombre' => $nombre, 'julios' => [], 'tot' => self::SUMAS];
                 foreach (self::segmentos($mes) as [$s0, $s1]) {
-                    $grupo = self::grupo($nombre, $julios, $maq, $s0, $s1, self::paroLibre($paros[$maq] ?? [], $ventanas[$maq] ?? [], $s0, $s1));
+                    $grupo = self::grupo($nombre, $julios, $maq, $s0, $s1, ...self::paroLibre($paros[$maq] ?? [], $ventanas[$maq] ?? [], $s0, $s1));
                     if ($grupo !== null) {
                         $maquina['julios'] = [...$maquina['julios'], ...$grupo['julios']];
                         $maquina['tot'] = self::sumarTot($maquina['tot'], $grupo['tot']);
                     }
                 }
-                if ($maquina['julios'] !== [] || $maquina['tot']['paro'] > 0) {
+                if ($maquina['julios'] !== [] || $maquina['tot']['paro_nec'] + $maquina['tot']['paro_oport'] > 0) {
                     $delMes['maquinas'][$maq] = $maquina;
                     $delMes['tot'] = self::sumarTot($delMes['tot'], $maquina['tot']);
                 }
@@ -91,20 +91,20 @@ final class OeeUrdidoService
     }
 
     /** Julios finalizados de la máquina en [s0, s1) con su paro prorrateado; null si no hay julios ni paro. */
-    private static function grupo(string $nombre, array $julios, string $maq, int $s0, int $s1, float $paro): ?array
+    private static function grupo(string $nombre, array $julios, string $maq, int $s0, int $s1, float $nec, float $oport): ?array
     {
         [$d0, $d1] = [date('Y-m-d', $s0), date('Y-m-d', $s1)];
         $delGrupo = array_values(array_filter($julios, fn ($j) => $j['finalizado'] && $j['maquina'] === $maq && $j['fecha'] >= $d0 && $j['fecha'] < $d1));
-        if ($delGrupo === [] && $paro <= 0) {
+        if ($delGrupo === [] && $nec + $oport <= 0) {
             return null;
         }
-        $grupo = ['nombre' => $nombre, 'julios' => self::prorratear($delGrupo, $paro), 'tot' => self::SUMAS];
+        $grupo = ['nombre' => $nombre, 'julios' => self::prorratear($delGrupo, $nec, $oport), 'tot' => self::SUMAS];
         foreach ($grupo['julios'] as $j) {
             $grupo['tot'] = self::sumar($grupo['tot'], $j);
         }
         // Paro sin julios en la semana (máquina parada toda la semana): solo en el subtotal.
         if ($grupo['julios'] === []) {
-            $grupo['tot']['paro'] = $paro;
+            [$grupo['tot']['paro_nec'], $grupo['tot']['paro_oport']] = [$nec, $oport];
         }
 
         return $grupo;
@@ -113,7 +113,8 @@ final class OeeUrdidoService
     /** Disponibilidad, rendimiento, calidad y OEE (0–1) de un total o de un julio. */
     public static function indicadores(array $t): array
     {
-        $disp = ($t['minutos'] + $t['paro']) > 0 ? $t['minutos'] / ($t['minutos'] + $t['paro']) : null;
+        $paro = $t['paro_nec'] + $t['paro_oport'];
+        $disp = ($t['minutos'] + $paro) > 0 ? $t['minutos'] / ($t['minutos'] + $paro) : null;
         $cal = $t['kg'] > 0 ? $t['kg_buenos'] / $t['kg'] : null;
         $rend = 1.0; // ponytail: sin velocidad estándar de urdido; reemplazar por real ÷ estándar cuando exista
 
@@ -141,21 +142,31 @@ final class OeeUrdidoService
         return $salida;
     }
 
-    /** Minutos de paro de la máquina dentro de [s0, s1) que no caen en ningún julio. */
-    private static function paroLibre(array $paros, array $ventanas, int $s0, int $s1): float
+    /**
+     * Minutos de paro de la máquina dentro de [s0, s1) que no caen en ningún julio: [necesario, oportunidad].
+     *
+     * @return array{0: float, 1: float}
+     */
+    private static function paroLibre(array $paros, array $ventanas, int $s0, int $s1): array
     {
-        $p = Tramos::unir($paros, $s0, $s1);
-        $total = array_sum(array_map(fn ($t) => $t[1] - $t[0], $p));
+        $v = Tramos::unir($ventanas, $s0, $s1);
+        $libre = function (array $tramos) use ($v, $s0, $s1): float {
+            $p = Tramos::unir($tramos, $s0, $s1);
 
-        return ($total - Tramos::cruce($p, Tramos::unir($ventanas, $s0, $s1))) / 60;
+            return (array_sum(array_map(fn ($t) => $t[1] - $t[0], $p)) - Tramos::cruce($p, $v)) / 60;
+        };
+        $nec = $libre(array_filter($paros, fn ($p) => $p[2] ?? false));
+
+        return [$nec, $libre($paros) - $nec];
     }
 
-    /** Reparte $paro entre los julios por sus minutos de producción. */
-    private static function prorratear(array $julios, float $paro): array
+    /** Reparte el paro necesario y el de oportunidad entre los julios por sus minutos de producción. */
+    private static function prorratear(array $julios, float $nec, float $oport): array
     {
         $base = array_sum(array_column($julios, 'minutos'));
+        $parte = fn ($j) => $base > 0 ? $j['minutos'] / $base : 0.0;
 
-        return array_map(fn ($j) => $j + ['paro' => $base > 0 ? $paro * $j['minutos'] / $base : 0.0], $julios);
+        return array_map(fn ($j) => $j + ['paro_nec' => $nec * $parte($j), 'paro_oport' => $oport * $parte($j)], $julios);
     }
 
     private static function sumar(array $tot, array $j): array
@@ -165,7 +176,8 @@ final class OeeUrdidoService
         $tot['kg_buenos'] += $j['kg_buenos'];
         $tot['metros'] += $j['metros'];
         $tot['minutos'] += $j['minutos'];
-        $tot['paro'] += $j['paro'];
+        $tot['paro_nec'] += $j['paro_nec'];
+        $tot['paro_oport'] += $j['paro_oport'];
 
         return $tot;
     }
@@ -225,20 +237,24 @@ final class OeeUrdidoService
             ->all();
     }
 
-    /** Paros cerrados de Urdido que tocan el periodo, por máquina (los abiertos se ignoran). */
-    private function paros(CarbonImmutable $desde, CarbonImmutable $hasta, array $tipos): array
+    /** Paros cerrados de Urdido que tocan el periodo, por máquina (los abiertos se ignoran): [inicio, fin, necesario]. */
+    private function paros(CarbonImmutable $desde, CarbonImmutable $hasta): array
     {
         $ts = fn ($f, $h) => strtotime(($f instanceof \DateTimeInterface ? $f->format('Y-m-d') : substr((string) $f, 0, 10)).' '.substr((string) $h, 0, 8));
+        // ManFallasParos.Falla guarda el código (CatParosFallas.Falla), no la descripción.
+        $necesarios = CatParosFallas::query()
+            ->where('Departamento', 'URDIDO')->where('Necesario', true)
+            ->get(['TipoFallaId', 'Falla'])
+            ->mapWithKeys(fn ($c) => [$c->TipoFallaId.'|'.$c->Falla => true]);
 
         return ManFallasParos::query()
             ->where('Depto', 'Urdido')
             ->whereNotNull('FechaFin')->whereNotNull('HoraFin')
             ->where('Fecha', '<', $hasta->toDateString())
             ->where('FechaFin', '>=', $desde->toDateString())
-            ->whereIn('TipoFallaId', $tipos)
-            ->get(['MaquinaId', 'Fecha', 'Hora', 'FechaFin', 'HoraFin'])
+            ->get(['MaquinaId', 'Fecha', 'Hora', 'FechaFin', 'HoraFin', 'TipoFallaId', 'Falla'])
             ->groupBy(fn ($p) => self::maquina($p->MaquinaId))
-            ->map(fn ($l) => $l->map(fn ($p) => [$ts($p->Fecha, $p->Hora), $ts($p->FechaFin, $p->HoraFin)])->all())
+            ->map(fn ($l) => $l->map(fn ($p) => [$ts($p->Fecha, $p->Hora), $ts($p->FechaFin, $p->HoraFin), $necesarios->has($p->TipoFallaId.'|'.$p->Falla)])->all())
             ->all();
     }
 

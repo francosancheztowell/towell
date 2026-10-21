@@ -17,11 +17,11 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class OeeUrdidoExport implements FromArray, WithColumnWidths, WithStyles, WithTitle
 {
     private const ENCABEZADO = ['Mes', 'Máquina', 'Fecha', 'Día', 'Hora', 'Orden', 'No. julio', 'Número de L.MAT', 'Código de artículo',
-        'Configuración', 'Tamaño', 'Color', 'Almacén', 'Kg', 'Minutos prod', 'Min paros',
+        'Configuración', 'Tamaño', 'Color', 'Almacén', 'Kg', 'Minutos prod', 'Min paro necesario', 'Min oportunidad',
         'Defecto', 'Penalización (pts)', 'Julios', 'Oficial'];
 
     /** Ancho por columna, en el orden de ENCABEZADO. */
-    private const ANCHOS = [14, 11, 11, 16, 7, 8, 9, 24, 15, 14, 12, 7, 11, 13, 12, 10, 9, 17, 8, 45];
+    private const ANCHOS = [14, 11, 11, 16, 7, 8, 9, 24, 15, 14, 12, 7, 11, 13, 12, 18, 15, 9, 17, 8, 45];
 
     /** @var list<int> filas (1-based) de subtotales, en negritas */
     private array $subtotales = [];
@@ -74,9 +74,9 @@ class OeeUrdidoExport implements FromArray, WithColumnWidths, WithStyles, WithTi
         return [...$etiquetas, ...array_fill(0, 11, null), ...$this->medidas($t), null, null, $t['julios'], null];
     }
 
-    /** Cantidad, Minutos prod, Min paros. Sin porcentajes por ahora: los calcula quien analiza. */
+    /** Cantidad, Minutos prod, Min paro necesario, Min oportunidad. Sin porcentajes por ahora: los calcula quien analiza. */
     private function medidas(array $t): array
     {
-        return [round($t['kg'], 1), round($t['minutos']), round($t['paro'], 1)];
+        return [round($t['kg'], 1), round($t['minutos']), round($t['paro_nec'], 1), round($t['paro_oport'], 1)];
     }
 }

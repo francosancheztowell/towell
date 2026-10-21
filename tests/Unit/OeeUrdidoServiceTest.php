@@ -23,9 +23,10 @@ class OeeUrdidoServiceTest extends TestCase
         $r = OeeUrdidoService::armar(['2026-10'], $julios, $paros);
         $maq = $r['meses']['2026-10']['maquinas']['MCCOY1'];
 
-        $this->assertEqualsWithDelta(20.0, $maq['julios'][0]['paro'], 0.01);
-        $this->assertEqualsWithDelta(40.0, $maq['julios'][1]['paro'], 0.01);
-        $this->assertEqualsWithDelta(60.0, $r['tot']['paro'], 0.01);
+        $this->assertEqualsWithDelta(20.0, $maq['julios'][0]['paro_oport'], 0.01);
+        $this->assertEqualsWithDelta(40.0, $maq['julios'][1]['paro_oport'], 0.01);
+        $this->assertEqualsWithDelta(60.0, $r['tot']['paro_oport'], 0.01);
+        $this->assertSame(0.0, $r['tot']['paro_nec']);
 
         $i = OeeUrdidoService::indicadores($r['tot']);
         $this->assertEqualsWithDelta(180 / 240, $i['disp'], 0.0001);
@@ -43,6 +44,20 @@ class OeeUrdidoServiceTest extends TestCase
         $km = $r['meses']['2026-10']['maquinas']['KM1'];
 
         $this->assertSame([], $km['julios']);
-        $this->assertEqualsWithDelta(120.0, $km['tot']['paro'], 0.01); // recortado al 1 de octubre
+        $this->assertEqualsWithDelta(120.0, $km['tot']['paro_oport'], 0.01); // recortado al 1 de octubre
+    }
+
+    public function test_paro_necesario_y_de_oportunidad_sin_contar_dos_veces_lo_encimado(): void
+    {
+        // Necesario 13:00–14:00; oportunidad 13:30–15:00. Lo encimado (13:30–14:00) cuenta como necesario.
+        $paros = ['MCCOY1' => [
+            [strtotime('2026-10-07 13:00'), strtotime('2026-10-07 14:00'), true],
+            [strtotime('2026-10-07 13:30'), strtotime('2026-10-07 15:00'), false],
+        ]];
+
+        $r = OeeUrdidoService::armar(['2026-10'], [$this->julio('2026-10-07', '08:00', 60)], $paros);
+
+        $this->assertEqualsWithDelta(60.0, $r['tot']['paro_nec'], 0.01);
+        $this->assertEqualsWithDelta(60.0, $r['tot']['paro_oport'], 0.01);
     }
 }
