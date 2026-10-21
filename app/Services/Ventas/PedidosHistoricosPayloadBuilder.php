@@ -95,11 +95,14 @@ final class PedidosHistoricosPayloadBuilder
         return trim((string) $valor);
     }
 
-    /** '2026-10-01 00:00:00.000' → '01/10/2026'; sin fecha (p. ej. aún sin facturar) → ''. */
+    /**
+     * '2026-10-01 00:00:00.000' → '01/10/2026'; sin fecha (p. ej. aún sin facturar) → ''. Años previos a
+     * 2000 son relleno (1900-01-01, o 1905-07-17 en FECHACREADO: el año 2026 guardado como fecha).
+     */
     private function fecha(mixed $valor): string
     {
         $texto = $this->texto($valor);
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $texto, $partes) !== 1 || $partes[1] === '1900') {
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $texto, $partes) !== 1 || (int) $partes[1] < 2000) {
             return '';
         }
 

@@ -1,6 +1,6 @@
 /**
  * Reglas puras de Pedidos Históricos (sin DOM ni imports, para probarlas con node --test).
- * Jerarquía: Empresa > Tipo de pedido > Cliente > OC > artículo. Los datos del artículo
+ * Jerarquía: Mes > Empresa > Tipo de pedido > Cliente > OC > artículo. Los datos del artículo
  * (tamaño, color, precio, fechas) solo existen en la hoja, así que viajan con ella en vez
  * de ocupar columnas que quedarían vacías en los niveles de grupo.
  */
@@ -16,12 +16,15 @@ type TextField = typeof TEXT_FIELDS[number];
 type NumberField = typeof NUMBER_FIELDS[number];
 
 export type PedidosPayload = { v: number; anio: string; sf: string[]; nf: string[]; dict: string[]; rows: number[][] };
-export type PedidoLinea = Record<TextField | 'anio' | 'estatus', string> & Record<NumberField, number>;
+/** periodo = 'aaaa-mm' de creación: agrupa por mes sin mezclar años y ordena como texto. */
+export type PedidoLinea = Record<TextField | 'anio' | 'periodo' | 'estatus', string> & Record<NumberField, number>;
 
-export const LEVELS = ['empresa', 'tipo', 'cliente', 'oc'] as const;
+export const LEVELS = ['periodo', 'empresa', 'tipo', 'cliente', 'oc'] as const;
 export type Level = typeof LEVELS[number];
 
-export const LEVEL_LABELS: Record<Level, string> = { empresa: 'Empresa', tipo: 'Tipo de pedido', cliente: 'Cliente', oc: 'Orden de compra' };
+export const LEVEL_LABELS: Record<Level, string> = {
+    periodo: 'Mes', empresa: 'Empresa', tipo: 'Tipo de pedido', cliente: 'Cliente', oc: 'Orden de compra',
+};
 
 export type Totals = { cantidad: number; entregado: number; pendiente: number; importe: number };
 
@@ -46,6 +49,12 @@ export const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio
 
 export const monthName = (mes: string) => MONTH_NAMES[Number(mes) - 1] ?? mes;
 
+/** '2026-08' → 'Agosto 2026'. */
+export const periodLabel = (periodo: string) => {
+    const [anio = '', mes = ''] = periodo.split('-');
+    return `${monthName(mes)} ${anio}`.trim();
+};
+
 /** Convierte el payload compacto (índices al diccionario) en líneas. Rechaza formatos que no conoce. */
 export const decodePedidos = (payload: PedidosPayload): PedidoLinea[] => {
     if (payload.v !== PAYLOAD_VERSION) throw new Error(`Formato de Pedidos Históricos no soportado: v${payload.v}`);
@@ -57,6 +66,7 @@ export const decodePedidos = (payload: PedidosPayload): PedidoLinea[] => {
         const line = { anio: String(payload.anio) } as PedidoLinea;
         TEXT_FIELDS.forEach((field, i) => { line[field] = payload.dict[row[textIndex[i]!]!] ?? ''; });
         NUMBER_FIELDS.forEach((field, i) => { line[field] = Number(row[payload.sf.length + numberIndex[i]!]) || 0; });
+        line.periodo = `${line.anio}-${line.mes.padStart(2, '0')}`;
         line.estatus = line.pendiente > 0 ? ESTATUS.pendiente : ESTATUS.completo;
         return line;
     });
@@ -92,6 +102,8 @@ const BUSINESS_ORDER: Partial<Record<Level, string[]>> = {
 };
 
 const compareValues = (level: Level, a: string, b: string) => {
+    // Meses del más reciente al más antiguo.
+    if (level === 'periodo') return b.localeCompare(a);
     const order = BUSINESS_ORDER[level];
     if (order) {
         const rank = (value: string) => { const i = order.indexOf(value.trim().toLowerCase()); return i === -1 ? order.length : i; };

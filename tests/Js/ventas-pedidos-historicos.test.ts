@@ -1,17 +1,17 @@
 // Pedidos Históricos (Ventas > Compara): decodificación del payload, filtros y árbol
-// Empresa > Tipo > Cliente > OC con los artículos como hojas.
+// Mes > Empresa > Tipo > Cliente > OC con los artículos como hojas.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
-    ESTATUS, FILTER_KEYS, buildTree, decodePedidos, isOpen, matchesLine, progress, sumLines,
+    ESTATUS, FILTER_KEYS, buildTree, decodePedidos, isOpen, matchesLine, periodLabel, progress, sumLines,
     type Filters, type PedidosPayload,
 } from '../../resources/js/ventas/pedidos-logica.ts'
 
 const SF = ['mes', 'empresa', 'tipo', 'cliente', 'oc', 'articulo', 'nombre', 'talla', 'colorId', 'color', 'codigo', 'creado', 'facturado']
 const NF = ['precio', 'cantidad', 'entregado', 'pendiente', 'importe']
 
-const payload = (rows: (string | number)[][]): PedidosPayload => {
+const payload = (rows: (string | number)[][], anio = '2026'): PedidosPayload => {
     const dict: string[] = []
     const encoded = rows.map((row) => row.map((value, i) => {
         if (i >= SF.length) return value as number
@@ -20,7 +20,7 @@ const payload = (rows: (string | number)[][]): PedidosPayload => {
         dict.push(String(value))
         return dict.length - 1
     }))
-    return { v: 1, anio: '2026', sf: SF, nf: NF, dict, rows: encoded }
+    return { v: 1, anio, sf: SF, nf: NF, dict, rows: encoded }
 }
 
 const linea = (cambios: Partial<Record<string, string | number>> = {}) => {
@@ -60,6 +60,28 @@ test('filtros vacíos dejan pasar todo; uno con valores exige coincidencia', () 
     assert.ok(matchesLine(towel!, filtros, 'empresa'), 'el propio filtro se ignora al calcular sus opciones')
 })
 
+test('el árbol agrupa por mes de creación, del más reciente al más antiguo, aunque abarque varios años', () => {
+    const lineas = [
+        ...decodePedidos(payload([linea({ mes: '11', importe: 5 })], '2025')),
+        ...decodePedidos(payload([linea({ mes: '8', importe: 7 }), linea({ mes: '10', importe: 1 }), linea({ mes: '10', importe: 2 })])),
+    ]
+    const arbol = buildTree(lineas)
+
+    assert.deepEqual(arbol.map((nodo) => nodo.level), ['periodo', 'periodo', 'periodo'])
+    assert.deepEqual(arbol.map((nodo) => nodo.value), ['2026-10', '2026-08', '2025-11'])
+    assert.deepEqual(arbol.map((nodo) => periodLabel(nodo.value)), ['Octubre 2026', 'Agosto 2026', 'Noviembre 2025'])
+    assert.equal(arbol[0]!.totals.importe, 3)
+    assert.equal(arbol[0]!.children[0]!.level, 'empresa')
+})
+
+test('con un mes en el filtro, el árbol solo trae ese mes', () => {
+    const lineas = decodePedidos(payload([linea({ mes: '8' }), linea({ mes: '9' }), linea({ mes: '10' })]))
+    const filtros = sinFiltros()
+    filtros.mes.add('8')
+    const arbol = buildTree(lineas.filter((l) => matchesLine(l, filtros)))
+    assert.deepEqual(arbol.map((nodo) => nodo.value), ['2026-08'])
+})
+
 test('el árbol agrupa Empresa > Tipo > Cliente > OC con Towel primero y suma cada nivel', () => {
     const lineas = decodePedidos(payload([
         linea({ empresa: 'TEXTIL', tipo: 'CE', cliente: 'ZETA', oc: 'A1', importe: 100, cantidad: 10, entregado: 4, pendiente: 6 }),
@@ -67,7 +89,7 @@ test('el árbol agrupa Empresa > Tipo > Cliente > OC con Towel primero y suma ca
         linea({ articulo: '6578', nombre: 'TOALLA BAÑO', facturado: '07/10/2026' }),
         linea({ oc: 'HZC-276', creado: '02/10/2026' }),
     ]))
-    const arbol = buildTree(lineas)
+    const arbol = buildTree(lineas)[0]!.children
 
     assert.deepEqual(arbol.map((nodo) => nodo.value), ['TOWEL', 'TEXTIL'])
     const cliente = arbol[0]!.children[0]!.children[0]!
@@ -109,7 +131,7 @@ test('el tipo de pedido sigue el orden de negocio: CE, CE HT, RS y al final 2das
         linea({ empresa: 'TEXTIL', tipo: '2das / 3ra' }), linea({ empresa: 'TEXTIL', tipo: 'CE' }),
         linea({ tipo: 'RS' }), linea({ tipo: 'CE HT' }), linea({ tipo: 'CE' }), linea({ tipo: 'OTRO' }),
     ]))
-    const [towel, textil] = buildTree(lineas)
+    const [towel, textil] = buildTree(lineas)[0]!.children
     assert.deepEqual(towel!.children.map((nodo) => nodo.value), ['CE', 'CE HT', 'RS', 'OTRO'])
     assert.deepEqual(textil!.children.map((nodo) => nodo.value), ['CE', '2das / 3ra'])
 })

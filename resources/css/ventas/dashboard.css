@@ -328,12 +328,16 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .ph-nivel-icono { width: 1.2em; margin-right: .35rem; color: #8aa0b2; font-size: .85em; text-align: center; }
 .ph-valor { font-weight: 700; }
 .ph-meta { margin-left: .5rem; color: var(--pvoc-muted); font-size: .85em; font-weight: 500; }
-.ph-nivel-0 td { background: #e3edf4; font-weight: 800; }
+/* 0 Mes · 1 Empresa · 2 Tipo · 3 Cliente · 4 OC */
+.ph-nivel-0 td { background: #d3e3ee; font-weight: 800; }
 .ph-nivel-0 .ph-valor { color: #06496a; letter-spacing: .02em; }
-.ph-nivel-1 td { background: #f1f6fa; }
-.ph-nivel-2 td { background: #fff; }
-.ph-nivel-3 td { background: #fbfdfc; }
-.ph-nivel-3 .ph-nivel-icono { color: var(--ph-accent); }
+.ph-nivel-0 .ph-nivel-icono { color: #06496a; }
+.ph-nivel-1 td { background: #e3edf4; font-weight: 800; }
+.ph-nivel-1 .ph-valor { color: #06496a; letter-spacing: .02em; }
+.ph-nivel-2 td { background: #f1f6fa; }
+.ph-nivel-3 td { background: #fff; }
+.ph-nivel-4 td { background: #fbfdfc; }
+.ph-nivel-4 .ph-nivel-icono { color: var(--ph-accent); }
 
 .ph-articulo td { background: #fff; font-weight: 500; }
 .ph-art { display: flex; flex-direction: column; gap: .2rem; min-width: 0; padding-left: 1.75em; white-space: normal; }

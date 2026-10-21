@@ -1,5 +1,5 @@
 /**
- * Pedidos Históricos (Ventas > Compara): árbol Empresa > Tipo de pedido > Cliente > OC > artículo
+ * Pedidos Históricos (Ventas > Compara): árbol Mes > Empresa > Tipo de pedido > Cliente > OC > artículo
  * sobre dbo.TwHistoricosPedidos. A diferencia de la tabla dinámica de Excel, los datos del artículo
  * (tamaño, color, precio, fechas) se muestran dentro de su fila y no en columnas que estarían vacías
  * en cada nivel de grupo; las columnas son solo las medidas, que todas las filas tienen.
@@ -10,18 +10,18 @@ import { http } from '../utils/http';
 import { createMultiSelect, type MultiSelect } from './multi-select';
 import { bindRowSelection } from './row-selection';
 import {
-    ESTATUS, FILTER_KEYS, LEVEL_LABELS, buildTree, decodePedidos, isOpen, matchesLine, monthName, progress, sumLines,
+    ESTATUS, FILTER_KEYS, LEVEL_LABELS, buildTree, decodePedidos, isOpen, matchesLine, monthName, periodLabel, progress, sumLines,
     type FilterKey, type Filters, type PedidoLinea, type PedidosPayload, type Totals, type TreeNode,
 } from './pedidos-logica';
 
 /** Más filas que esto vuelven lenta la tabla en tablet; se avisa para acotar con filtros o búsqueda. */
 const MAX_ROWS = 2500;
 const COLUMNS = 6;
-/** Niveles abiertos al entrar: solo Empresa, así se ve cada Tipo de pedido con su total. */
-const OPEN_DEPTH = 1;
+/** Niveles abiertos al entrar: Mes y Empresa, así se ve cada Tipo de pedido con su total. */
+const OPEN_DEPTH = 2;
 
 const LEVEL_ICONS: Record<TreeNode['level'], string> = {
-    empresa: 'fa-industry', tipo: 'fa-tag', cliente: 'fa-building', oc: 'fa-file-lines',
+    periodo: 'fa-calendar', empresa: 'fa-industry', tipo: 'fa-tag', cliente: 'fa-building', oc: 'fa-file-lines',
 };
 
 /** Nombre de cada artículo para mostrarlo junto a su código en el filtro Art (se llena al cargar años). */
@@ -77,19 +77,20 @@ const nodeMeta = (node: TreeNode) => {
         const count = `${node.lines.length} ${node.lines.length === 1 ? 'línea' : 'líneas'}`;
         return node.created ? `Creada ${node.created} · ${count}` : count;
     }
-    if (node.level === 'cliente' || node.level === 'tipo') return `${node.orders} ${node.orders === 1 ? 'OC' : 'OCs'}`;
+    if (node.level !== 'empresa') return `${node.orders} ${node.orders === 1 ? 'OC' : 'OCs'}`;
     return '';
 };
 
 const groupRow = (node: TreeNode, open: boolean) => {
     const meta = nodeMeta(node);
     const label = LEVEL_LABELS[node.level];
+    const value = node.level === 'periodo' ? periodLabel(node.value) : node.value;
     return h('tr', { class: `ph-row ph-grupo ph-nivel-${node.depth}`, 'data-row-key': node.id },
         h('td', { class: 'pvoc-label ph-concepto', style: `--ph-depth:${node.depth}` },
-            h('button', { type: 'button', class: 'ph-toggle', 'data-ph-toggle': node.id, 'aria-expanded': String(open), 'aria-label': `${open ? 'Cerrar' : 'Abrir'} ${node.value}` },
+            h('button', { type: 'button', class: 'ph-toggle', 'data-ph-toggle': node.id, 'aria-expanded': String(open), 'aria-label': `${open ? 'Cerrar' : 'Abrir'} ${value}` },
                 icon('fa-chevron-right')),
             icon(`${LEVEL_ICONS[node.level]} ph-nivel-icono`, { title: label }),
-            h('span', { class: 'ph-valor', title: `${label}: ${node.value}` }, node.value || '(sin dato)'),
+            h('span', { class: 'ph-valor', title: `${label}: ${value}` }, value || '(sin dato)'),
             meta && h('span', { class: 'ph-meta' }, meta)),
         ...metricCells(node.totals));
 };
@@ -232,7 +233,7 @@ const initPedidosHistoricos = (root: HTMLElement, years: string[]) => {
         const empty = pending.length ? 'Cargando pedidos…' : 'No hay pedidos para los filtros seleccionados.';
 
         const head = h('tr', {},
-            h('th', { class: 'pvoc-label' }, 'Empresa › Tipo › Cliente › OC › Artículo'),
+            h('th', { class: 'pvoc-label' }, 'Mes › Empresa › Tipo › Cliente › OC › Artículo'),
             ...['Cantidad', 'Entregado', 'Pendiente'].map((label) => h('th', {}, label)),
             h('th', { class: 'ph-col-avance' }, 'Avance'),
             h('th', {}, 'Importe'));

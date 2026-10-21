@@ -87,6 +87,19 @@ class VentasPedidosHistoricosTest extends TestCase
         $this->assertSame('11', $fila['mes']);
     }
 
+    public function test_una_fecha_de_creacion_de_relleno_no_se_muestra(): void
+    {
+        // TwHistoricosPedidos trae FECHACREADO = 1905-07-17 (el año 2026 guardado como fecha) en miles de líneas.
+        $this->insertar(['YearCreado' => 2024, 'MonthCreado' => 3, 'FECHACREADO' => '1905-07-17 00:00:00.000']);
+
+        $json = $this->payload('2024');
+
+        $this->assertCount(1, $json['rows']);
+        $fila = $this->decodificar($json, $json['rows'][0]);
+        $this->assertSame('', $fila['creado']);
+        $this->assertSame('3', $fila['mes']);
+    }
+
     public function test_endpoint_de_anios_y_cache_por_anio(): void
     {
         $usuario = $this->usuarioConAcceso();
