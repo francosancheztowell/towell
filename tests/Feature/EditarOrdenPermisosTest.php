@@ -123,6 +123,49 @@ class EditarOrdenPermisosTest extends TestCase
         $this->assertSame('Pie', DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->value('RizoPie'));
     }
 
+    /** MC Coy valida contra JU-ENG-RI-C (Rizo) o JU-ENG-PI-C (Pie); Karl Mayer contra JULIO-URDIDO. */
+    public function test_el_tamano_se_valida_contra_el_catalogo_de_ax_de_su_maquina(): void
+    {
+        config()->set('database.connections.sqlsrv_ti', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
+        DB::purge('sqlsrv_ti');
+        Schema::connection('sqlsrv_ti')->create('InventSize', function (Blueprint $table): void {
+            $table->string('ItemId');
+            $table->string('InventSizeId');
+            $table->string('DATAAREAID');
+            $table->integer('TwVigente');
+        });
+        DB::connection('sqlsrv_ti')->table('InventSize')->insert([
+            ['ItemId' => 'JULIO-URDIDO', 'InventSizeId' => '2152-370/1', 'DATAAREAID' => 'PRO', 'TwVigente' => 0],
+            ['ItemId' => 'JU-ENG-RI-C', 'InventSizeId' => '2766-12/1', 'DATAAREAID' => 'PRO', 'TwVigente' => 1],
+            ['ItemId' => 'JU-ENG-RI-C', 'InventSizeId' => '2766-20/1', 'DATAAREAID' => 'PRO', 'TwVigente' => 0],
+            ['ItemId' => 'JU-ENG-PI-C', 'InventSizeId' => '3278-12/1', 'DATAAREAID' => 'PRO', 'TwVigente' => 1],
+        ]);
+        $tamano = fn (): ?string => DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->value('InventSizeId');
+
+        $mc = Livewire::actingAs($this->usuario('Supervisor Urdido'))
+            ->test(EdicionOrden::class, ['module' => 'urdido', 'ordenId' => 1]);
+        $mc->set('form.InventSizeId', '2766-12/1')->assertDispatched('program-board-notify', type: 'success');
+        $this->assertSame('2766-12/1', $tamano());
+        foreach (['3278-12/1', '2766-20/1'] as $fuera) { // de Pie / no vigente
+            $mc->set('form.InventSizeId', $fuera)->assertDispatched('program-board-notify', type: 'error');
+            $this->assertSame('2766-12/1', $tamano());
+        }
+        $mc->set('form.RizoPie', 'Pie')->set('form.InventSizeId', '3278-12/1');
+        $this->assertSame('3278-12/1', $tamano());
+
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)
+            ->update(['SalonTejidoId' => 'Karl Mayer', 'MaquinaId' => 'Karl Mayer']);
+        $km = Livewire::actingAs($this->usuario('Supervisor Urdido'))
+            ->test(EdicionOrden::class, ['module' => 'urdido', 'ordenId' => 1])
+            ->assertViewHas('opcionesTamano', ['2152-370/1']);
+        foreach (['2766-12/1', '2152-16/1'] as $fuera) {
+            $km->set('form.InventSizeId', $fuera)->assertDispatched('program-board-notify', type: 'error');
+            $this->assertSame('3278-12/1', $tamano());
+        }
+        $km->set('form.InventSizeId', '2152-370/1');
+        $this->assertSame('2152-370/1', $tamano());
+    }
+
     // ponytail: gate de supervisor apagado (temporal). Reponer el 403 cuando llegue el permiso nuevo.
     public function test_los_julios_se_pueden_tocar_sin_ser_supervisor(): void
     {
