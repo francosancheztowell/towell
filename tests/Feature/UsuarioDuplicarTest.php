@@ -187,6 +187,26 @@ class UsuarioDuplicarTest extends TestCase
             ->assertJsonValidationErrors('numero_empleado');
     }
 
+    public function test_acepta_letras_en_el_numero_y_cualquier_caracter_en_la_contrasenia(): void
+    {
+        $this->actuarComoAdmin();
+
+        $this->duplicar(['numero_empleado' => 'SUP-A1', 'contrasenia' => 'Ñu#9 x!'])->assertCreated();
+
+        $nuevo = DB::table('dbo.SYSUsuario')->where('numero_empleado', 'SUP-A1')->first();
+        $this->assertNotNull($nuevo);
+        $this->assertTrue(Hash::check('Ñu#9 x!', $nuevo->contrasenia));
+    }
+
+    public function test_rechaza_numero_de_empleado_de_mas_de_30_caracteres(): void
+    {
+        $this->actuarComoAdmin();
+
+        $this->duplicar(['numero_empleado' => str_repeat('A', 31)])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('numero_empleado');
+    }
+
     public function test_exige_numero_nombre_turno_y_contrasenia(): void
     {
         $this->actuarComoAdmin();
@@ -228,6 +248,17 @@ class UsuarioDuplicarTest extends TestCase
             ->assertOk()
             ->assertSee('data-duplicar-usuario="'.self::ORIGEN.'"', false)
             ->assertSee('id="modalDuplicarUsuario"', false);
+    }
+
+    public function test_alta_y_duplicar_no_exigen_solo_digitos_en_el_numero(): void
+    {
+        $this->withoutVite();
+        $this->actuarComoAdmin();
+
+        $this->get(route('configuracion.usuarios.select'))
+            ->assertOk()
+            ->assertDontSee('pattern="[0-9]*"', false)
+            ->assertDontSee('inputmode="numeric"', false);
     }
 
     public function test_la_lista_oculta_duplicar_sin_permiso_de_crear(): void

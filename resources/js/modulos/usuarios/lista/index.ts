@@ -70,7 +70,7 @@ async function abrirFiltros(contenedor: HTMLElement, boton: HTMLElement): Promis
             <div class="text-left">
                 <div class="mb-4">
                     <label for="filtro_numero_empleado" class="block text-sm font-medium text-gray-700 mb-1">Número de Empleado</label>
-                    <input type="text" id="filtro_numero_empleado" placeholder="Ej: 2045" pattern="[0-9]*" inputmode="numeric"
+                    <input type="text" id="filtro_numero_empleado" placeholder="Ej: 2045"
                            value="${escapeHtml(activos.numero_empleado)}">
                 </div>
                 <div class="mb-4">

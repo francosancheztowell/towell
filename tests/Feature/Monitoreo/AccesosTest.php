@@ -52,6 +52,24 @@ class AccesosTest extends TestCase
         $this->assertSame((int) $dispositivo->Id, (int) $acceso->DispositivoId);
     }
 
+    public function test_login_acepta_letras_en_el_numero_y_cualquier_caracter_en_la_contrasena(): void
+    {
+        $this->crearUsuario(['numero_empleado' => 'SUP-A1', 'contrasenia' => 'Ñu#9 x!']);
+
+        $this->login('SUP-A1', 'Ñu#9 x!')->assertRedirect('/produccionProceso');
+    }
+
+    public function test_el_formulario_de_login_no_filtra_letras_ni_simbolos(): void
+    {
+        $this->withoutVite();
+
+        $this->get('/login')
+            ->assertOk()
+            ->assertDontSee('type="number"', false)
+            ->assertDontSee('[^0-9]', false)
+            ->assertDontSee('inputmode="numeric"', false);
+    }
+
     public function test_un_nuevo_login_en_el_mismo_dispositivo_reemplaza_la_sesion_abierta(): void
     {
         $this->crearUsuario();
