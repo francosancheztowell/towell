@@ -1,5 +1,5 @@
 /**
- * Kardex Materia Prima y Producción en Proceso (/kardex). Vista: resources/views/modulos/kardex/index.blade.php.
+ * Kardex Materia Prima y Producción en Proceso (/kardex/resumen). Vista: resources/views/modulos/kardex/index.blade.php.
  * Cada pestaña se monta la primera vez que se abre (las gráficas necesitan su panel visible).
  * Datos: el libro del mes (/kardex/datos/libro) sobre los simulados (./datos-simulados.ts) para lo
  * que el libro todavía no trae (MP, pretejidos, detalle de crudo, cuadre ERP, correspondencia).
