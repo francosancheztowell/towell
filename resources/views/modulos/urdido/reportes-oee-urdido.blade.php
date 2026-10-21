@@ -4,7 +4,6 @@
 @section('page-title', 'OEE Urdido')
 
 @php
-    use App\Services\Urdido\OeeUrdidoTurnos;
     $num = fn (float $v, int $d = 0) => number_format($v, $d);
     // Sin calendario capturado no hay tiempo programado: guion en vez de un cero engañoso.
     $sinReg = fn (array $t) => ($v = App\Services\Urdido\OeeUrdidoService::sinRegistrar($t)) === null ? '—' : $num($v);
@@ -76,41 +75,12 @@
                     </div>
                 </section>
 
-                {{-- Mismo resumen por turno de reloj (OeeUrdidoTurnos): los tres suman el total. --}}
-                <section class="shrink-0 overflow-x-auto rounded-xl border border-slate-200" aria-label="Por turno">
-                    <table class="w-full whitespace-nowrap text-sm tabular-nums text-slate-700 [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2 [&_.n]:text-right">
-                        <thead class="bg-slate-100 text-left font-semibold text-slate-700">
-                            <tr>
-                                <th>Turno</th>
-                                <th class="n">Programado</th>
-                                <th class="n">Producción</th>
-                                <th class="n">% prod.</th>
-                                <th class="n">Paro nec.</th>
-                                <th class="n">Oportunidad</th>
-                                <th class="n">Sin registrar</th>
-                                <th class="n">Julios</th>
-                                <th class="n">Kg</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-200">
-                            @foreach ([...array_map(null, OeeUrdidoTurnos::NOMBRES, $reporte['turnos']), ['Total', $reporte['tot']]] as [$nombre, $t])
-                                <tr @class(['bg-slate-50 font-semibold text-slate-900' => $loop->last])>
-                                    <td>{{ $nombre }}</td>
-                                    <td class="n">{{ $num($t['programado']) }}</td>
-                                    <td class="n">{{ $num($t['minutos']) }}</td>
-                                    <td class="n">{{ $t['programado'] > 0 ? $num(100 * $t['minutos'] / $t['programado'], 1).' %' : '—' }}</td>
-                                    <td class="n">{{ $num($t['paro_nec']) }}</td>
-                                    <td class="n">{{ $num($t['paro_oport']) }}</td>
-                                    <td class="n">{{ $sinReg($t) }}</td>
-                                    <td class="n">{{ $num($t['julios']) }}</td>
-                                    <td class="n">{{ $num($t['kg'], 1) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                {{-- Mismo resumen por turno de reloj, del periodo y de las 4 máquinas; cada máquina trae el suyo. --}}
+                <section class="shrink-0" aria-label="Por turno">
+                    @include('modulos.urdido.comun.oee-turnos', ['turnos' => $reporte['turnos']['tot'], 'total' => $reporte['tot']])
                 </section>
 
-                @foreach ($reporte['meses'] as $mes)
+                @foreach ($reporte['meses'] as $claveMes => $mes)
                     <section class="shrink-0" aria-label="{{ $mes['etiqueta'] }}">
                         <div class="mb-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
                             <flux:heading size="lg" level="2">{{ $mes['etiqueta'] }}</flux:heading>
@@ -121,7 +91,7 @@
 
                         {{-- Sin overflow-hidden: anularía el sticky de los renglones de máquina. --}}
                         <div class="divide-y divide-slate-200 rounded-xl border border-slate-200 [&>details:first-child>summary]:rounded-t-xl [&>details:last-child:not([open])>summary]:rounded-b-xl">
-                            @forelse ($mes['maquinas'] as $maq)
+                            @forelse ($mes['maquinas'] as $claveMaq => $maq)
                                 <details class="group">
                                     {{-- Una máquina por renglón. Anchos fijos: los números de todas las máquinas quedan en columna.
                                          Abierta se pinta de azul para separarla de las demás. --}}
@@ -141,6 +111,10 @@
                                             </span>
                                         @endforeach
                                     </summary>
+
+                                    <div class="border-t border-slate-200 bg-slate-50 p-3">
+                                        @include('modulos.urdido.comun.oee-turnos', ['turnos' => $reporte['turnos']['meses'][$claveMes][$claveMaq], 'total' => $maq['tot']])
+                                    </div>
 
                                     @if ($maq['julios'] === [])
                                         <p class="border-t border-slate-200 px-4 py-3 text-sm text-slate-500">Sin julios finalizados en el mes: solo paro.</p>

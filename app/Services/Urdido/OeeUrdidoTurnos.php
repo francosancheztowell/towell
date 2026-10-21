@@ -21,12 +21,15 @@ final class OeeUrdidoTurnos
     private const SUMAS = ['julios' => 0, 'kg' => 0.0, 'minutos' => 0.0, 'paro_nec' => 0.0, 'paro_oport' => 0.0, 'programado' => 0.0];
 
     /**
+     * Sumas por turno (1..3) del periodo y por mes → máquina.
+     *
      * @param  list<string>  $meses
-     * @return array<int, array<string, int|float>> turno (1..3) => sumas
+     * @return array{tot: array<int, array<string, int|float>>, meses: array<string, array<string, array<int, array<string, int|float>>>>}
      */
     public static function desglose(array $meses, array $julios, array $paros, array $calendario): array
     {
-        $tot = array_fill_keys(array_keys(self::NOMBRES), self::SUMAS);
+        $vacio = array_fill_keys(array_keys(self::NOMBRES), self::SUMAS);
+        $porMes = [];
         $ventanas = OeeUrdidoService::ventanas($julios);
         foreach ($meses as $mes) {
             $ini = CarbonImmutable::parse($mes.'-01');
@@ -36,35 +39,53 @@ final class OeeUrdidoTurnos
                 $v = Tramos::unir($ventanas[$maq] ?? [], $m0, $m1);
                 $nec = self::paroLibre(array_filter($paros[$maq] ?? [], fn ($p) => $p[2] ?? false), $cal, $v, $m0, $m1);
                 $todo = self::paroLibre($paros[$maq] ?? [], $cal, $v, $m0, $m1);
+                $t = $vacio;
                 foreach (self::porTurno($cal) as $k => $min) {
-                    $tot[$k]['programado'] += $min;
-                    $tot[$k]['paro_nec'] += $nec[$k];
-                    $tot[$k]['paro_oport'] += $todo[$k] - $nec[$k];
+                    [$t[$k]['programado'], $t[$k]['paro_nec'], $t[$k]['paro_oport']] = [$min, $nec[$k], $todo[$k] - $nec[$k]];
+                }
+                $porMes[$mes][$maq] = $t;
+            }
+        }
+        $porMes = self::sumarJulios($porMes, $julios);
+
+        return ['tot' => self::total($vacio, $porMes), 'meses' => $porMes];
+    }
+
+    /** Suma por turno de todos los meses y máquinas. */
+    private static function total(array $tot, array $porMes): array
+    {
+        foreach ($porMes as $maquinas) {
+            foreach ($maquinas as $t) {
+                foreach ($t as $k => $sumas) {
+                    foreach ($sumas as $campo => $valor) {
+                        $tot[$k][$campo] += $valor;
+                    }
                 }
             }
         }
 
-        return self::sumarJulios($tot, $meses, $julios);
+        return $tot;
     }
 
-    /** Producción, julios y kg de los julios finalizados de los meses pedidos. */
-    private static function sumarJulios(array $tot, array $meses, array $julios): array
+    /** Producción, julios y kg de los julios finalizados, en su mes (por fecha) y máquina. */
+    private static function sumarJulios(array $porMes, array $julios): array
     {
         foreach ($julios as $j) {
+            $mes = substr($j['fecha'], 0, 7);
             // ponytail: un julio sin hora de inicio no se puede ubicar en un turno; queda fuera del desglose.
-            if (! $j['finalizado'] || $j['inicio'] === null || ! isset(OeeUrdidoService::MAQUINAS[$j['maquina']]) || ! in_array(substr($j['fecha'], 0, 7), $meses, true)) {
+            if (! $j['finalizado'] || $j['inicio'] === null || ! isset($porMes[$mes][$j['maquina']])) {
                 continue;
             }
             $fin = $j['inicio'] + (int) round($j['minutos'] * 60);
             foreach (self::porTurno([[$j['inicio'], $fin]]) as $k => $min) {
-                $tot[$k]['minutos'] += $min;
+                $porMes[$mes][$j['maquina']][$k]['minutos'] += $min;
             }
             $k = self::turnoEn(max($j['inicio'], $fin - 1))[0];
-            $tot[$k]['julios']++;
-            $tot[$k]['kg'] += $j['kg'];
+            $porMes[$mes][$j['maquina']][$k]['julios']++;
+            $porMes[$mes][$j['maquina']][$k]['kg'] += $j['kg'];
         }
 
-        return $tot;
+        return $porMes;
     }
 
     /** Minutos de paro dentro de [m0, m1) y del calendario que no caen en ningún julio, por turno. */

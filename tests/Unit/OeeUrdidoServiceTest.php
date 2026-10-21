@@ -82,7 +82,10 @@ class OeeUrdidoServiceTest extends TestCase
         $cal = ['MCCOY1' => [[strtotime('2026-10-07 06:30'), strtotime('2026-10-07 22:30')]]];
         $paros = ['MCCOY1' => [[strtotime('2026-10-07 22:00'), strtotime('2026-10-07 23:00')]]];
 
-        $t = OeeUrdidoTurnos::desglose(['2026-10'], [$this->julio('2026-10-07', '13:30', 120)], $paros, $cal);
+        $d = OeeUrdidoTurnos::desglose(['2026-10'], [$this->julio('2026-10-07', '13:30', 120)], $paros, $cal);
+        $t = $d['tot'];
+        $this->assertSame($t, $d['meses']['2026-10']['MCCOY1']); // una sola máquina: el total es el suyo
+        $this->assertSame(0.0, $d['meses']['2026-10']['KM1'][1]['programado']);
 
         $this->assertEqualsWithDelta(480.0, $t[1]['programado'], 0.01);
         $this->assertEqualsWithDelta(480.0, $t[2]['programado'], 0.01);
