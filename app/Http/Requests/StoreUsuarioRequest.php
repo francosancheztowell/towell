@@ -21,7 +21,8 @@ class StoreUsuarioRequest extends FormRequest
             'numero_empleado' => [
                 'required',
                 'string',
-                'max:50',
+                // Mide lo mismo que SYSUsuario.numero_empleado (nvarchar(30)) y que LoginRequest.
+                'max:30',
                 Rule::unique('SYSUsuario', 'numero_empleado')->ignore($usuarioId, 'idusuario'),
             ],
             'nombre' => 'required|string|max:255',
