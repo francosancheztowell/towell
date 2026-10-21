@@ -16,8 +16,8 @@
     </div>
     {{-- Sidebar de secciones y subsecciones (sidebar.ts); se oculta con su botón y se recuerda por navegador. --}}
     <div class="pvoc-layout">
-    <aside class="pvoc-sidebar" data-pvoc-sidebar aria-label="Secciones de Ventas">
-        <button type="button" class="pvoc-sidebar-toggle" data-pvoc-sidebar-toggle aria-controls="pvoc-sidebar-nav" aria-expanded="true" aria-label="Ocultar secciones" title="Ocultar secciones">
+    <aside class="pvoc-sidebar is-collapsed" data-pvoc-sidebar aria-label="Secciones de Ventas">
+        <button type="button" class="pvoc-sidebar-toggle" data-pvoc-sidebar-toggle aria-controls="pvoc-sidebar-nav" aria-expanded="false" aria-label="Mostrar secciones" title="Mostrar secciones">
             <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
         </button>
         <nav id="pvoc-sidebar-nav" class="pvoc-sidebar-nav">

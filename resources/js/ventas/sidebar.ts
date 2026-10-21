@@ -1,23 +1,5 @@
 import { escapeHtml } from '../utils/format';
 
-const COLLAPSED_KEY = 'ventas-sidebar-oculta';
-
-const readCollapsed = () => {
-    try {
-        return localStorage.getItem(COLLAPSED_KEY) === '1';
-    } catch {
-        return false;
-    }
-};
-
-const storeCollapsed = (collapsed: boolean) => {
-    try {
-        localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0');
-    } catch {
-        // Sin almacenamiento: la sidebar arranca abierta en la siguiente visita.
-    }
-};
-
 /**
  * Sidebar de secciones (Compara, Ventas históricas) y subsecciones. Una subsección puede tener su
  * propio panel (data-pvoc-nav = panel), como Pedidos Históricos dentro de Compara. Reemplaza las pestañas:
@@ -35,17 +17,16 @@ export const bindSidebar = (root: HTMLElement, history: { id: string; title: str
             `<li><button type="button" class="pvoc-nav-item" data-pvoc-nav="history" data-pvoc-nav-sub="${escapeHtml(id)}">${escapeHtml(title)}</button></li>`).join('');
     }
 
-    // Ocultar / mostrar toda la sidebar (se recuerda por navegador).
+    // Ocultar / mostrar toda la sidebar: arranca cerrada y se cierra al elegir una subsección.
     const toggle = sidebar.querySelector<HTMLElement>('[data-pvoc-sidebar-toggle]');
     const setCollapsed = (collapsed: boolean) => {
         sidebar.classList.toggle('is-collapsed', collapsed);
         toggle?.setAttribute('aria-expanded', String(!collapsed));
         toggle?.setAttribute('title', collapsed ? 'Mostrar secciones' : 'Ocultar secciones');
         toggle?.setAttribute('aria-label', collapsed ? 'Mostrar secciones' : 'Ocultar secciones');
-        storeCollapsed(collapsed);
     };
     toggle?.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('is-collapsed')));
-    setCollapsed(readCollapsed());
+    setCollapsed(true);
 
     // Cada sección se despliega o pliega sin cambiar lo que se está viendo.
     sidebar.querySelectorAll<HTMLElement>('[data-pvoc-nav-section]').forEach((button) => button.addEventListener('click', () => {
@@ -89,6 +70,8 @@ export const bindSidebar = (root: HTMLElement, history: { id: string; title: str
 
     sidebar.addEventListener('click', (event) => {
         const button = (event.target as Element).closest<HTMLElement>('[data-pvoc-nav]');
-        if (button) show(button);
+        if (!button) return;
+        show(button);
+        setCollapsed(true);
     });
 };
