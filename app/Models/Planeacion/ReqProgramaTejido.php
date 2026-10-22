@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $StdHrsEfect
  * @property mixed $ProdKgDia2
  * @property mixed $PesoGRM2
+ * @property list<string> $FlogsArticulo No es columna: la calcula Liberar Órdenes (flogs vigentes del artículo+talla).
  */
 class ReqProgramaTejido extends Model
 {

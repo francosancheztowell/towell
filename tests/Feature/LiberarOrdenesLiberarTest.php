@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Sistema\Usuario;
 use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use Illuminate\Database\Schema\Blueprint;
@@ -559,8 +560,42 @@ class LiberarOrdenesLiberarTest extends TestCase
         $porId = collect($view->getData()['registros'])->keyBy('Id');
         $this->assertTrue((bool) $porId[$conFlog]->RequiereDecisionFlog);
         $this->assertSame('CE-100', $porId[$conFlog]->FlogSugerido);
+        $this->assertSame(['CE-100', 'CE-99'], $porId[$conFlog]->FlogsArticulo);
         $this->assertFalse((bool) $porId[$sinFlog]->RequiereDecisionFlog);
         $this->assertNull($porId[$sinFlog]->FlogSugerido);
+        $this->assertSame([], $porId[$sinFlog]->FlogsArticulo);
+        $this->assertSame(['CE-100', 'CE-99'], $view->getData()['flogsVigentes']);
+
+        // El layout pinta el avatar del usuario: basta uno en memoria.
+        $this->actingAs(new Usuario(['nombre' => 'QA']));
+        $html = $view->render();
+        $this->assertStringContainsString('data-flogs-articulo="CE-100,CE-99"', $html);
+        $this->assertStringContainsString('"flogsVigentes":["CE-100","CE-99"]', $html);
+    }
+
+    /** Un flog con estado vigente pero todas sus líneas facturadas/canceladas ya no se acepta. */
+    public function test_liberar_rechaza_flog_sin_lineas_abiertas(): void
+    {
+        $this->attachDboFlogTables();
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsTable')->insert([
+            'IDFLOG' => 'CE-45', 'NAMEPROYECT' => 'FACTURADO', 'CUSTNAME' => 'X', 'ESTADOFLOG' => 5,
+        ]);
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsItemLine')->insert([
+            'IDFLOG' => 'CE-45', 'ITEMID' => 'IT100', 'INVENTSIZEID' => 'STD', 'ESTADOLINEA' => 1,
+        ]);
+
+        $id = $this->sembrarRegistro();
+        $response = $this->liberar([[
+            'id' => $id,
+            'bomId' => 'BOM-CRUDO-01',
+            'bomName' => 'LISTA MATERIALES CRUDO 01',
+            'noProduccion' => '79011',
+            'flogsId' => 'CE-45',
+        ]]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertStringContainsString('no está vigente', $response->getData(true)['message']);
+        $this->assertNull(DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('FlogsId'));
     }
 
     /**
@@ -574,6 +609,9 @@ class LiberarOrdenesLiberarTest extends TestCase
             'NAMEPROYECT' => 'PROY LIBERAR',
             'CUSTNAME' => 'CLIENTE CAB',
             'ESTADOFLOG' => 4,
+        ]);
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsItemLine')->insert([
+            'IDFLOG' => 'CE-44', 'ITEMID' => 'IT100', 'INVENTSIZEID' => 'STD',
         ]);
         DB::connection('sqlsrv_ti')->table('dbo.TwFlogsCustomer')->insert([
             'IdFlog' => 'CE-44',
@@ -611,7 +649,7 @@ class LiberarOrdenesLiberarTest extends TestCase
             "IDFLOG" TEXT, "NAMEPROYECT" TEXT, "CUSTNAME" TEXT, "ESTADOFLOG" INTEGER
         )');
         $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsItemLine" (
-            "IDFLOG" TEXT, "ITEMID" TEXT, "INVENTSIZEID" TEXT
+            "IDFLOG" TEXT, "ITEMID" TEXT, "INVENTSIZEID" TEXT, "ESTADOLINEA" INTEGER DEFAULT 0
         )');
         $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsCustomer" (
             "IdFlog" TEXT, "CustName" TEXT, "CategoriaCalidad" TEXT

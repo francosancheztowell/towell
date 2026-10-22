@@ -16,9 +16,10 @@ export interface ConfigLiberar {
         bom: string;
         codigoDibujo: string;
         flog: string;
-        flogs: string;
     };
     columnas: ColumnaLiberar[];
+    /** Flogs vigentes de AX (estado vigente + línea abierta); vacío si AX no respondió. */
+    flogsVigentes: string[];
     /** Peso de rollo estándar de Karl Mayer (LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER). */
     pesoKarlMayer: string;
 }
@@ -47,6 +48,15 @@ export interface RegistroLiberar {
     noProduccion: string | null;
     asignarFlogs: boolean | null;
     flogsId: string | null;
+}
+
+/** Lista de la celda Flog: los del artículo+talla primero (ya vienen del más reciente), luego el resto. */
+export function opcionesFlog(delArticulo: string[], vigentes: string[]): { valor: string; delArticulo: boolean }[] {
+    const propios = new Set(delArticulo);
+    return [
+        ...delArticulo.map((valor) => ({ valor, delArticulo: true })),
+        ...vigentes.filter((f) => !propios.has(f)).map((valor) => ({ valor, delArticulo: false })),
+    ];
 }
 
 /** Número de la grilla ("1,234.5" → 1234.5); vacío o no numérico → 0. */
