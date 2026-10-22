@@ -58,7 +58,7 @@ onReady(() => {
     if (selectAll) selectAll.checked = true;
 
     rellenarPrioridades();
-    enlazarFlogs(cfg.rutas);
+    enlazarFlogs(cfg);
     const tabla = document.getElementById('mainTable');
     if (tabla) enlazarFilaReferencia(tabla);
     iniciarColumnas(cfg.columnas);

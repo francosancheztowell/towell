@@ -5,7 +5,7 @@
 import { http } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
 import { debounce } from '../../../utils/format.ts';
-import type { ConfigLiberar } from './logica.ts';
+import { opcionesFlog, type ConfigLiberar } from './logica.ts';
 
 type Rutas = ConfigLiberar['rutas'];
 
@@ -28,32 +28,26 @@ const texto = (el: Element | null | undefined) => (el?.textContent || '').trim()
    desmarcarlo guarda 0. Los demás renglones no mandan el dato y su AsignarFlogs no se toca.
    El flog se puede editar a mano en cualquier renglón. */
 
-/** Flogs vigentes en AX; null mientras no cargue la lista (entonces no se valida en cliente). */
+/** Flogs vigentes en AX; null si AX no respondió (entonces no se valida en cliente). */
 let flogsVigentes: Set<string> | null = null;
 
-/** Un flog escrito a mano que no existe en AX no se puede liberar: se marca y bloquea. */
+/** Un flog escrito a mano que no existe o no está vigente en AX no se puede liberar: se marca y bloquea. */
 function marcarFlogInvalido(input: HTMLInputElement): void {
     const valor = (input.value || '').trim().toUpperCase();
     const invalido = !flogsVigentes ? false : valor !== '' && !flogsVigentes.has(valor);
     input.dataset.flogInvalido = invalido ? 'true' : 'false';
     input.classList.toggle('border-red-500', invalido);
     input.classList.toggle('bg-red-50', invalido);
-    input.title = invalido ? 'Este flog no existe o no está vigente en AX' : '';
+    input.title = invalido ? 'Este flog no existe o no está vigente en AX (sin líneas abiertas)' : '';
 }
 
-/** Autocompletado libre del flog: todos los flogs vigentes de AX, misma lista que usa Duplicar. */
-async function cargarOpcionesFlog(rutas: Rutas): Promise<void> {
+/** Una sola <datalist> para la grilla: al enfocar una celda se rearma con los flogs de su artículo primero. */
+function llenarOpcionesFlog(input: HTMLInputElement, vigentes: string[]): void {
     const datalist = document.getElementById('flog-options');
     if (!datalist) return;
-    try {
-        const flogs = await http.get<unknown>(rutas.flogs);
-        if (!Array.isArray(flogs)) return;
-        datalist.replaceChildren(...flogs.map((f) => new Option('', String(f))));
-        flogsVigentes = new Set(flogs.map((f) => String(f).trim().toUpperCase()));
-        document.querySelectorAll<HTMLInputElement>('.flog-input').forEach(marcarFlogInvalido);
-    } catch {
-        // Sin lista se sigue pudiendo capturar el flog a mano; el servidor lo valida al liberar.
-    }
+    const delArticulo = (input.dataset.flogsArticulo || '').split(',').filter(Boolean);
+    datalist.replaceChildren(...opcionesFlog(delArticulo, vigentes)
+        .map((o) => new Option(o.delArticulo ? 'Del artículo' : '', o.valor)));
 }
 
 async function traerFlogSugerido(row: HTMLElement, rutas: Rutas): Promise<void> {
@@ -80,9 +74,12 @@ async function traerFlogSugerido(row: HTMLElement, rutas: Rutas): Promise<void> 
     }
 }
 
-export function enlazarFlogs(rutas: Rutas): void {
-    void cargarOpcionesFlog(rutas);
+export function enlazarFlogs(cfg: ConfigLiberar): void {
+    const { rutas, flogsVigentes: vigentes } = cfg;
+    flogsVigentes = vigentes.length ? new Set(vigentes.map((f) => f.trim().toUpperCase())) : null;
     document.querySelectorAll<HTMLInputElement>('.flog-input').forEach((input) => {
+        marcarFlogInvalido(input);
+        input.addEventListener('focus', () => llenarOpcionesFlog(input, vigentes));
         input.addEventListener('input', () => marcarFlogInvalido(input));
         input.addEventListener('change', () => marcarFlogInvalido(input));
     });

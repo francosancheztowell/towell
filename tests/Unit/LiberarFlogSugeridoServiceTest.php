@@ -64,7 +64,7 @@ class LiberarFlogSugeridoServiceTest extends TestCase
             "IDFLOG" TEXT, "NAMEPROYECT" TEXT, "CUSTNAME" TEXT, "ESTADOFLOG" INTEGER
         )');
         $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsItemLine" (
-            "IDFLOG" TEXT, "ITEMID" TEXT, "INVENTSIZEID" TEXT
+            "IDFLOG" TEXT, "ITEMID" TEXT, "INVENTSIZEID" TEXT, "ESTADOLINEA" INTEGER DEFAULT 0
         )');
         $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsCustomer" (
             "IdFlog" TEXT, "CustName" TEXT, "CategoriaCalidad" TEXT
@@ -87,7 +87,8 @@ class LiberarFlogSugeridoServiceTest extends TestCase
         int $estado = 3,
         string $nombreProyecto = 'PROYECTO',
         ?string $custName = 'CLIENTE AX',
-        ?string $categoria = 'A'
+        ?string $categoria = 'A',
+        int $estadoLinea = 0
     ): void {
         DB::connection('sqlsrv_ti')->table('dbo.TwFlogsTable')->insert([
             'IDFLOG' => $idFlog,
@@ -99,6 +100,7 @@ class LiberarFlogSugeridoServiceTest extends TestCase
             'IDFLOG' => $idFlog,
             'ITEMID' => $itemId,
             'INVENTSIZEID' => $inventSizeId,
+            'ESTADOLINEA' => $estadoLinea,
         ]);
         DB::connection('sqlsrv_ti')->table('dbo.TwFlogsCustomer')->insert([
             'IdFlog' => $idFlog,
@@ -154,38 +156,54 @@ class LiberarFlogSugeridoServiceTest extends TestCase
         ])));
     }
 
-    public function test_lote_elige_el_flog_de_mayor_numero_final_y_omite_no_vigentes(): void
+    public function test_lote_ordena_por_numero_final_y_omite_no_vigentes_y_lineas_cerradas(): void
     {
         $this->sembrarFlog('CE-99', 'IT100', 'STD', 3, 'VIEJO');
         $this->sembrarFlog('CE-100', 'IT100', 'STD', 5, 'NUEVO');
         $this->sembrarFlog('CE-200', 'IT100', 'STD', 1, 'CERRADO');
+        $this->sembrarFlog('CE-300', 'IT100', 'STD', 5, 'FACTURADA', estadoLinea: 1);
         $this->sembrarFlog('CE-10', 'IT100', 'FEL', 4, 'OTRA TALLA');
 
-        $sugeridos = $this->service->flogsSugeridosDelLote(collect([
+        $flogs = $this->service->flogsDelLote(collect([
             $this->registro('IT100', 'STD'),
             $this->registro('IT100', 'FEL'),
         ]));
 
-        $this->assertSame('CE-100', $sugeridos['IT100|STD']);
-        $this->assertSame('CE-10', $sugeridos['IT100|FEL']);
-        $this->assertArrayNotHasKey('IT999|STD', $sugeridos);
+        $this->assertSame(['CE-100', 'CE-99'], $flogs['IT100|STD']);
+        $this->assertSame(['CE-10'], $flogs['IT100|FEL']);
+        $this->assertArrayNotHasKey('IT999|STD', $flogs);
     }
 
     public function test_lote_respeta_item_con_relleno_en_ax(): void
     {
         $this->sembrarFlog('CE-7', '  IT300  ', ' STD ');
 
-        $sugeridos = $this->service->flogsSugeridosDelLote(collect([
+        $flogs = $this->service->flogsDelLote(collect([
             $this->registro('IT300', 'STD'),
         ]));
 
-        $this->assertSame('CE-7', $sugeridos['IT300|STD']);
+        $this->assertSame(['CE-7'], $flogs['IT300|STD']);
+    }
+
+    public function test_vigentes_exigen_estado_vigente_y_alguna_linea_abierta(): void
+    {
+        $this->sembrarFlog('CE-1', 'IT100', 'STD', 5);
+        $this->sembrarFlog('CE-2', 'IT100', 'STD', 6);
+        $this->sembrarFlog('CE-3', 'IT100', 'STD', 4, estadoLinea: 2);
+        // CE-4: una línea facturada y otra abierta de otro artículo → sigue vigente.
+        $this->sembrarFlog('CE-4', 'IT100', 'STD', 3, estadoLinea: 1);
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsItemLine')->insert([
+            'IDFLOG' => 'CE-4', 'ITEMID' => 'IT200', 'INVENTSIZEID' => 'STD', 'ESTADOLINEA' => 0,
+        ]);
+
+        $this->assertSame(['CE-1', 'CE-4'], $this->service->flogsVigentes());
     }
 
     public function test_sugerir_elige_el_mas_reciente_y_devuelve_null_si_no_hay(): void
     {
         $this->sembrarFlog('CE-99', 'IT100', 'STD', 3, 'VIEJO');
         $this->sembrarFlog('CE-100', 'IT100', 'STD', 21, 'NUEVO');
+        $this->sembrarFlog('CE-500', 'IT100', 'STD', 5, 'CANCELADA', estadoLinea: 2);
 
         $this->assertSame(
             ['flogsId' => 'CE-100', 'nombreProyecto' => 'NUEVO'],
@@ -216,11 +234,16 @@ class LiberarFlogSugeridoServiceTest extends TestCase
     public function test_aplicar_datos_flog_rechaza_inexistente_o_no_vigente(): void
     {
         $this->sembrarFlog('CE-1', 'IT100', 'STD', 1, 'CERRADO');
+        $this->sembrarFlog('CE-2', 'IT100', 'STD', 5, 'TODO FACTURADO', estadoLinea: 1);
 
         $registro = $this->registro('IT100');
         $this->assertSame(
             'El flog "CE-1" no existe o no está vigente en AX.',
             $this->service->aplicarDatosFlog($registro, 'CE-1')
+        );
+        $this->assertSame(
+            'El flog "CE-2" no existe o no está vigente en AX.',
+            $this->service->aplicarDatosFlog($registro, 'CE-2')
         );
         $this->assertSame(
             'El flog "CE-INVENTADO" no existe o no está vigente en AX.',
