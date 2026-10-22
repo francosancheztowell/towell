@@ -21,16 +21,15 @@ final class KardexRouteContractTest extends TestCase
     }
 
     /**
-     * SYSRoles: 209 Kardex (1500), 211 Crudo - Acabado (1501), 212 Acabado - Costura P.T. (1502).
-     * The dashboard moved from /kardex to /kardex/mp-produccion-proceso and keeps the Kardex
-     * permission until it gets its own SYSRoles idrol.
+     * SYSRoles: 209 Kardex (1500), 211 Crudo - Acabado (1501), 212 Acabado - Costura P.T. (1502),
+     * 213 M.P. Produccion en Proceso (1503), which serves the dashboard.
      *
      * @return array<string, array{string, string, int}>
      */
     public static function submodulos(): array
     {
         return [
-            'mp-produccion-proceso' => ['kardex.mp-produccion-proceso', 'kardex/mp-produccion-proceso', 209],
+            'prod-proceso' => ['kardex.prod-proceso', 'kardex/prod-proceso', 213],
             'crudo-acabado' => ['kardex.crudo-acabado', 'kardex/crudo-acabado', 211],
             'acabado-costura-pt' => ['kardex.acabado-costura-pt', 'kardex/acabado-costura-pt', 212],
         ];
@@ -44,7 +43,7 @@ final class KardexRouteContractTest extends TestCase
 
     public function test_guest_is_redirected_to_login(): void
     {
-        foreach (['/kardex', '/kardex/mp-produccion-proceso', '/kardex/crudo-acabado', '/kardex/acabado-costura-pt'] as $url) {
+        foreach (['/kardex', '/kardex/prod-proceso', '/kardex/crudo-acabado', '/kardex/acabado-costura-pt'] as $url) {
             $this->get($url)->assertRedirect();
         }
     }

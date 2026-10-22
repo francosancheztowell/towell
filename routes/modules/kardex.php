@@ -11,11 +11,10 @@ use Illuminate\Support\Facades\Route;
 | Nivel 1: 209 Kardex (1500)                    → /kardex (grid de submódulos)
 | Nivel 2: 211 Crudo - Acabado (1501)           → /kardex/crudo-acabado (en blanco por ahora)
 | Nivel 2: 212 Acabado - Costura P.T. (1502)    → /kardex/acabado-costura-pt (en blanco por ahora)
-| Nivel 2: Kardex MP y Producción en Proceso    → /kardex/mp-produccion-proceso (permiso de Kardex,
-|          209, hasta que tenga su propio idrol en SYSRoles)
+| Nivel 2: 213 M.P. Produccion en Proceso (1503) → /kardex/prod-proceso (dashboard)
 | Ojo: el 210 es "Calificar Julios"; con 210 la ruta validaba ese permiso y negaba Kardex.
 |
-| Kardex MP y Producción en Proceso (/kardex/mp-produccion-proceso): resumen y flujo, kardex por
+| M.P. Producción en Proceso (/kardex/prod-proceso): resumen y flujo, kardex por
 | almacén, qué se tejió, cuadre de 3 fuentes y correspondencia E↔S. Las secciones de urdido,
 | julios, tejido y crudo salen del libro (hojas InvKardex* de ProdTowel .24) vía /kardex/datos/*;
 | lo demás sigue simulado (resources/js/modulos/kardex/datos-simulados.ts).
@@ -25,8 +24,10 @@ Route::middleware('module.permission:acceso,209')->group(function (): void {
     Route::get('/kardex', [UsuarioController::class, 'showSubModulos'])
         ->defaults('moduloPrincipal', 'kardex')
         ->name('kardex.index');
+});
 
-    Route::view('/kardex/mp-produccion-proceso', 'modulos.kardex.index')->name('kardex.mp-produccion-proceso');
+Route::middleware('module.permission:acceso,213')->group(function (): void {
+    Route::view('/kardex/prod-proceso', 'modulos.kardex.index')->name('kardex.prod-proceso');
 
     Route::controller(KardexDatosController::class)->prefix('kardex/datos')->name('kardex.datos.')->group(function (): void {
         Route::get('/periodos', 'periodos')->name('periodos');

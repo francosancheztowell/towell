@@ -107,7 +107,7 @@ final class KardexDatosControllerTest extends TestCase
             $this->assertNotNull($route, "Falta {$nombre}");
             $this->assertSame($uri, $route->uri());
             $this->assertContains('auth', $route->gatherMiddleware());
-            $this->assertContains('module.permission:acceso,209', $route->gatherMiddleware());
+            $this->assertContains('module.permission:acceso,213', $route->gatherMiddleware());
         }
     }
 }
