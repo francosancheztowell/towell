@@ -12,6 +12,9 @@
 
 @section('navbar-right')
     @if ($reporte)
+        <flux:button id="oee-desglose" aria-pressed="false" icon="queue-list" class="min-h-touch aria-pressed:bg-blue-600! aria-pressed:text-white!">
+            Desglose
+        </flux:button>
         <flux:button href="{{ route('urdido.reportes.urdido.oee.excel', request()->query()) }}" icon="arrow-down-tray" class="min-h-touch">
             Excel
         </flux:button>
@@ -19,7 +22,8 @@
 @endsection
 
 @section('content')
-    <div class="pantalla-completa bg-white">
+    {{-- Producción = min. producción + paro necesario en todo el reporte; sus dos partes (.desglose) se ven con el botón. --}}
+    <div id="oee-reporte" class="pantalla-completa bg-white [&:not([data-desglose])_.desglose]:hidden">
         <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-2 pb-6 md:px-4">
             {{-- Consulta: meses (varios). Siempre solo julios finalizados; cuentan todos los paros de Urdido. --}}
             <form id="oee-consulta" method="GET" action="{{ route('urdido.reportes.urdido.oee') }}" class="flex shrink-0 flex-wrap items-end gap-x-6 gap-y-3">
@@ -42,37 +46,21 @@
                     <p>Elige uno o más meses. El reporte toma solo julios finalizados.</p>
                 </div>
             @else
-                {{-- Resumen del periodo. Sin Calidad ni OEE por ahora (decisión del owner): solo lo medido, para analizarlo. --}}
-                <section class="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 tabular-nums md:grid-cols-4 lg:grid-cols-7" aria-label="Resumen del periodo">
-                    <div class="bg-white px-4 py-3">
-                        <p class="text-sm text-slate-500">Julios</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['julios']) }}</p>
-                    </div>
-                    <div class="bg-white px-4 py-3">
-                        <p class="text-sm text-slate-500">Kg</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['kg'], 1) }}</p>
-                    </div>
-                    <div class="bg-white px-4 py-3">
-                        <p class="text-sm text-slate-500">Min. producción</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['minutos']) }}</p>
-                    </div>
-                    <div class="bg-white px-4 py-3">
-                        <p class="text-sm text-slate-500">Min. paro necesario</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['paro_nec']) }}</p>
-                    </div>
-                    <div class="bg-white px-4 py-3">
-                        <p class="text-sm text-slate-500">Min. oportunidad</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['paro_oport']) }}</p>
-                    </div>
-                    <div class="bg-white px-4 py-3">
-                        <p class="text-sm text-slate-500">Min. programados</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $num($reporte['tot']['programado']) }}</p>
-                    </div>
-                    {{-- 7 tarjetas: la última ocupa el hueco que queda en 2 y 4 columnas. --}}
-                    <div class="col-span-2 bg-white px-4 py-3 lg:col-span-1">
-                        <p class="text-sm text-slate-500">Min. sin registrar</p>
-                        <p class="text-2xl font-semibold text-slate-900">{{ $sinReg($reporte['tot']) }}</p>
-                    </div>
+                {{-- Resumen del periodo. Sin Calidad ni OEE por ahora (decisión del owner): solo lo medido, para analizarlo.
+                     Orden de columnas de todo el reporte: Kg, Julios, Programado, Producción (+ desglose), Paros, Sin registrar. --}}
+                @php($tot = $reporte['tot'])
+                <section class="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 tabular-nums md:grid-cols-3 lg:grid-cols-6" aria-label="Resumen del periodo">
+                    @foreach ([['Kg', $num($tot['kg'], 1)], ['Julios', $num($tot['julios'])], ['Min. programados', $num($tot['programado'])],
+                        ['Min. producción', $num($tot['minutos'] + $tot['paro_nec'])], ['Min. paros', $num($tot['paro_oport'])],
+                        ['Min. sin registrar', $sinReg($tot)]] as [$etq, $valor])
+                        <div class="bg-white px-4 py-3">
+                            <p class="text-sm text-slate-500">{{ $etq }}</p>
+                            <p class="text-2xl font-semibold text-slate-900">{{ $valor }}</p>
+                            @if ($loop->index === 3)
+                                <p class="desglose text-sm text-slate-500">{{ $num($tot['minutos']) }} prod. · {{ $num($tot['paro_nec']) }} paro nec.</p>
+                            @endif
+                        </div>
+                    @endforeach
                 </section>
 
                 {{-- Mismo resumen por turno de reloj, del periodo y de las 4 máquinas; cada máquina trae el suyo. --}}
@@ -95,17 +83,18 @@
                                 <details class="group">
                                     {{-- Una máquina por renglón. Anchos fijos: los números de todas las máquinas quedan en columna.
                                          Abierta se pinta de azul para separarla de las demás. --}}
-                                    <summary class="sticky top-0 z-20 grid min-h-touch md:h-16 cursor-pointer list-none grid-cols-4 bg-white items-center gap-x-2 gap-y-2 px-4 py-2.5 lg:gap-x-3 hover:bg-slate-50 group-open:bg-blue-600 group-open:text-white group-open:hover:bg-blue-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500 md:grid-cols-[minmax(7rem,1fr)_repeat(7,minmax(4.5rem,6.5rem))] [&::-webkit-details-marker]:hidden">
+                                    {{-- En md las cifras fluyen en columnas de ancho fijo: con o sin desglose quedan alineadas. --}}
+                                    <summary class="sticky top-0 z-20 grid min-h-touch md:h-16 cursor-pointer list-none grid-cols-4 bg-white items-center gap-x-2 gap-y-2 px-4 py-2.5 lg:gap-x-3 hover:bg-slate-50 group-open:bg-blue-600 group-open:text-white group-open:hover:bg-blue-600 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500 md:grid-flow-col md:grid-cols-[minmax(7rem,1fr)] md:auto-cols-[minmax(4.5rem,6.5rem)] [&::-webkit-details-marker]:hidden">
                                         <span class="col-span-4 flex items-center gap-2 whitespace-nowrap md:col-span-1">
                                             <i class="fa-solid fa-chevron-right w-3 text-xs text-slate-400 transition-transform group-open:rotate-90 group-open:text-blue-100" aria-hidden="true"></i>
                                             <i class="fa-solid fa-gears text-blue-600 group-open:text-blue-100" aria-hidden="true"></i>
                                             <span class="text-base font-semibold text-slate-900 group-open:text-white">{{ $maq['nombre'] }}</span>
                                         </span>
-                                        @foreach ([['Julios', $num($maq['tot']['julios'])], ['Kg', $num($maq['tot']['kg'], 1)],
-                                            ['Min prod.', $num($maq['tot']['minutos'])], ['Paro nec.', $num($maq['tot']['paro_nec'])],
-                                            ['Oportunidad', $num($maq['tot']['paro_oport'])], ['Programado', $num($maq['tot']['programado'])],
-                                            ['Sin registrar', $sinReg($maq['tot'])]] as [$etq, $valor])
-                                            <span class="tabular-nums md:text-right">
+                                        @foreach ([['Kg', $num($maq['tot']['kg'], 1), ''], ['Julios', $num($maq['tot']['julios']), ''],
+                                            ['Programado', $num($maq['tot']['programado']), ''], ['Producción', $num($maq['tot']['minutos'] + $maq['tot']['paro_nec']), ''],
+                                            ['Min prod.', $num($maq['tot']['minutos']), 'desglose'], ['Paro nec.', $num($maq['tot']['paro_nec']), 'desglose'],
+                                            ['Paros', $num($maq['tot']['paro_oport']), ''], ['Sin registrar', $sinReg($maq['tot']), '']] as [$etq, $valor, $clase])
+                                            <span class="{{ $clase }} tabular-nums md:text-right">
                                                 <span class="block whitespace-nowrap text-caption text-slate-500 group-open:text-blue-100">{{ $etq }}</span>
                                                 <span class="block font-semibold text-slate-900 group-open:text-white">{{ $valor }}</span>
                                             </span>
@@ -137,9 +126,10 @@
                                                         <th class="n">Mts</th>
                                                         <th>H. inicio</th>
                                                         <th>H. final</th>
-                                                        <th class="n">Min prod.</th>
-                                                        <th class="n">Paro nec.</th>
-                                                        <th class="n">Oport.</th>
+                                                        <th class="n" title="Min. producción + paro necesario">Producción</th>
+                                                        <th class="n desglose">Min prod.</th>
+                                                        <th class="n desglose">Paro nec.</th>
+                                                        <th class="n">Paros</th>
                                                         <th class="g">Defecto</th>
                                                         <th class="n">Pen.</th>
                                                         <th>Oficial</th>
@@ -149,7 +139,7 @@
                                                     @foreach (collect($maq['julios'])->groupBy('dia') as $dia => $delDia)
                                                         {{-- Fila del día arriba de sus julios (en vez de repetirlo en cada renglón). --}}
                                                         <tr class="bg-slate-200/70 text-slate-800 [&>td]:border-slate-300">
-                                                            <td colspan="14" class="py-1! font-semibold">
+                                                            <td colspan="15" class="py-1! font-semibold">
                                                                 <i class="fa-regular fa-calendar me-1.5 text-slate-500" aria-hidden="true"></i>{{ $dia }}
                                                                 <span class="ms-2 font-normal text-slate-600">· {{ $delDia->count() }} julios · {{ $num($delDia->sum('kg'), 1) }} kg</span>
                                                             </td>
@@ -164,8 +154,9 @@
                                                                 <td class="n">{{ $num($j['metros']) }}</td>
                                                                 <td>{{ $j['hora'] }}</td>
                                                                 <td>{{ $j['hora_fin'] }}</td>
-                                                                <td class="n">{{ $num($j['minutos']) }}</td>
-                                                                <td class="n">{{ $num($j['paro_nec'], 1) }}</td>
+                                                                <td class="n">{{ $num($j['minutos'] + $j['paro_nec'], 1) }}</td>
+                                                                <td class="n desglose">{{ $num($j['minutos']) }}</td>
+                                                                <td class="n desglose">{{ $num($j['paro_nec'], 1) }}</td>
                                                                 <td class="n">{{ $num($j['paro_oport'], 1) }}</td>
                                                                 <td class="g">
                                                                     @if ($j['defecto'])
@@ -183,8 +174,9 @@
                                                         <td class="n g">{{ $num($maq['tot']['kg'], 1) }}</td>
                                                         <td class="n">{{ $num($maq['tot']['metros']) }}</td>
                                                         <td colspan="2"></td>
-                                                        <td class="n">{{ $num($maq['tot']['minutos']) }}</td>
-                                                        <td class="n">{{ $num($maq['tot']['paro_nec'], 1) }}</td>
+                                                        <td class="n">{{ $num($maq['tot']['minutos'] + $maq['tot']['paro_nec'], 1) }}</td>
+                                                        <td class="n desglose">{{ $num($maq['tot']['minutos']) }}</td>
+                                                        <td class="n desglose">{{ $num($maq['tot']['paro_nec'], 1) }}</td>
                                                         <td class="n">{{ $num($maq['tot']['paro_oport'], 1) }}</td>
                                                         <td colspan="2" class="g"></td>
                                                         <td></td>
