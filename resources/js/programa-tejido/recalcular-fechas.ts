@@ -31,9 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
         http.post<RespuestaRecalcular>(url)
             .then((data) => {
                 if (data.ok) {
-                    // Cambian las fechas de todos los telares: se recarga, pero conservando scroll, fila y filtros.
-                    notify.success(data.message ?? 'Listo');
-                    setTimeout(() => recargarConservando(), 2000);
+                    // Cambian las fechas de todos los telares: se recarga ya, conservando scroll, fila y
+                    // filtros. El aviso lo muestra showSavedToastIfAny al cargar (antes se esperaban 2 s).
+                    try {
+                        sessionStorage.setItem('priorityChangeMessage', data.message ?? 'Listo');
+                    } catch { /* modo privado: se recarga sin aviso */ }
+                    recargarConservando();
                 } else {
                     void notify.alert(data.message ?? '', 'Error', 'error');
                 }

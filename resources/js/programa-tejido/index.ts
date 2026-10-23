@@ -1874,8 +1874,10 @@ async function loadPersistedHiddenColumns() {
 			}
 		});
 		setCachedHiddenFields(SSR_HIDDEN_FIELDS.slice());
-		applyDefaultPinsOnce();
-		updatePinnedColumnsPositions();
+		// Solo el estado: las posiciones las calcula una vez el rAF del init, ya con iconos
+		// (aquí se posicionaba dos veces más, y el rAF lo repetía).
+		defaultPinsApplied = true;
+		pinDefaultColumns(false);
 		return;
 	}
 
@@ -2534,10 +2536,9 @@ function clearPinnedStyles(index: any) {
 		// deja que :not(.pinned-column) gane; el navegador repinta en el frame.
 	});
 }
-function applyPinnedStyles(index: any, left: any) {
+function applyPinnedStyles(index: any) {
 	forEachColumnElement(index, (el: any) => {
 		el.classList.add('pinned-column');
-		el.style.left = left + 'px';
 		if (el.tagName === 'TH') {
 			el.style.top = '0';
 			el.style.position = 'sticky';
@@ -2559,17 +2560,24 @@ function updatePinnedColumnsPositions() {
 		thead.style.position = 'sticky';
 		thead.style.top = '0';
 	}
-	// Aplica fijados en orden
-	let left = 0;
-	pinnedColumns.forEach(idx => {
+	// Aplica fijados en orden, en tres tiempos: estilos de fijado (sticky ensancha la
+	// columna ~8 px), leer todos los anchos y escribir los left. Medir después de cada
+	// escritura forzaba un reflow de la tabla entera por columna, y medir antes de fijar
+	// daba anchos cortos que solo cuadraban al repetir la pasada.
+	const visibles = pinnedColumns.flatMap(idx => {
 		const th = $(`th.column-${idx}`);
-		if (!th || th.style.display === 'none') {
-			clearPinnedStyles(idx);
-			return;
-		}
-		const width = th.getBoundingClientRect().width;
-		applyPinnedStyles(idx, left);
-		left += width;
+		if (th && th.style.display !== 'none') return [{ idx, th }];
+		clearPinnedStyles(idx);
+		return [];
+	});
+	visibles.forEach(({ idx }) => applyPinnedStyles(idx));
+	window.updateColumnPinIcons?.(); // el icono de fijado también ensancha el encabezado
+	const anchos = visibles.map(({ th }) => th.getBoundingClientRect().width);
+	let left = 0;
+	visibles.forEach(({ idx }, i) => {
+		const px = left + 'px';
+		forEachColumnElement(idx, (el: any) => { el.style.left = px; });
+		left += anchos[i] ?? 0;
 	});
 	lastPinnedColumnsSet = currentPinnedSet;
 }
@@ -2600,7 +2608,7 @@ function applyDefaultPinsOnce() {
 	pinDefaultColumns();
 }
 window.pinDefaultColumns = pinDefaultColumns;
-function pinDefaultColumns() {
+function pinDefaultColumns(posicionar = true) {
 	ensureColumnCache();
 	syncColumnStateSets();
 
@@ -2622,6 +2630,7 @@ function pinDefaultColumns() {
 	// Ordenar las columnas fijadas
 	pinnedColumns.sort((a, b) => a - b);
 
+	if (!posicionar) return;
 	// ⚡ OPTIMIZACIÓN: Actualizar posiciones inmediatamente si el DOM está listo
 	// Solo usar requestAnimationFrame si es necesario
 	if (document.readyState === 'complete' || document.readyState === 'interactive') {
@@ -3485,12 +3494,21 @@ const uiInlineEditableFields: Record<string, any> = {
 
       setCellValue(cell, displayValue, value);
 
+      // FechaFinal no se edita en celda: si cambia, es que el servidor la recalculó y su
+      // cascada recorrió las filas siguientes del telar (antes quedaban viejas hasta F5).
+      const celdaFechaFinal = row.querySelector('td[data-column="FechaFinal"]');
+      const fechaFinalAntes = celdaFechaFinal?.textContent?.trim();
+
       // si backend manda resumen, actualiza otras celdas (fechas/saldo/etc)
       if (result?.data) applyRowUpdatesFromBackend(row, result.data);
 
       // Cambiar el hilo (FibraRizo) invalida Velocidad/Eficiencia STD: recalcular contra el catálogo
       if (columnName === 'FibraRizo') {
         await recalcularStdParaFila(row, value);
+      }
+
+      if (celdaFechaFinal && celdaFechaFinal.textContent?.trim() !== fechaFinalAntes) {
+        await window.ptRefrescarTelares?.([rowId]);
       }
 
       // Actualizar índice de filtros en memoria para reflejar los nuevos valores
@@ -4931,21 +4949,6 @@ const uiInlineEditableFields: Record<string, any> = {
           }
         }
       });
-    }
-
-    // Interceptar updatePinnedColumnsPositions para actualizar iconos
-    const originalUpdatePinnedColumnsPositions = window.updatePinnedColumnsPositions;
-    if (typeof originalUpdatePinnedColumnsPositions === 'function') {
-      window.updatePinnedColumnsPositions = function() {
-        const result = originalUpdatePinnedColumnsPositions.apply(this, arguments as any);
-        // Actualizar iconos después de actualizar posiciones
-        setTimeout(() => {
-          if (typeof window.updateColumnPinIcons === 'function') {
-            window.updateColumnPinIcons();
-          }
-        }, 50);
-        return result;
-      };
     }
 
     // Exponer función globalmente
@@ -6566,29 +6569,12 @@ const uiInlineEditableFields: Record<string, any> = {
 
       // Los fijados, en el mismo frame que el primer paint: a los 100 ms la tabla
       // ya se habia visto sin ellos y se movia debajo del cursor.
+      // Estado de fijados y una sola pasada de posiciones, que ya pone los iconos de fijado
+      // antes de medir (antes eran cuatro pasadas entre este rAF y loadPersistedHiddenColumns).
       requestAnimationFrame(() => {
-        if (typeof window.pinDefaultColumns === 'function') {
-          window.pinDefaultColumns();
-        } else if (typeof window.applyDefaultPinsOnce === 'function') {
-          window.applyDefaultPinsOnce();
-        }
-
-        // Actualizar iconos de filtro al cargar
-        if (typeof window.updateColumnFilterIcons === 'function') {
-          window.updateColumnFilterIcons();
-        }
-        // Actualizar iconos de columnas fijadas al cargar
-        if (typeof window.updateColumnPinIcons === 'function') {
-          window.updateColumnPinIcons();
-        }
-        if (typeof window.updatePinnedColumnsPositions === 'function') {
-          window.updatePinnedColumnsPositions();
-          // Los iconos se repintan aqui mismo: updatePinnedColumnsPositions es
-          // sincrona, no habia nada que esperar 100 ms mas.
-          if (typeof window.updateColumnPinIcons === 'function') {
-            window.updateColumnPinIcons();
-          }
-        }
+        pinDefaultColumns(false);
+        window.updateColumnFilterIcons();
+        updatePinnedColumnsPositions();
       });
 
       const tb = tbodyEl();
