@@ -32,10 +32,11 @@ class ProgramaTejidoMutacionesGuardsTest extends TestCase
         );
     }
 
-    public function test_duplicar_vincular_mete_el_origen_al_grupo(): void
+    public function test_duplicar_vincular_no_mete_el_origen_al_grupo(): void
     {
         $src = $this->src('app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php');
-        $this->assertStringContainsString('$original->OrdCompartida = $ordCompartidaAVincular;', $src);
+        // Vincular agrupa solo las copias (owner, 23-oct): el original no se toca.
+        $this->assertStringNotContainsString('$original->OrdCompartida', $src);
     }
 
     public function test_dividir_normaliza_salon_y_no_cae_a_otra_fila(): void

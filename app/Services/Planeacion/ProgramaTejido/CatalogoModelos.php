@@ -7,8 +7,10 @@ use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Búsqueda de modelos codificados (ReqModelosCodificados) por TamanoClave y salón, en 3
- * niveles: exacto (espacios normalizados) → prefijo → contains.
+ * La única búsqueda de modelos codificados (ReqModelosCodificados): TamanoClave exacta (mayúsculas
+ * y espacios normalizados) en el salón con sus alias; si hay repetidos, el de FechaTejido más
+ * reciente y luego el Id mayor. La TamanoClave ya trae la talla (MANOS906, MB906…), así que nada
+ * de "empieza con"/"contiene": "MANOS9" traía MANOS941, otro artículo, y la grilla lo guardaba.
  */
 final class CatalogoModelos
 {
@@ -60,7 +62,7 @@ final class CatalogoModelos
             }
         }
 
-        return self::buscarEnTresNiveles($qBase, (string) preg_replace('/\s+/', ' ', $tam), $selectCols);
+        return self::buscarExacto($qBase, (string) preg_replace('/\s+/', ' ', $tam), $selectCols);
     }
 
     /**
@@ -89,7 +91,7 @@ final class CatalogoModelos
             $qBase->where('SalonTejidoId', $salon);
         }
 
-        $datos = self::buscarEnTresNiveles($qBase, $tam, self::COLUMNAS_DATOS);
+        $datos = self::buscarExacto($qBase, $tam, self::COLUMNAS_DATOS);
 
         $resultado = null;
         if ($datos) {
@@ -119,14 +121,14 @@ final class CatalogoModelos
      * @param  Builder<ReqModelosCodificados>  $qBase
      * @param  array<int, string>  $selectCols
      */
-    private static function buscarEnTresNiveles(Builder $qBase, string $tam, array $selectCols): ?ReqModelosCodificados
+    private static function buscarExacto(Builder $qBase, string $tam, array $selectCols): ?ReqModelosCodificados
     {
-        $tamUpper = strtoupper($tam);
-
         // Raw: el ORM no expresa la comparación con espacios normalizados; parametrizado.
-        return (clone $qBase)->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [$tamUpper])->select($selectCols)->first()
-            ?? (clone $qBase)->whereRaw('UPPER(TamanoClave) LIKE ?', [$tamUpper.'%'])->select($selectCols)->first()
-            ?? (clone $qBase)->whereRaw('UPPER(TamanoClave) LIKE ?', ['%'.$tamUpper.'%'])->select($selectCols)->first();
+        return $qBase->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
+            ->select($selectCols)
+            ->orderByDesc('FechaTejido')
+            ->orderByDesc('Id')
+            ->first();
     }
 
     /**

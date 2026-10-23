@@ -1047,4 +1047,81 @@ class LiberarOrdenesLiberarTest extends TestCase
             0.0001
         );
     }
+
+    /** Tres órdenes en un grupo con número temporal (Vincular del modal o Dividir sin liberar). */
+    private function sembrarGrupoTemporal(int $temporal): array
+    {
+        return [
+            $this->sembrarRegistro(['NoTelarId' => '201', 'OrdCompartida' => $temporal]),
+            // La más antigua, pero sin NoProduccion no puede ser líder.
+            $this->sembrarRegistro(['NoTelarId' => '202', 'OrdCompartida' => $temporal, 'FechaInicio' => Carbon::now()->subDays(5)->format('Y-m-d H:i:s')]),
+            $this->sembrarRegistro(['NoTelarId' => '203', 'OrdCompartida' => $temporal]),
+        ];
+    }
+
+    private function itemLiberar(int $id, string $orden): array
+    {
+        return ['id' => $id, 'bomId' => 'BOM-CRUDO-01', 'bomName' => 'LISTA MATERIALES CRUDO 01', 'noProduccion' => $orden];
+    }
+
+    /** @return list<array{0: int, 1: int|null, 2: int|null}> OrdCompartida, líder y OrdPrincipal por Id */
+    private function estadoGrupo(array $ids): array
+    {
+        return DB::connection('sqlsrv')->table('ReqProgramaTejido')->whereIn('Id', $ids)->orderBy('Id')->get()
+            ->map(fn ($r) => [(int) $r->OrdCompartida, $r->OrdCompartidaLider === null ? null : (int) $r->OrdCompartidaLider, $r->OrdPrincipal === null ? null : (int) $r->OrdPrincipal])
+            ->all();
+    }
+
+    private function catDe(string $orden): array
+    {
+        $cat = DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', $orden)->first();
+
+        return [(int) $cat->OrdCompartida, $cat->OrdCompartidaLider === null ? null : (int) $cat->OrdCompartidaLider, (int) $cat->OrdPrincipal];
+    }
+
+    /**
+     * La primera orden que se libera de un grupo temporal le da su NoProduccion: todo el grupo
+     * cambia de número, ella queda de líder y su CatCodificados ya sale con eso. Las siguientes no
+     * cambian ni el número ni el líder.
+     */
+    public function test_la_primera_liberada_de_un_grupo_temporal_le_da_su_no_produccion_y_queda_de_lider(): void
+    {
+        [$a, $b, $c] = $this->sembrarGrupoTemporal(900000101);
+        foreach (['77010' => '201', '77011' => '202'] as $orden => $telar) {
+            DB::connection('sqlsrv')->table('CatCodificados')->insert(['OrdenTejido' => $orden, 'TelarId' => $telar, 'ItemId' => 'IT100', 'InventSizeId' => 'STD', 'Departamento' => 'JACQUARD']);
+        }
+
+        $this->assertTrue($this->liberar([$this->itemLiberar($a, '77010')])->getData(true)['success']);
+
+        $this->assertSame([[77010, 1, 77010], [77010, null, 77010], [77010, null, 77010]], $this->estadoGrupo([$a, $b, $c]));
+        $this->assertSame([77010, 1, 77010], $this->catDe('77010'));
+        $this->assertSame(0, DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('OrdCompartida', 900000101)->count());
+
+        // La segunda (más antigua) se libera después: el líder y el número no cambian.
+        $this->assertTrue($this->liberar([$this->itemLiberar($b, '77011')])->getData(true)['success']);
+
+        $this->assertSame([[77010, 1, 77010], [77010, null, 77010], [77010, null, 77010]], $this->estadoGrupo([$a, $b, $c]));
+        $this->assertSame([77010, null, 77010], $this->catDe('77011'));
+    }
+
+    /** En un lote con dos del mismo grupo temporal, manda la primera del lote. */
+    public function test_lote_con_dos_del_mismo_grupo_temporal_toma_el_numero_de_la_primera_del_lote(): void
+    {
+        [$a, $b, $c] = $this->sembrarGrupoTemporal(900000201);
+
+        $this->assertTrue($this->liberar([$this->itemLiberar($c, '77020'), $this->itemLiberar($a, '77021')])->getData(true)['success']);
+
+        $this->assertSame([[77020, null, 77020], [77020, null, 77020], [77020, 1, 77020]], $this->estadoGrupo([$a, $b, $c]));
+    }
+
+    /** Un grupo normal (número = NoProduccion de su líder) no cambia al liberar a otro miembro. */
+    public function test_liberar_un_miembro_de_grupo_normal_no_cambia_numero_ni_lider(): void
+    {
+        $lider = $this->sembrarRegistro(['NoTelarId' => '201', 'NoProduccion' => '77030', 'OrdCompartida' => 77030, 'OrdCompartidaLider' => 1, 'OrdPrincipal' => 77030]);
+        $parte = $this->sembrarRegistro(['NoTelarId' => '202', 'OrdCompartida' => 77030, 'OrdPrincipal' => 77030]);
+
+        $this->assertTrue($this->liberar([$this->itemLiberar($parte, '77031')])->getData(true)['success']);
+
+        $this->assertSame([[77030, 1, 77030], [77030, null, 77030]], $this->estadoGrupo([$lider, $parte]));
+    }
 }

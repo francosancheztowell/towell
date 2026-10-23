@@ -318,13 +318,15 @@ class RevivirOrdenProgramaDesdeCatService
         if ($tamano !== '') {
             $datosModelo = CatalogoModelos::datosArray($tamano, $salonNorm);
             if (is_array($datosModelo)) {
-                foreach (['AnchoToalla', 'LargoToalla'] as $campoModelo) {
+                // El LargoToalla del modelo va a LargoCrudo (el programa no tiene LargoToalla; antes se
+                // descartaba al filtrar por $fillable y la orden revivida quedaba sin largo).
+                foreach (['AnchoToalla' => 'AnchoToalla', 'LargoToalla' => 'LargoCrudo'] as $campoModelo => $campoPrograma) {
                     if (
-                        empty($base[$campoModelo])
+                        empty($base[$campoPrograma])
                         && array_key_exists($campoModelo, $datosModelo)
                         && $datosModelo[$campoModelo] !== null && $datosModelo[$campoModelo] !== ''
                     ) {
-                        $base[$campoModelo] = $datosModelo[$campoModelo];
+                        $base[$campoPrograma] = $datosModelo[$campoModelo];
                     }
                 }
                 if (($base['NombreProducto'] ?? '') === '' && ! empty($datosModelo['Nombre'])) {

@@ -4,7 +4,6 @@ namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
-use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Support\Planeacion\NumeroPrograma;
@@ -23,7 +22,7 @@ class DividirTejido
      * Dividir el SALDO pendiente de un registro entre varios telares. El destino 0 es el
      * original (se queda con su saldo capturado y lo producido); los demás son filas nuevas.
      * La suma de saldos capturados debe ser exactamente el SaldoPedido del original.
-     * Todos comparten OrdCompartida = NoProduccion del original.
+     * Todos comparten OrdCompartida = NoProduccion del original, o uno temporal si no tiene.
      *
      * Recibe datos ya validados con DividirSaldoRequest::rules() (los valida FilasDestino).
      * Devuelve el resultado para la grilla; un error trae success=false, message y status.
@@ -103,14 +102,10 @@ class DividirTejido
                 return self::abortar($dispatcher, 'No se encontro el registro para dividir', 404);
             }
 
-            // OrdCompartida = NoProduccion del registro original (líder natural del grupo dividido)
+            // OrdCompartida = NoProduccion del registro original (líder natural del grupo dividido).
+            // Sin NoProduccion (owner, 23-oct) se divide igual: el grupo lleva número temporal, que se
+            // fija con la primera parte (abajo) y se cambia por un NoProduccion al liberar.
             $nuevoOrdCompartida = OrdCompartida::obtenerOrdCompartidaDesdeRegistro($registroOriginal);
-            // El original es quien cede saldo y da nombre al grupo: necesita NoProduccion. Las partes
-            // nuevas no (lo reciben al liberar). Sin esta guarda, where('OrdCompartida', null) se
-            // vuelve whereNull y el bloque del líder toca todas las filas sin grupo de la tabla.
-            if ($nuevoOrdCompartida === null) {
-                return self::abortar($dispatcher, 'No se puede dividir: el registro origen no tiene No. de producción. Libéralo primero.', 422);
-            }
 
             // Se reparte SOLO el saldo pendiente: Σ saldos capturados == SaldoPedido del original.
             $saldos = array_map([self::class, 'saldoDe'], $destinos);
@@ -191,7 +186,8 @@ class DividirTejido
             // === PASO 2: Crear los nuevos registros para los telares destino ===
             $inicioSiTelarVacio = $registroOriginal->FechaInicio ? Carbon::parse($registroOriginal->FechaInicio) : Carbon::now();
             foreach ($destinosNuevos as $destino) {
-                $nuevo = self::crearParte($registroOriginal, $destino, (int) $nuevoOrdCompartida, $inicioSiTelarVacio, $hilo, $aplicacion, $globales, $salonOrigen, $reservarPosicion);
+                $nuevo = self::crearParte($registroOriginal, $destino, $nuevoOrdCompartida, $inicioSiTelarVacio, $hilo, $aplicacion, $globales, $salonOrigen, $reservarPosicion);
+                $nuevoOrdCompartida ??= self::grupoTemporal($registroOriginal, $nuevo);
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();
                 $registrosParaObserver[] = $nuevo;
@@ -261,7 +257,9 @@ class DividirTejido
 
             return [
                 'success' => true,
-                'message' => "Registro dividido correctamente. OrdCompartida: {$nuevoOrdCompartida}. Se crearon/actualizaron {$totalDivididos} registro(s).",
+                'message' => OrdCompartida::esTemporal($nuevoOrdCompartida)
+                    ? "Registro dividido correctamente en {$totalDivididos} órdenes. El grupo toma su número al liberar la primera."
+                    : "Registro dividido correctamente. OrdCompartida: {$nuevoOrdCompartida}. Se crearon/actualizaron {$totalDivididos} registro(s).",
                 'registros_divididos' => $totalDivididos,
                 'ord_compartida' => $nuevoOrdCompartida,
                 'registro_id' => $primerNuevoCreado?->Id,
@@ -307,6 +305,17 @@ class DividirTejido
         return ['success' => false, 'message' => $mensaje, 'status' => $status];
     }
 
+    /** Original sin NoProduccion: la Id de su primera parte da el número temporal del grupo, sin líder hasta liberar. */
+    private static function grupoTemporal(ReqProgramaTejido $original, ReqProgramaTejido $parte): int
+    {
+        $temporal = OrdCompartida::temporal((int) $parte->getKey());
+        foreach ([$original, $parte] as $miembro) {
+            $miembro->forceFill(['OrdCompartida' => $temporal, 'OrdCompartidaLider' => null])->save();
+        }
+
+        return $temporal;
+    }
+
     /**
      * Crea una parte nueva (dividir o redistribuir) al final de la cola del telar destino:
      * réplica de $base sin producción, en el grupo $ord, con el saldo capturado y el
@@ -316,7 +325,7 @@ class DividirTejido
      * @param  array<string, mixed>  $globales
      * @param  callable(string, string): int  $reservarPosicion
      */
-    private static function crearParte(ReqProgramaTejido $base, array $destino, int $ord, Carbon $inicioSiTelarVacio, $hilo, $aplicacion, array $globales, ?string $salonOrigen, callable $reservarPosicion): ReqProgramaTejido
+    private static function crearParte(ReqProgramaTejido $base, array $destino, ?int $ord, Carbon $inicioSiTelarVacio, $hilo, $aplicacion, array $globales, ?string $salonOrigen, callable $reservarPosicion): ReqProgramaTejido
     {
         $salon = (string) $destino['salon_destino'];
         $telar = (string) $destino['telar'];
@@ -329,6 +338,8 @@ class DividirTejido
         $inicial = [
             'SalonTejidoId' => $salon, 'NoTelarId' => $telar, 'EnProceso' => 0, 'Ultimo' => 1, 'CambioHilo' => 0,
             'Produccion' => null, 'Programado' => null, 'NoProduccion' => null, 'ProgramarProd' => null, 'SaldoMarbete' => null,
+            // replicate() traía el líder y las fechas de arranque/fin del original: la parte no ha arrancado.
+            'OrdCompartidaLider' => null, 'FechaArranque' => null, 'FechaFinaliza' => null,
         ];
         foreach ($inicial as $columna => $valor) {
             $nuevo->setAttribute($columna, $valor); // sin fill(): no depende de $fillable
@@ -377,6 +388,8 @@ class DividirTejido
         if ($ultimo) {
             $nuevo->CambioHilo = trim((string) $nuevo->FibraRizo) !== trim((string) $ultimo->FibraRizo) ? '1' : '0';
         }
+        // PesoGRM2 de los datos de la parte (otro salón puede traer otra clave); replicate() traía el del original.
+        $nuevo->setAttribute('PesoGRM2', FormulasEficiencia::pesoGrm2($nuevo));
         foreach (self::calcularFormulasEficiencia($nuevo) as $campo => $valor) {
             $nuevo->{$campo} = $valor;
         }
@@ -533,47 +546,15 @@ class DividirTejido
         return FormulasEficiencia::calcularFormulasEficienciaPorContexto(
             $programa,
             FormulasEficiencia::FORMULAS_CTX_PEDIDO_INHERIT,
-            fn (?string $tamanoClave, ?string $salonTejidoId) => self::obtenerModeloCodificadoPorSalon($tamanoClave, $salonTejidoId)
+            fn (?string $tamanoClave, ?string $salonTejidoId) => CatalogoModelos::porTamanoClave((string) $tamanoClave, $salonTejidoId)
         );
-    }
-
-    private static function obtenerModeloCodificadoPorSalon(?string $tamanoClave, ?string $salonTejidoId): ?ReqModelosCodificados
-    {
-        $clave = trim((string) $tamanoClave);
-        if ($clave === '') {
-            return null;
-        }
-
-        $salon = trim((string) $salonTejidoId);
-
-        $q = ReqModelosCodificados::query()
-            ->where(function ($builder) use ($clave) {
-                $builder->where('TamanoClave', $clave)
-                    ->orWhere('ClaveModelo', $clave);
-            });
-        if ($salon !== '') {
-            $q->where('SalonTejidoId', $salon);
-        }
-
-        $modelo = $q->orderByDesc('FechaTejido')->first();
-        if ($modelo || $salon === '') {
-            return $modelo;
-        }
-
-        return ReqModelosCodificados::query()
-            ->where(function ($builder) use ($clave) {
-                $builder->where('TamanoClave', $clave)
-                    ->orWhere('ClaveModelo', $clave);
-            })
-            ->orderByDesc('FechaTejido')
-            ->first();
     }
 
     private static function aplicarModeloCodificadoPorSalon(ReqProgramaTejido $registro, string $salonDestino, ?string $tamanoClave = null): void
     {
         // ⚡ MEJORA: Usar tamanoClave específico si se proporciona, sino usar el del registro
         $claveParaBuscar = $tamanoClave ?? $registro->TamanoClave;
-        $modelo = self::obtenerModeloCodificadoPorSalon($claveParaBuscar, $salonDestino);
+        $modelo = CatalogoModelos::porTamanoClave((string) $claveParaBuscar, $salonDestino);
         if (! $modelo) {
             return;
         }
@@ -946,7 +927,7 @@ class DividirTejido
     {
         return HorasProduccion::calcularHorasProd(
             $p,
-            fn (?string $k, ?string $s) => self::obtenerModeloCodificadoPorSalon($k, $s)
+            fn (?string $k, ?string $s) => CatalogoModelos::porTamanoClave((string) $k, $s)
         );
     }
 }

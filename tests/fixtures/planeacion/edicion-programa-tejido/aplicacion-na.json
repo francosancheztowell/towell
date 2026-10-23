@@ -4,8 +4,7 @@
         "afectaDuracion": false,
         "afectaFormulas": false,
         "afectaAplicacion": true,
-        "fechaFinalManual": false,
-        "editoAncho": false
+        "fechaFinalManual": false
     },
     "cambios": {
         "AplicacionId": null

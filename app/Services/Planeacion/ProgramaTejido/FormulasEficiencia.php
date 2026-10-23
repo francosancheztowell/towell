@@ -65,7 +65,7 @@ final class FormulasEficiencia
                 $efic = 1.0;
             }
 
-            self::formulasPesoYDias($formulas, $programa, $pesoCrudo, $diffDias);
+            self::formulasPesoYDias($formulas, $programa, $diffDias);
             self::formulasRitmo($formulas, $stdToaHraParaCalculos, $efic, $cantidad, $pesoCrudo);
             self::formulasHorasEfectivas($formulas, $cantidad, $pesoCrudo, $diffDias);
 
@@ -138,12 +138,25 @@ final class FormulasEficiencia
             || ($original > 0 && $nueva > 0 && $original !== $nueva && ($cambio || abs($original - $nueva) > 0.1));
     }
 
-    private static function formulasPesoYDias(array &$formulas, ReqProgramaTejido $programa, float $pesoCrudo, float $diffDias): void
+    /**
+     * Peso por m² = PesoCrudo × 10000 / (LargoCrudo × AnchoToalla); null si falta alguno. El
+     * largo es LargoCrudo: ahí guarda el programa el LargoToalla del modelo. Antes se leía
+     * LargoToalla, que el programa no tiene, y PesoGRM2 nunca se calculaba (oct-2026).
+     */
+    public static function pesoGrm2(ReqProgramaTejido $programa): ?float
     {
-        $largoToalla = (float) ($programa->LargoToalla ?? 0);
-        $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
-        if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-            $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
+        $peso = (float) ($programa->getAttribute('PesoCrudo') ?? 0);
+        $largo = (float) ($programa->getAttribute('LargoCrudo') ?? 0);
+        $ancho = (float) ($programa->getAttribute('AnchoToalla') ?? 0);
+
+        return $peso > 0 && $largo > 0 && $ancho > 0 ? round(($peso * 10000) / ($largo * $ancho), 2) : null;
+    }
+
+    private static function formulasPesoYDias(array &$formulas, ReqProgramaTejido $programa, float $diffDias): void
+    {
+        $pesoGrm2 = self::pesoGrm2($programa);
+        if ($pesoGrm2 !== null) {
+            $formulas['PesoGRM2'] = $pesoGrm2;
         }
 
         if ($diffDias > 0) {

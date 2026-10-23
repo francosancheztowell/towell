@@ -42,7 +42,7 @@ class DuplicarDividir extends Component
     #[Locked]
     public bool $esGrupo = false;
 
-    /** duplicar | vincular | dividir. Vincular es un duplicar cuyas copias comparten OrdCompartida. */
+    /** duplicar | vincular | dividir. Vincular es un duplicar cuyas copias (2+) forman su propio grupo, sin el original. */
     public string $modo = 'duplicar';
 
     /** @var array{duplicar: list<array<string, mixed>>, dividir: list<array<string, mixed>>} */
@@ -142,19 +142,14 @@ class DuplicarDividir extends Component
         $this->aviso = null;
     }
 
-    /** Dividir exige que el original tenga NoProduccion (o que ya haya grupo que redistribuir). */
     public function puedeDividir(): bool
     {
         return $this->porQueNoDivide() === null;
     }
 
-    /** null = se puede dividir. Necesita NoProduccion (o un grupo que redistribuir) y saldo pendiente. */
+    /** null = se puede dividir. Basta saldo pendiente: sin NoProduccion el grupo lleva número temporal. */
     public function porQueNoDivide(): ?string
     {
-        if (! $this->esGrupo && ! ($this->origen['conNoProduccion'] ?? false)) {
-            return 'el registro no tiene No. de producción. Libéralo primero.';
-        }
-
         return (float) ($this->origen['disponible'] ?? 0) > 0 ? null : 'no hay saldo pendiente que dividir.';
     }
 

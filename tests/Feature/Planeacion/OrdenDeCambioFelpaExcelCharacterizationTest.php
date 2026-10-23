@@ -68,7 +68,7 @@ class OrdenDeCambioFelpaExcelCharacterizationTest extends TestCase
             'PesoCrudo' => 450,
             'NoTiras' => 4,
             'Repeticiones' => 0,
-            'LargoToalla' => 150,
+            'LargoCrudo' => 150, // el programa no tiene LargoToalla: el largo del modelo vive en LargoCrudo
             'AnchoToalla' => 75,
             'CuentaRizo' => '1200',
             'CalibreRizo2' => '12',

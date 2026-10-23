@@ -102,7 +102,10 @@ final class FormulasSecuenciaTelar
                 $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
             }
 
-            self::formulaPesoGrm2($formulas, $programa, $pesoCrudo);
+            $pesoGrm2 = FormulasEficiencia::pesoGrm2($programa);
+            if ($pesoGrm2 !== null) {
+                $formulas['PesoGRM2'] = $pesoGrm2;
+            }
 
             if ($diffDias > 0) {
                 $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
@@ -122,15 +125,6 @@ final class FormulasSecuenciaTelar
         }
 
         return $formulas;
-    }
-
-    private static function formulaPesoGrm2(array &$formulas, ReqProgramaTejido $programa, float $pesoCrudo): void
-    {
-        $largoToalla = (float) ($programa->LargoToalla ?? 0);
-        $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
-        if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-            $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
-        }
     }
 
     /** StdDia / ProdKgDia */

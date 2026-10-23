@@ -160,14 +160,10 @@ final class HorasProduccion
         return self::$modelosCache[$cacheKey];
     }
 
-    /** El del salón del registro primero; si no hay, cualquiera. Orden determinista. */
+    /** El modelo de la clave en el salón del registro (con alias); ya no se toma el de otro salón. */
     private static function modeloPorSalon(string $key, ?string $salon): ?ReqModelosCodificados
     {
-        $query = fn () => ReqModelosCodificados::where('TamanoClave', $key)->orderByDesc('FechaTejido')->orderByDesc('Id');
-
-        $modelo = $salon !== null ? $query()->where('SalonTejidoId', $salon)->first() : null;
-
-        return $modelo ?? $query()->first();
+        return CatalogoModelos::porTamanoClave($key, $salon);
     }
 
     public static function flushCaches(): void

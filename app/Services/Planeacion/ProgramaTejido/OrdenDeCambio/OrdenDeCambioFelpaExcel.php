@@ -89,7 +89,7 @@ class OrdenDeCambioFelpaExcel
                 $datosRegistro['no_marbetes'] = $noMarbetesCalculado;
 
                 // Calcular mts_rollo y toallas_rollo usando repeticiones calculada
-                $largo = $datosRegistro['largo'] ?? $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
+                $largo = $datosRegistro['largo'] ?? $registro->LargoCrudo ?? '';
                 $mtsRollo = '';
                 if (! empty($largo) && ! empty($repeticionesCalculada) && is_numeric($repeticionesCalculada)) {
                     $largoNum = (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM'], '', (string) $largo);
@@ -1113,8 +1113,9 @@ class OrdenDeCambioFelpaExcel
         }
 
         // Metros de rollo y toallas por rollo
-        // Usar datos de ReqProgramaTejido (NO de ReqModelosCodificados)
-        $largo = $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
+        // Usar datos de ReqProgramaTejido (NO de ReqModelosCodificados). El programa guarda el largo
+        // del modelo en LargoCrudo: no tiene LargoToalla, y antes esto caía al ancho (AnchoToalla).
+        $largo = $registro->LargoCrudo ?? '';
         // Repeticiones se toma desde BD
         $repeticiones = $registro->Repeticiones ?? '';
         $tiras = $registro->NoTiras ?? 2;
@@ -1160,7 +1161,7 @@ class OrdenDeCambioFelpaExcel
             'cantidad_producir' => $registro->SaldoPedido ?? '',
             'peine' => $modeloCodificado?->Peine ?? $registro->Peine ?? '',
             'ancho' => ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) ? (string) ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) : '',
-            'largo' => $modeloCodificado?->LargoToalla ?? $registro->LargoToalla ?? '',
+            'largo' => $modeloCodificado?->LargoToalla ?? $registro->LargoCrudo ?? '',
             'p_crudo' => $modeloCodificado?->PesoCrudo ?? $registro->PesoCrudo ?? '',
             'luchaje' => $modeloCodificado?->Luchaje ?? $registro->Luchaje ?? '',
             'tra' => $modeloCodificado?->CalibreTrama ?? $registro->Tra ?? '',

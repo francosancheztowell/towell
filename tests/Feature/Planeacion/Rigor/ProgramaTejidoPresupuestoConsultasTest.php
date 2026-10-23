@@ -48,7 +48,7 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
 
     private const MAX_UPDATE_9 = 48;                // medido: 3 → 22, 9 → 46 (antes 63)
 
-    private const MAX_VINCULAR_5 = 30;              // medido: 2 → 19, 5 → 28 (antes 47)
+    private const MAX_VINCULAR_5 = 31;              // medido: 2 → 22, 5 → 31 (antes 47); +3 fijas: OrdPrincipal ya se escribe (el fixture sin ItemId lo saltaba)
 
     // Lo que queda por registro son escrituras propias: UPDATE de eficiencia + DELETE/INSERT de
     // líneas (3), más el UPDATE de fechas de la cascada donde lo hay.
@@ -411,7 +411,7 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
         $r->assertOk();
 
         $releeStd = count(array_filter($sql, fn ($s) => str_starts_with($s, 'select "StdToaHra" from "ReqProgramaTejido"')));
-        $releeModelo = count(array_filter($sql, fn ($s) => str_contains($s, 'from "ReqModelosCodificados" where "TamanoClave" = ?')));
+        $releeModelo = count(array_filter($sql, fn ($s) => str_contains($s, "REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?")));
 
         // StdToaHra sale del modelo ya cargado; ReqModelosCodificados se memoiza por (TamanoClave, salón).
         $this->assertSame(0, $releeStd, 'el observer no relee StdToaHra de un registro ya cargado');
@@ -429,7 +429,8 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
 
         $this->assertSame(30.0, $total('SMIT'), 'del salón del registro, el más reciente');
         $this->assertSame(10.0, $total('JACQUARD'), 'no el de otro salón');
-        $this->assertSame(30.0, $total('ITEMA'), 'sin modelo en su salón: el más reciente de cualquiera');
+        $this->assertSame(30.0, $total('ITEMA'), 'ITEMA es alias de SMIT: el más reciente de ese salón');
+        $this->assertSame(0.0, $total('KARL MAYER'), 'sin modelo en su salón no se toma el de otro');
 
         [$consultas] = $this->contar(fn () => $total('SMIT'));
         $this->assertSame(0, $consultas, 'memoizado por (TamanoClave, salón)');

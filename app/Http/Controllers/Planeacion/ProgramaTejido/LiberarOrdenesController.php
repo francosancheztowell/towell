@@ -16,6 +16,7 @@ use App\Services\Planeacion\Liberar\LiberarHilosCatalogo;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
 use App\Services\Planeacion\Liberar\LiberarValidacionesService;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Services\Planeacion\ProgramaTejido\OrdenDeCambio\OrdenDeCambioFelpaExcel;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use App\Support\Http\Concerns\HandlesApiErrors;
@@ -645,6 +646,9 @@ class LiberarOrdenesController extends Controller
 
                 StringTruncator::truncateModelAttributes($registro);
                 $registro->save();
+                // Grupo con número temporal (Vincular o Dividir sin NoProduccion): la primera que se
+                // libera le da su NoProduccion y queda de líder, antes de escribir CatCodificados.
+                OrdCompartida::fijarAlLiberar($registro);
 
                 // Actualizar CatCodificados con los mismos campos (código de dibujo: grilla o último catálogo Item+salón)
                 // ponytail: si la fila aún no existe, no se avisa: la crea después

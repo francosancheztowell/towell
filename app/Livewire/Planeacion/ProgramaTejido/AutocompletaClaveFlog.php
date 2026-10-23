@@ -11,7 +11,7 @@ namespace App\Livewire\Planeacion\ProgramaTejido;
  */
 trait AutocompletaClaveFlog
 {
-    /** Autocompletado abierto: ['campo' => clave|flog, 'i' => fila, 'items' => list<string>]. */
+    /** Autocompletado abierto: ['campo' => clave|flog, 'i' => fila, 'items' => list<{valor, detalle}>]. */
     public array $sugerencias = [];
 
     /** Vincular usa las mismas filas que duplicar. */
@@ -21,21 +21,24 @@ trait AutocompletaClaveFlog
     }
 
     /** Al enfocar Flog la lista sale sin escribir: los flogs vigentes, primero los del artículo de la fila. */
-    public function abrirSugerencias(int $i): void
+    public function abrirSugerencias(string $campo, int $i): void
     {
-        if (isset($this->filas[$this->llave()][$i])) {
-            $this->sugerir('flog', $i, '');
+        if (isset($this->filas[$this->llave()][$i]) && in_array($campo, ['clave', 'flog'], true)) {
+            $this->sugerir($campo, $i, '');
         }
     }
 
+    /** Opciones ['valor', 'detalle']: la clave con su talla y producto; el flog solo. */
     private function sugerir(string $campo, int $i, string $texto): void
     {
         $fila = $this->filas[$this->llave()][$i];
         $items = $campo === 'clave'
-            ? CatalogosDestino::buscarClaves($texto)
-            : CatalogosDestino::buscarFlogs($texto, CatalogosDestino::flogsDelArticulo((string) $fila['itemId'], (string) $fila['inventSizeId']));
+            ? CatalogosDestino::buscarClaves($texto, (string) $fila['itemId'])
+            : array_map(fn (string $flog) => ['valor' => $flog, 'detalle' => ''],
+                CatalogosDestino::buscarFlogs($texto, CatalogosDestino::flogsDelArticulo((string) $fila['itemId'], (string) $fila['inventSizeId'])));
         // Si lo escrito ya es la única opción, no hay nada que sugerir.
-        $this->sugerencias = $items === [] || $items === [trim($texto)] ? [] : ['campo' => $campo, 'i' => $i, 'items' => $items];
+        $unica = array_column($items, 'valor') === [trim($texto)];
+        $this->sugerencias = $items === [] || $unica ? [] : ['campo' => $campo, 'i' => $i, 'items' => $items];
     }
 
     public function elegir(string $campo, int $i, string $valor): void

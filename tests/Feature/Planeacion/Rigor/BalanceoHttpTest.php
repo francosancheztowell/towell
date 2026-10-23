@@ -46,7 +46,11 @@ class BalanceoHttpTest extends TestCase
         $this->sembrarFixtures();
         $this->createTablaDesdeModelo(ReqModelosCodificados::class);
         $this->createTablaDbo('ReqCalendarioLine', ['CalendarioId' => 'text', 'FechaInicio' => 'text', 'FechaFin' => 'text']);
-        DB::table('ReqModelosCodificados')->insert(['TamanoClave' => 'CLV-1', 'Total' => 500]);
+        // El modelo se busca en el salón del registro (con alias), ya no en cualquiera: va con su salón.
+        DB::table('ReqModelosCodificados')->insert([
+            ['TamanoClave' => 'CLV-1', 'SalonTejidoId' => 'JACQUARD', 'Total' => 500],
+            ['TamanoClave' => 'CLV-1', 'SalonTejidoId' => 'SMIT', 'Total' => 500],
+        ]);
 
         foreach (['ReqProgramaTejido', 'MuestrasPrograma'] as $tabla) {
             DB::table($tabla)->whereIn('Id', [3, 4])->update(self::PARAMS_PRODUCCION + ['ItemId' => '7001']);
@@ -151,14 +155,20 @@ class BalanceoHttpTest extends TestCase
         $this->assertFila(3, [
             'Posicion' => '1', 'EnProceso' => '1', 'Ultimo' => '1', 'OrdCompartida' => '7', 'OrdCompartidaLider' => '1',
             'FechaInicio' => '2026-09-10 08:00:00', 'FechaFinal' => '2026-09-13 06:00:00',
-            'TotalPedido' => 700.0, 'SaldoPedido' => 700.0, 'HorasProd' => 70.0, 'OrdPrincipal' => '7001',
+            // OrdPrincipal = NoProduccion del líder (el 3); antes era su ItemId.
+            'TotalPedido' => 700.0, 'SaldoPedido' => 700.0, 'HorasProd' => 70.0, 'OrdPrincipal' => '30003',
         ]);
         // No EnProceso: conserva FechaInicio; 300 pz = 30 h.
         $this->assertFila(4, [
             'Posicion' => '1', 'EnProceso' => '0', 'Ultimo' => '0', 'OrdCompartida' => '7', 'OrdCompartidaLider' => '0',
             'FechaInicio' => '2026-09-11 06:00:00', 'FechaFinal' => '2026-09-12 12:00:00',
-            'TotalPedido' => 300.0, 'SaldoPedido' => 300.0, 'HorasProd' => 30.0, 'OrdPrincipal' => '7001',
+            'TotalPedido' => 300.0, 'SaldoPedido' => 300.0, 'HorasProd' => 30.0, 'OrdPrincipal' => '30003',
         ]);
+        $this->assertSame(
+            [30003, 30003],
+            DB::table((new CatCodificados)->getTable())->where('OrdenTejido', '30003')->orderBy('TelarId')->pluck('OrdPrincipal')->map(fn ($v) => (int) $v)->all(),
+            'CatCodificados del grupo lleva el NoProduccion del líder'
+        );
         // Cascada: el siguiente del telar 203 arranca donde termina el 4, mismo pedido.
         $this->assertFila(8, [
             'Posicion' => '2', 'EnProceso' => '0', 'Ultimo' => '1', 'OrdCompartida' => null, 'OrdCompartidaLider' => null,

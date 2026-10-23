@@ -65,7 +65,7 @@ class SecuenciaFechasTelarCharacterizationTest extends TestCase
         return collect([
             $this->registro(['Id' => 11, 'EnProceso' => 1, 'FibraRizo' => 'A', 'CalendarioId' => self::CAL, 'TamanoClave' => 'TC-SEQ',
                 'VelocidadSTD' => 400, 'EficienciaSTD' => 80, 'NoTiras' => 2, 'Luchaje' => 30, 'Repeticiones' => 3, 'SaldoPedido' => 500,
-                'PesoCrudo' => 450, 'LargoToalla' => 70, 'AnchoToalla' => 40, 'AplicacionId' => 'NA',
+                'PesoCrudo' => 450, 'LargoCrudo' => 70, 'AnchoToalla' => 40, 'AplicacionId' => 'NA',
                 'FechaInicio' => '2026-09-01 06:30:00', 'FechaFinal' => '2026-09-03 18:00:00']),
             $this->registro(['Id' => 12, 'EnProceso' => 0, 'FibraRizo' => 'A', 'CalendarioId' => self::CAL, 'HorasProd' => 10,
                 'SaldoPedido' => 300, 'AplicacionId' => 'X1', 'EntregaCte' => '2026-10-20 00:00:00',

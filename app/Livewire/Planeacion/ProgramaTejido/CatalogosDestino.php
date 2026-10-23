@@ -151,26 +151,39 @@ final class CatalogosDestino
     }
 
     /**
-     * Claves (de cualquier salón) que empiezan con $texto: TOP 10 con LIKE prefijo (usa índice; hay
-     * ~6,000 claves, por eso no va como lista completa).
+     * Claves (de cualquier salón) que contienen $texto, con su talla y producto. La talla va antes
+     * del artículo (MB7336, MANOS906), así que "7336" tiene que encontrar MB7336. Orden: las del
+     * artículo de la fila (sus otras tallas; sin texto, solo esas), luego las del artículo escrito,
+     * luego las que empiezan con el texto. TOP 10 de ~6,000 claves (el LIKE '%x%' mide 25-160 ms).
      *
-     * @return list<string>
+     * @return list<array{valor: string, detalle: string}>
      */
-    public static function buscarClaves(string $texto): array
+    public static function buscarClaves(string $texto, string $itemId = ''): array
     {
         $texto = trim($texto);
-        if ($texto === '') {
-            return [];
-        }
-
-        return ReqModelosCodificados::query()
-            ->where('TamanoClave', 'like', addcslashes($texto, '%_[').'%')
-            ->distinct()
+        $itemId = trim($itemId);
+        $like = addcslashes($texto, '%_[');
+        $consulta = fn (bool $delArticulo) => ReqModelosCodificados::query()
+            ->selectRaw('TamanoClave, MAX(InventSizeId) AS InventSizeId, MAX(Nombre) AS Nombre')
+            ->when($texto !== '', fn ($q) => $q->where('TamanoClave', 'like', '%'.$like.'%'))
+            ->when($delArticulo, fn ($q) => $q->where('ItemId', $itemId))
+            ->groupBy('TamanoClave')
+            // Raw: orden por relevancia (artículo exacto, luego "empieza con"); parametrizado.
+            ->orderByRaw('CASE WHEN MAX(LTRIM(RTRIM(ItemId))) = ? THEN 0 WHEN TamanoClave LIKE ? THEN 1 ELSE 2 END', [$texto, $like.'%'])
             ->orderBy('TamanoClave')
             ->limit(10)
-            ->pluck('TamanoClave')
-            ->map(fn ($c) => trim((string) $c))
-            ->all();
+            ->get();
+        $modelos = $itemId !== '' ? $consulta(true) : collect();
+        if ($texto !== '') {
+            $modelos = $modelos->concat($consulta(false));
+        }
+
+        return $modelos->unique(fn ($m) => mb_strtoupper(trim((string) $m->getAttribute('TamanoClave'))))->take(10)
+            ->map(fn ($m) => [
+                'valor' => trim((string) $m->getAttribute('TamanoClave')),
+                'detalle' => implode(' · ', array_filter([trim((string) $m->getAttribute('InventSizeId')), trim((string) $m->getAttribute('Nombre'))])),
+            ])
+            ->values()->all();
     }
 
     /**

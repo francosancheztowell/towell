@@ -54,7 +54,10 @@ class DuplicarTejido
         $descripcion = $data['descripcion'] ?? null;
         $registroIdOriginal = $data['registro_id_original'] ?? null;
         $vincular = $data['vincular'] ?? false;
-        $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
+        // Vincular arma un grupo solo con las órdenes nuevas: con una sola no hay grupo.
+        if ($vincular && count($destinos) < 2) {
+            return ['success' => false, 'message' => 'Para vincular se necesitan al menos 2 órdenes nuevas.', 'status' => 422];
+        }
 
         // Guardar y restaurar dispatcher para no romper otros flujos
         $dispatcher = ReqProgramaTejido::suppressObservers();
@@ -105,43 +108,10 @@ class DuplicarTejido
                 return ['success' => false, 'message' => $claveFaltante, 'status' => 422];
             }
 
-            // Determinar el OrdCompartida a usar (solo si vincular está activo)
+            // Vincular: grupo nuevo SOLO con las copias; el original no se toca aunque ya tenga grupo
+            // (antes entraba al grupo y quedaba de líder). Las copias no tienen NoProduccion, así que
+            // el grupo lleva número temporal (se fija con la primera copia, abajo) hasta liberar.
             $ordCompartidaAVincular = null;
-            if ($vincular) {
-                // Normalizar el valor: convertir strings vacíos a null
-                $ordCompartidaExistente = ($ordCompartidaExistente === '' || $ordCompartidaExistente === null)
-                    ? null
-                    : $ordCompartidaExistente;
-
-                if ($ordCompartidaExistente !== null && $ordCompartidaExistente > 0) {
-                    // Verificar que el OrdCompartida existente realmente exista en la BD
-                    $existe = ReqProgramaTejido::where('OrdCompartida', (int) $ordCompartidaExistente)->exists();
-                    if (! $existe) {
-                        DBFacade::rollBack();
-                        ReqProgramaTejido::restoreObservers($dispatcher);
-
-                        return [
-                            'success' => false,
-                            'message' => "El OrdCompartida {$ordCompartidaExistente} no existe en la base de datos.",
-                            'status' => 404,
-                        ];
-                    }
-                    // Usar OrdCompartida existente
-                    $ordCompartidaAVincular = (int) $ordCompartidaExistente;
-                } else {
-                    // OrdCompartida = NoProduccion del registro origen (líder natural)
-                    // Si origen no tiene NoProduccion, queda null y los duplicados se crearán sin
-                    // OrdCompartida; el recálculo de líder se omite más abajo.
-                    $ordCompartidaAVincular = OrdCompartida::obtenerOrdCompartidaDesdeRegistro($original);
-                }
-
-                // El origen tambien es parte del grupo: sin esto queda fuera de su propio
-                // OrdCompartida y el recalculo de lider solo ve a las copias.
-                if ($ordCompartidaAVincular && (int) ($original->OrdCompartida ?? 0) !== $ordCompartidaAVincular) {
-                    $original->OrdCompartida = $ordCompartidaAVincular;
-                    $original->saveQuietly();
-                }
-            }
 
             $idsParaObserver = [];
             $totalDuplicados = 0;
@@ -277,16 +247,14 @@ class DuplicarTejido
                 $nuevo->NoProduccion = null;
                 $nuevo->ProgramarProd = null;   // Day Scheduling en null
                 $nuevo->SaldoMarbete = null;  // Saldo marbetes en null
+                // No ha arrancado: el desarrollador las sella. replicate() traía las del original.
+                $nuevo->setAttribute('FechaArranque', null);
+                $nuevo->setAttribute('FechaFinaliza', null);
 
-                // ===== ORDCOMPARTIDA: Solo si vincular está activo =====
-                if ($vincular) {
-                    $nuevo->OrdCompartida = $ordCompartidaAVincular;
-                    // OrdCompartidaLider se asignará después de crear todos los registros
-                    $nuevo->OrdCompartidaLider = null;
-                } else {
-                    $nuevo->OrdCompartida = null;
-                    $nuevo->OrdCompartidaLider = null;
-                }
+                // null en la primera copia de Vincular: el número temporal sale de su Id al guardarla.
+                // Sin NoProduccion no hay líder hasta liberar.
+                $nuevo->OrdCompartida = $vincular ? $ordCompartidaAVincular : null;
+                $nuevo->OrdCompartidaLider = null;
                 // Limpiar campos de combinaciones
 
                 // ProgramarProd (Day Scheduling) queda en null (asignado arriba)
@@ -375,7 +343,11 @@ class DuplicarTejido
                 // Independientemente de si cambió la clave modelo o no
                 $aplicacionDestino = $destino['aplicacion'] ?? null;
 
-                if ($aplicacionDestino && $aplicacionDestino !== '' && $aplicacionDestino !== 'NA') {
+                if ($aplicacionDestino === 'NA') {
+                    // "NA" (NINGUNA) en el modal = sin aplicación, como en la edición de la grilla.
+                    // Antes caía al else y la copia heredaba la aplicación del original.
+                    $nuevo->AplicacionId = null;
+                } elseif ($aplicacionDestino) {
                     $nuevo->AplicacionId = StringTruncator::truncate('AplicacionId', $aplicacionDestino);
                 } elseif ($aplicacion && $aplicacion !== '' && $aplicacion !== 'NA') {
                     $nuevo->AplicacionId = StringTruncator::truncate('AplicacionId', $aplicacion);
@@ -553,6 +525,8 @@ class DuplicarTejido
                 }
 
                 // ===== Fórmulas =====
+                // PesoGRM2 de los datos de la copia (otra clave = otro peso); replicate() traía el del original.
+                $nuevo->setAttribute('PesoGRM2', FormulasEficiencia::pesoGrm2($nuevo));
                 if (! empty($nuevo->FechaInicio) && ! empty($nuevo->FechaFinal)) {
                     $formulas = self::calcularFormulasEficiencia($nuevo);
                     foreach ($formulas as $campo => $valor) {
@@ -590,6 +564,11 @@ class DuplicarTejido
                 $nuevo->HoraModificacion = $fechaActual->format('H:i:s');
                 $nuevo->UsuarioModifica = $usuarioActual;
                 $nuevo->save();
+                if ($vincular && $ordCompartidaAVincular === null) {
+                    $ordCompartidaAVincular = OrdCompartida::temporal((int) $nuevo->Id);
+                    $nuevo->OrdCompartida = $ordCompartidaAVincular;
+                    $nuevo->save();
+                }
 
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();
@@ -598,10 +577,6 @@ class DuplicarTejido
 
                 // Otro destino al mismo telar arranca donde termina este, no en la misma FechaInicio.
                 $ultimosMap[$salonDestinoFila.'|'.$telarDestino] = $nuevo;
-            }
-
-            if ($vincular && $ordCompartidaAVincular) {
-                OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartidaAVincular);
             }
 
             // Generar líneas diarias DENTRO de la transacción (antes del commit) para que la FK
@@ -643,7 +618,7 @@ class DuplicarTejido
             if ($vincular) {
                 return [
                     'success' => true,
-                    'message' => "Telar vinculado correctamente. Se crearon {$totalDuplicados} registro(s) con OrdCompartida: {$ordCompartidaAVincular}.",
+                    'message' => "Se crearon {$totalDuplicados} órdenes vinculadas entre sí. El grupo toma su número al liberar la primera.",
                     'modo' => 'vincular',
                     'registros_vinculados' => $totalDuplicados,
                     'registros_duplicados' => $totalDuplicados, // Mantener compatibilidad

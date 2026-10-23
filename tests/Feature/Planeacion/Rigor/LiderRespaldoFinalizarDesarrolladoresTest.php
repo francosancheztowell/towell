@@ -161,7 +161,22 @@ class LiderRespaldoFinalizarDesarrolladoresTest extends TestCase
         $cat = DB::table('CatCodificados')->where('OrdenTejido', '40003')->first();
         $this->assertEqualsWithDelta(400.0, (float) $cat->Saldos, 0.001);
         $this->assertSame(1, (int) $cat->OrdCompartidaLider);
-        $this->assertSame('ITEM-C', DB::table('ReqProgramaTejido')->where('Id', self::B)->value('OrdPrincipal'));
+        // OrdPrincipal = NoProduccion del líder nuevo (C), también en CatCodificados.
+        $this->assertSame(40003, (int) DB::table('ReqProgramaTejido')->where('Id', self::B)->value('OrdPrincipal'));
+        $this->assertSame(40003, (int) $cat->OrdPrincipal);
+    }
+
+    /** Utilerías › Finalizar: sella FechaFinaliza = ahora en CatCodificados y respeta la hora de arranque del desarrollador. */
+    public function test_finalizar_sella_fecha_finaliza_y_respeta_el_arranque_en_cat_codificados(): void
+    {
+        $this->sembrarGrupo('40003');
+        DB::table('CatCodificados')->where('OrdenTejido', '40001')->update(['FechaArranque' => '2026-09-01 06:45:00']);
+
+        $this->finalizarA();
+
+        $cat = DB::table('CatCodificados')->where('OrdenTejido', '40001')->first();
+        $this->assertSame(['2026-09-01 06:45:00', '2026-09-10 08:00:00'], [substr((string) $cat->FechaArranque, 0, 19), substr((string) $cat->FechaFinaliza, 0, 19)]);
+        $this->assertNull(DB::table('CatCodificados')->where('OrdenTejido', '40003')->value('FechaFinaliza'), 'el resto del grupo sigue abierto');
     }
 
     public function test_finalizar_lider_sin_no_produccion_en_el_grupo_pasa_al_mas_antiguo(): void
@@ -213,18 +228,18 @@ class LiderRespaldoFinalizarDesarrolladoresTest extends TestCase
         $this->assertEqualsWithDelta(50.0, (float) $this->fila(self::X)->SaldoPedido, 0.001, 'X conserva su saldo');
 
         $this->assertSame(
-            ['ITEM-C'],
-            DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)->distinct()->pluck('OrdPrincipal')->all(),
-            'OrdPrincipal del grupo = ItemId del líder'
+            [40003],
+            DB::table('ReqProgramaTejido')->where('OrdCompartida', self::GRUPO)->distinct()->pluck('OrdPrincipal')->map(fn ($v) => (int) $v)->all(),
+            'OrdPrincipal del grupo = NoProduccion del líder'
         );
 
         $catC = DB::table('CatCodificados')->where('OrdenTejido', '40003')->first();
         $this->assertEqualsWithDelta(400.0, (float) $catC->Saldos, 0.001);
         $this->assertSame(1, (int) $catC->OrdCompartidaLider);
-        $this->assertSame('ITEM-C', $catC->OrdPrincipal);
+        $this->assertSame(40003, (int) $catC->OrdPrincipal);
 
         $catX = DB::table('CatCodificados')->where('OrdenTejido', '40099')->first();
         $this->assertSame(0, (int) $catX->OrdCompartidaLider);
-        $this->assertSame('ITEM-C', $catX->OrdPrincipal);
+        $this->assertSame(40003, (int) $catX->OrdPrincipal);
     }
 }

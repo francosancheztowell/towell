@@ -4,8 +4,7 @@
         "afectaDuracion": false,
         "afectaFormulas": false,
         "afectaAplicacion": false,
-        "fechaFinalManual": false,
-        "editoAncho": false
+        "fechaFinalManual": false
     },
     "cambios": {
         "TamanoClave": null

@@ -57,7 +57,6 @@ class MovimientoDesarrolladorServiceTest extends TestCase
             $table->float('EficienciaSTD')->nullable();
             $table->float('HorasProd')->nullable();
             $table->float('PesoCrudo')->nullable();
-            $table->float('LargoToalla')->nullable();
             $table->float('AnchoToalla')->nullable();
             $table->string('FibraRizo')->nullable();
             $table->string('CuentaPie')->nullable();
@@ -469,7 +468,6 @@ class MovimientoDesarrolladorServiceTest extends TestCase
             'EficienciaSTD' => 100,
             'HorasProd' => 2,
             'PesoCrudo' => 0,
-            'LargoToalla' => 0,
             'AnchoToalla' => 0,
             'FibraRizo' => '',
             'CuentaPie' => null,

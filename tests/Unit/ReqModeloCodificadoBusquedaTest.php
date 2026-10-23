@@ -44,17 +44,22 @@ class ReqModeloCodificadoBusquedaTest extends TestCase
         $this->assertNotNull($result);
     }
 
-    public function test_busqueda_prefijo_encuentra_registro(): void
+    public function test_clave_incompleta_no_trae_otro_modelo(): void
     {
-        ReqModelosCodificados::create([
-            'TamanoClave' => 'ABC123',
-            'SalonTejidoId' => 'JAC1',
-        ]);
+        // La TamanoClave ya trae la talla: "MANOS9" traía MANOS941 (otro artículo) y la grilla lo guardaba.
+        ReqModelosCodificados::create(['TamanoClave' => 'MANOS941', 'SalonTejidoId' => 'JAC1', 'ItemId' => '941']);
 
-        $result = TejidoHelpers::obtenerModeloPorTamanoClave('ABC', 'JAC1');
+        $this->assertNull(TejidoHelpers::obtenerModeloPorTamanoClave('MANOS9', 'JAC1'));
+        $this->assertNull(TejidoHelpers::obtenerModeloPorTamanoClave('ANOS94', 'JAC1'));
+        $this->assertSame('941', TejidoHelpers::obtenerModeloPorTamanoClave('manos941', 'JAC1')?->ItemId);
+    }
 
-        $this->assertNotNull($result);
-        $this->assertEquals('ABC123', $result->TamanoClave);
+    public function test_clave_repetida_en_el_salon_toma_la_mas_reciente(): void
+    {
+        ReqModelosCodificados::create(['TamanoClave' => 'TAPETE7474', 'SalonTejidoId' => 'JAC1', 'InventSizeId' => 'TAP', 'FechaTejido' => '2022-09-22']);
+        ReqModelosCodificados::create(['TamanoClave' => 'TAPETE7474', 'SalonTejidoId' => 'JAC1', 'InventSizeId' => 'MAN', 'FechaTejido' => '2026-03-06']);
+
+        $this->assertSame('MAN', TejidoHelpers::obtenerModeloPorTamanoClave('TAPETE7474', 'JAC1')?->InventSizeId);
     }
 
     public function test_busqueda_sin_resultados_retorna_null(): void

@@ -32,8 +32,12 @@ final class Derivados
 
         self::recalcularFormulas($registro, $flags, $enProceso);
 
-        if ($flags['editoAncho']) {
-            self::recalcularPesoGrm2($registro);
+        // Derivado de peso, largo y ancho: siempre se recalcula (null si falta alguno). Antes solo
+        // al editar el ancho, y un cambio de clave o de largo dejaba el valor viejo o el copiado.
+        // Solo se asigna si cambia: así no ensucia un registro donde nada se movió.
+        $pesoGrm2 = FormulasEficiencia::pesoGrm2($registro);
+        if ($pesoGrm2 !== $registro->getAttribute('PesoGRM2')) {
+            $registro->setAttribute('PesoGRM2', $pesoGrm2);
         }
     }
 
@@ -136,17 +140,6 @@ final class Derivados
 
         if ($pesoCrudo > 0) {
             $p->ProdKgDia2 = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
-        }
-    }
-
-    /** Usa LargoCrudo si no hay LargoToalla. */
-    private static function recalcularPesoGrm2(ReqProgramaTejido $registro): void
-    {
-        $pesoCrudo = (float) ($registro->PesoCrudo ?? 0);
-        $largo = (float) ($registro->LargoToalla ?? $registro->LargoCrudo ?? 0);
-        $anchoToalla = (float) ($registro->AnchoToalla ?? 0);
-        if ($pesoCrudo > 0 && $largo > 0 && $anchoToalla > 0) {
-            $registro->PesoGRM2 = (float) round(($pesoCrudo * 10000) / ($largo * $anchoToalla), 2);
         }
     }
 }

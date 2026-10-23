@@ -43,7 +43,7 @@ class ProgramaTejidoFormulaCharacterizationTest extends TestCase
         $p = $this->programa([
             'Id' => 1, 'VelocidadSTD' => 400, 'EficienciaSTD' => 85, 'SaldoPedido' => 800, 'PesoCrudo' => 450,
             'FechaInicio' => '2026-09-01 06:30:00', 'FechaFinal' => '2026-09-03 18:00:00',
-            'AplicacionId' => 'NA', 'AnchoToalla' => 50, 'LargoToalla' => 90,
+            'AplicacionId' => 'NA', 'AnchoToalla' => 50, 'LargoCrudo' => 90,
         ]);
 
         $formulas = TejidoHelpers::calcularFormulasEficiencia(
@@ -72,7 +72,7 @@ class ProgramaTejidoFormulaCharacterizationTest extends TestCase
         $p = $this->programa([
             'Id' => 1, 'VelocidadSTD' => 400, 'EficienciaSTD' => 85, 'SaldoPedido' => 800, 'PesoCrudo' => 450,
             'FechaInicio' => '2026-09-01 06:30:00', 'FechaFinal' => '2026-09-03 18:00:00',
-            'AplicacionId' => 'APL1', 'AnchoToalla' => 50, 'LargoToalla' => 90,
+            'AplicacionId' => 'APL1', 'AnchoToalla' => 50, 'LargoCrudo' => 90,
         ]);
 
         $formulas = TejidoHelpers::calcularFormulasEficiencia(

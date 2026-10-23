@@ -30,6 +30,9 @@
                 @if (! $dividir && ! $this->puedeDividir())
                     <flux:text class="text-caption">Dividir no está disponible: {{ $this->porQueNoDivide() }}</flux:text>
                 @endif
+                @if ($modo === 'vincular')
+                    <flux:text class="text-caption">Las órdenes nuevas se vinculan entre sí; este registro no entra al grupo.</flux:text>
+                @endif
 
                 {{-- Sin overflow propio: el scroll lo hace el <dialog>, así las sugerencias (absolute z-20) no se recortan. --}}
                 <div>
@@ -66,8 +69,9 @@
                                                 {{-- wire:change y no wire:blur: pasar por el campo sin cambiar la clave no vuelve a
                                                      consultar Modelos/AX ni pisa el Flog y la Descripción capturados. --}}
                                                 {{-- Como Producto, Flog y Descripción: un renglón que crece a dos si no cabe; sin Enter. --}}
+                                                {{-- Al enfocar salen las otras tallas del mismo artículo (cada clave con su talla y producto). --}}
                                                 <flux:textarea wire:model.live.debounce.250ms="{{ $base }}.clave" wire:change="confirmar('clave', {{ $i }})"
-                                                               rows="auto" resize="none" x-on:keydown.enter.prevent
+                                                               wire:focus="abrirSugerencias('clave', {{ $i }})" rows="auto" resize="none" x-on:keydown.enter.prevent
                                                                maxlength="100" autocomplete="off" aria-label="Clave modelo fila {{ $i + 1 }}" />
                                                 @include('livewire.planeacion.programa-tejido.sugerencias', ['campo' => 'clave'])
                                             </div>
@@ -91,7 +95,7 @@
                                             {{-- Al enfocar sale la lista de flogs vigentes, primero los del artículo de la fila. --}}
                                             <div class="relative" x-data="{ foco: false }" x-on:focusin="foco = true" x-on:focusout="foco = false">
                                                 <flux:textarea wire:model.live.debounce.250ms="{{ $base }}.flog" wire:change="confirmar('flog', {{ $i }})"
-                                                               wire:focus="abrirSugerencias({{ $i }})" rows="auto" resize="none" x-on:keydown.enter.prevent
+                                                               wire:focus="abrirSugerencias('flog', {{ $i }})" rows="auto" resize="none" x-on:keydown.enter.prevent
                                                                maxlength="100" autocomplete="off" aria-label="Flog fila {{ $i + 1 }}" />
                                                 @include('livewire.planeacion.programa-tejido.sugerencias', ['campo' => 'flog'])
                                             </div>
@@ -110,8 +114,11 @@
                                         @if ($dividir)
                                             <span class="block py-2">{{ $fila['aplicacion'] }}</span>
                                         @else
+                                            {{-- "NA" (NINGUNA) es el default y al guardar deja la copia sin aplicación. --}}
                                             <flux:select wire:model="{{ $base }}.aplicacion" aria-label="Aplicación fila {{ $i + 1 }}">
-                                                <option value="">—</option>
+                                                @unless (in_array('NA', $aplicaciones, true))
+                                                    <option value="NA">NA</option>
+                                                @endunless
                                                 @foreach ($aplicaciones as $aplicacion)
                                                     <option value="{{ $aplicacion }}">{{ $aplicacion }}</option>
                                                 @endforeach

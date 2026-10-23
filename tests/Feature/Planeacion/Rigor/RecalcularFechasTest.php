@@ -52,8 +52,10 @@ class RecalcularFechasTest extends TestCase
         $this->createTablaDesdeModelo(ReqModelosCodificados::class);
         $this->createTablaDbo('ReqCalendarioLine', ['CalendarioId' => 'text', 'FechaInicio' => 'text', 'FechaFin' => 'text']);
 
+        // Un modelo por salón: la búsqueda ya no toma el de otro salón.
+        $modelo = ['TamanoClave' => 'TC-RIGOR', 'Total' => 99, 'NoTiras' => 1, 'Luchaje' => 254, 'Repeticiones' => 5000];
         DB::table((new ReqModelosCodificados)->getTable())->insert([
-            'TamanoClave' => 'TC-RIGOR', 'Total' => 99, 'NoTiras' => 1, 'Luchaje' => 254, 'Repeticiones' => 5000,
+            $modelo + ['SalonTejidoId' => 'SMIT'], $modelo + ['SalonTejidoId' => 'JACQUARD'],
         ]);
 
         $this->sembrarTelares('ReqProgramaTejido', '2026-09-01');

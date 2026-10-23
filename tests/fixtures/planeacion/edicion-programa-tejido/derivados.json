@@ -1,6 +1,7 @@
 {
     "duracion": {
         "FechaFinal": "2026-09-01 16:00:00",
+        "PesoGRM2": 1285.71,
         "DiasEficiencia": 0.42,
         "StdHrsEfect": 90.0,
         "ProdKgDia2": 972.0,
@@ -11,6 +12,7 @@
     },
     "duracion-en-proceso": {
         "FechaFinal": "2026-09-10 20:00:00",
+        "PesoGRM2": 1285.71,
         "DiasEficiencia": 0.42,
         "StdHrsEfect": 90.0,
         "ProdKgDia2": 972.0,
@@ -21,6 +23,7 @@
     },
     "duracion-fallback-proporcional": {
         "FechaFinal": "2026-09-01 11:00:00",
+        "PesoGRM2": 1285.71,
         "DiasEficiencia": 0.21,
         "StdHrsEfect": 90.0,
         "ProdKgDia2": 972.0,
@@ -33,9 +36,11 @@
         "FechaFinal": "2026-09-01 16:00:00",
         "DiasEficiencia": 0.42,
         "StdHrsEfect": 90.0,
-        "ProdKgDia2": 972.0
+        "ProdKgDia2": 972.0,
+        "PesoGRM2": 1285.71
     },
     "fecha-final-manual": {
+        "PesoGRM2": 1285.71,
         "DiasEficiencia": 4.0,
         "StdHrsEfect": 9.38,
         "ProdKgDia2": 101.25,
@@ -45,6 +50,7 @@
         "PTvsCte": -6.0
     },
     "solo-formulas-sin-inicio": {
+        "PesoGRM2": 1285.71,
         "DiasEficiencia": 7.17,
         "StdHrsEfect": 5.23,
         "ProdKgDia2": 56.51,
@@ -56,5 +62,7 @@
     "ancho": {
         "PesoGRM2": 1250.0
     },
-    "nada": []
+    "nada": {
+        "PesoGRM2": 1285.71
+    }
 }

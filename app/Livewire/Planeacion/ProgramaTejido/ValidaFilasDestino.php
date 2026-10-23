@@ -32,9 +32,10 @@ trait ValidaFilasDestino
         if (! CatalogosDestino::claveEnSalon($clave, (string) $fila['salon'])) {
             $this->addError("$base.clave", $clave === '' ? 'Captura la clave modelo.' : "La clave {$clave} no existe en Modelos de {$fila['salon']}.");
         }
+        // El flog puede ir vacío; si se escribe, tiene que existir y estar vigente (que no vaya mal escrito).
         $flog = trim((string) $fila['flog']);
-        if (! CatalogosDestino::esFlogVigente($flog)) {
-            $this->addError("$base.flog", $flog === '' ? 'Captura el flog.' : "El flog {$flog} no está vigente en AX.");
+        if ($flog !== '' && ! CatalogosDestino::esFlogVigente($flog)) {
+            $this->addError("$base.flog", "El flog {$flog} no está vigente en AX.");
         }
     }
 
@@ -58,6 +59,9 @@ trait ValidaFilasDestino
     {
         $llave = $this->llave();
         $filas = $this->filasAGuardar();
+        if ($this->modo === 'vincular' && count($filas) < 2) {
+            return 'Agrega al menos 2 órdenes para vincularlas entre sí.';
+        }
         $numeros = fn (array $indices) => implode(', ', array_map(fn (int $i) => $i + 1, $indices));
         $sinTelar = array_keys(array_filter($filas, fn (array $f) => trim((string) $f['telar']) === ''));
         if ($sinTelar !== []) {

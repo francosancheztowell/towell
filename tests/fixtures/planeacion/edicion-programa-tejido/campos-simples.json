@@ -4,8 +4,7 @@
         "afectaDuracion": true,
         "afectaFormulas": true,
         "afectaAplicacion": true,
-        "fechaFinalManual": true,
-        "editoAncho": true
+        "fechaFinalManual": true
     },
     "cambios": {
         "NoProduccion": "777",

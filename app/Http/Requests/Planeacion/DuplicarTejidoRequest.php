@@ -55,7 +55,6 @@ class DuplicarTejidoRequest extends FormRequest
             'descripcion' => 'nullable|string',
             'registro_id_original' => 'nullable|integer',
             'vincular' => 'nullable|boolean',
-            'ord_compartida_existente' => 'nullable|integer|min:1',
         ];
     }
 }

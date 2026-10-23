@@ -21,7 +21,7 @@ use Carbon\Carbon;
  */
 final class EdicionProgramaTejido
 {
-    private const FLAGS = ['afectaCalendario', 'afectaDuracion', 'afectaFormulas', 'afectaAplicacion', 'fechaFinalManual', 'editoAncho'];
+    private const FLAGS = ['afectaCalendario', 'afectaDuracion', 'afectaFormulas', 'afectaAplicacion', 'fechaFinalManual'];
 
     /**
      * Aplica los campos validados al registro (sin guardar) y devuelve las banderas de qué
@@ -127,7 +127,7 @@ final class EdicionProgramaTejido
         }
     }
 
-    /** no_tiras, peine, largo_crudo, luchaje, peso_crudo y ancho/ancho_toalla (solo PesoGRM2). */
+    /** no_tiras, peine, largo_crudo, luchaje, peso_crudo y ancho/ancho_toalla (PesoGRM2 lo recalcula siempre Derivados). */
     private static function aplicarMedidas(ReqProgramaTejido $registro, array $data, array &$flags): void
     {
         if (Campos::numero($registro, $data, 'no_tiras', 'NoTiras')) {
@@ -142,7 +142,7 @@ final class EdicionProgramaTejido
             $flags['afectaFormulas'] = true;
         }
 
-        // Ancho y AnchoToalla van juntos; editar ancho no marca afectaFormulas.
+        // Ancho y AnchoToalla van juntos; editar ancho no marca afectaFormulas (solo mueve PesoGRM2).
         foreach (['ancho_toalla' => ['AnchoToalla', 'Ancho'], 'ancho' => ['Ancho', 'AnchoToalla']] as $campo => $columnas) {
             if (! array_key_exists($campo, $data)) {
                 continue;
@@ -151,7 +151,6 @@ final class EdicionProgramaTejido
             foreach ($columnas as $columna) {
                 $registro->setAttribute($columna, $valor);
             }
-            $flags['editoAncho'] = true;
         }
     }
 

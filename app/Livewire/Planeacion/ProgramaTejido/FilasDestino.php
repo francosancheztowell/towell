@@ -32,8 +32,8 @@ final class FilasDestino
     private const TOLERANCIA_SALDO = 0.5;
 
     /**
-     * Datos del registro de origen más lo que decide el diálogo: grupo, NoProduccion y saldo
-     * disponible (el del original, o Σ del grupo si redistribuye).
+     * Datos del registro de origen más lo que decide el diálogo: grupo y saldo disponible (el
+     * del original, o Σ del grupo si redistribuye).
      *
      * @param  Collection<int, ReqProgramaTejido>  $grupo
      * @return array<string, mixed>
@@ -43,7 +43,6 @@ final class FilasDestino
         return self::datosDe($registro) + [
             'salonBd' => trim((string) $registro->getAttribute('SalonTejidoId')),
             'ordCompartida' => (int) $registro->getAttribute('OrdCompartida') ?: null,
-            'conNoProduccion' => trim((string) $registro->getAttribute('NoProduccion')) !== '',
             'disponible' => round((float) $grupo->sum(fn ($r) => (float) $r->getAttribute('SaldoPedido')), 2),
         ];
     }
@@ -99,7 +98,8 @@ final class FilasDestino
     {
         return array_merge([
             'salon' => $d['salon'], 'telar' => '', 'clave' => $d['clave'], 'producto' => $d['producto'],
-            'flog' => $d['flog'], 'descripcion' => $d['descripcion'], 'aplicacion' => $d['aplicacion'],
+            // Sin aplicación = "NA" (NINGUNA en ReqAplicaciones), igual que en la grilla.
+            'flog' => $d['flog'], 'descripcion' => $d['descripcion'], 'aplicacion' => $d['aplicacion'] ?: 'NA',
             'custName' => $d['custName'], 'itemId' => $d['itemId'], 'inventSizeId' => $d['inventSizeId'],
             'pedido' => '', 'porcSeg' => self::numero($d['porcSeg']), 'saldo' => '',
             'produccion' => 0.0, 'registroId' => null, 'existente' => false, 'aviso' => null,
@@ -212,7 +212,6 @@ final class FilasDestino
             'descripcion' => $o['descripcion'],
         ]) + [
             'vincular' => $vincular,
-            'ord_compartida_existente' => $vincular ? $o['ordCompartida'] : null,
             // El saldo no se captura en Duplicar: sale de pedido y %seg aquí, no de lo que mande la pantalla.
             'destinos' => array_map(fn (array $f) => self::destino($f) + self::sinVacios([
                 'pedido' => $f['pedido'],

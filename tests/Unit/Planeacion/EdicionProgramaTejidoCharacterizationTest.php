@@ -212,4 +212,27 @@ class EdicionProgramaTejidoCharacterizationTest extends TestCase
             'nada' => $this->derivados([], []),
         ]);
     }
+
+    /** PesoGRM2 = PesoCrudo x 10000 / (LargoCrudo x AnchoToalla) sigue a cualquier edición; sin datos queda vacío. */
+    public function test_peso_grm2_sigue_al_largo_y_a_la_clave_y_sin_datos_queda_vacio(): void
+    {
+        $editar = function (ReqProgramaTejido $r, array $data): ReqProgramaTejido {
+            (self::CLASE)::recalcularDerivados($r, (self::CLASE)::aplicarCambios($r, $data), 10, 900);
+
+            return $r;
+        };
+
+        // Antes editar el largo no lo recalculaba: se quedaba el 676.44 copiado de otra orden.
+        $this->assertSame(1000.0, $editar($this->registro(['PesoGRM2' => 676.44]), ['largo_crudo' => 90])->PesoGRM2, '450 x 10000 / (90 x 50)');
+
+        // Cambio de clave: peso, largo (LargoToalla del modelo) y ancho del modelo nuevo.
+        $this->crearModelo('JACQUARD', 'CLAVE-1');
+        $modelo = ReqModelosCodificados::query()->firstOrFail();
+        $r = $editar($this->registro(['PesoGRM2' => 676.44]), ['tamano_clave' => 'CLAVE-1']);
+        $this->assertSame([(int) $modelo->LargoToalla, (float) $modelo->AnchoToalla], [(int) $r->LargoCrudo, (float) $r->AnchoToalla]);
+        $this->assertSame(round($r->PesoCrudo * 10000 / ($r->LargoCrudo * $r->AnchoToalla), 2), $r->PesoGRM2);
+
+        // Sin ancho no hay con qué calcular: el valor viejo se borra en vez de quedarse.
+        $this->assertNull($editar($this->registro(['PesoGRM2' => 676.44]), ['ancho_toalla' => null])->PesoGRM2);
+    }
 }

@@ -12,9 +12,47 @@ use Illuminate\Support\Facades\Log as LogFacade;
  * Operaciones con OrdCompartida (antes Controllers/.../helper/OrdCompartidaHelper). El valor
  * de OrdCompartida se deriva del NoProduccion del registro líder del grupo (no es un contador
  * sintético). Lo usan VincularTejido, DividirTejido y DuplicarTejido.
+ *
+ * Un grupo sin ningún NoProduccion (Vincular en el modal, Dividir sin liberar) lleva un número
+ * temporal hasta que se libera su primera orden: entonces toma el NoProduccion de esa orden.
  */
 final class OrdCompartida
 {
+    /**
+     * Base del número temporal: 900000000 + Id de una fila nueva del grupo. El Id no se repite y
+     * los folios de NoProduccion (37 mil en oct-2026) no llegan aquí, así que no choca con nada.
+     */
+    public const TEMPORAL = 900000000;
+
+    public static function temporal(int $idFilaNueva): int
+    {
+        return self::TEMPORAL + $idFilaNueva;
+    }
+
+    public static function esTemporal(?int $ordCompartida): bool
+    {
+        return $ordCompartida !== null && $ordCompartida >= self::TEMPORAL;
+    }
+
+    /**
+     * Al liberar la primera orden de un grupo con número temporal, el grupo toma su NoProduccion y
+     * ella queda de líder. Llamar después de guardar el NoProduccion y antes de escribir
+     * CatCodificados: recarga el registro para que lleve el número, el líder y el OrdPrincipal nuevos.
+     */
+    public static function fijarAlLiberar(ReqProgramaTejido $registro): void
+    {
+        $temporal = (int) $registro->getAttribute('OrdCompartida');
+        $definitivo = self::obtenerOrdCompartidaDesdeRegistro($registro);
+        // Un NoProduccion manual no numérico no puede ser número de grupo: espera a la siguiente.
+        if (! self::esTemporal($temporal) || $definitivo === null) {
+            return;
+        }
+
+        ReqProgramaTejido::where('OrdCompartida', $temporal)->update(['OrdCompartida' => $definitivo, 'UpdatedAt' => now()]);
+        self::recalcularLiderYOrdPrincipalPorOrdCompartida($definitivo);
+        $registro->refresh();
+    }
+
     /**
      * Deriva el OrdCompartida desde el NoProduccion del registro líder propuesto.
      * Retorna null si el registro no tiene NoProduccion válido (no puede ser líder).
@@ -75,7 +113,8 @@ final class OrdCompartida
 
     public static function recalcularLiderYOrdPrincipalPorOrdCompartida(int $ordCompartida): ?int
     {
-        if ($ordCompartida <= 0) {
+        // Temporal = nadie tiene NoProduccion todavía: no hay líder posible hasta liberar.
+        if ($ordCompartida <= 0 || self::esTemporal($ordCompartida)) {
             return null;
         }
 

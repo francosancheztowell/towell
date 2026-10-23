@@ -88,7 +88,7 @@ class ReqProgramaTejidoObserverSavedCharacterizationTest extends TestCase
             'SalonTejidoId' => 'SMIT', 'NoTelarId' => '207', 'Posicion' => 1, 'EnProceso' => 0,
             'NoProduccion' => '30007', 'InventSizeId' => 'TAM01',
             'TotalPedido' => 1200, 'SaldoPedido' => 900, 'PesoCrudo' => 450, 'NoTiras' => 2,
-            'LargoCrudo' => 70, 'MedidaPlano' => 5, 'AnchoToalla' => 50, 'LargoToalla' => 90,
+            'LargoCrudo' => 70, 'MedidaPlano' => 5, 'AnchoToalla' => 50,
             'VelocidadSTD' => 400, 'EficienciaSTD' => 85,
             'PasadasTrama' => 20, 'CalibreTrama2' => 12,
             'PasadasComb1' => 10, 'CalibreComb12' => 16,
