@@ -90,15 +90,15 @@ async function loadReqProgramaTejidoLines(params: Record<string, string> = {}): 
 let currentLinesAbortController: AbortController | null = null;
 let currentLinesRequestId = 0;
 
-const CLASE_TH = 'px-3 py-2 text-right text-xs font-normal  tracking-wider whitespace-nowrap';
-const ENCABEZADOS = ['Piezas', 'Kilos', 'Aplicación', 'Trama', 'Comb 1', 'Comb 2', 'Comb 3', 'Comb 4', 'Comb 5',
-    'Rizo', 'Pie', 'Mts/Pie', 'Mts/Rizo'];
+const ENCABEZADOS = ['Piezas', 'Kilos', 'Aplicación', 'Trama', 'Combinación 1', 'Combinación 2', 'Combinación 3',
+    'Combinación 4', 'Combinación 5', 'Rizo', 'Pie', 'Mts/Pie', 'Mts/Rizo'];
 
 function estadoModal(fondo: string, clasesIcono: string, titulo: string, claseTitulo: string, detalle: string, claseDetalle: string): HTMLElement {
-    return el('div', { clase: 'text-center py-12' },
-        el('div', { clase: `inline-flex items-center justify-center w-16 h-16 rounded-full ${fondo} mb-4` }, icono(clasesIcono)),
-        el('div', { clase: claseTitulo, texto: titulo }),
-        el('div', { clase: claseDetalle, texto: detalle }));
+    return el('div', { clase: 'detalle-telar__estado' },
+        el('div', { clase: 'text-center' },
+            el('div', { clase: `inline-flex items-center justify-center w-16 h-16 rounded-full ${fondo} mb-4` }, icono(clasesIcono)),
+            el('div', { clase: claseTitulo, texto: titulo }),
+            el('div', { clase: claseDetalle, texto: detalle })));
 }
 
 const errorModal = (detalle: string) => estadoModal('bg-red-100', 'fa-solid fa-exclamation-triangle text-red-500 text-2xl',
@@ -106,66 +106,41 @@ const errorModal = (detalle: string) => estadoModal('bg-red-100', 'fa-solid fa-e
 
 function tablaModal(items: LineaDiaria[]): HTMLElement {
     const totales = totalesLineas(items);
-    const celda = 'px-3 py-2 text-xs font-normal text-right text-gray-700 whitespace-nowrap';
-    const celdaTotal = 'px-3 py-2 text-xs font-semibold text-right text-blue-700 whitespace-nowrap bg-blue-50';
 
     const filas = items.map((it, idx) => el('tr', {
-        clase: `modal-table-row ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} transition-colors cursor-pointer`,
+        clase: 'detalle-telar__fila',
         attrs: { 'data-row-index': String(idx) },
     },
-    el('td', { clase: 'px-3 py-2 text-xs font-normal text-gray-900 whitespace-nowrap', texto: fechaLinea(it.Fecha) }),
-    ...COLUMNAS_LINEA.map((c) => el('td', { clase: celda, texto: formatoEntero(it[c]) }))));
+    el('td', { texto: fechaLinea(it.Fecha) }),
+    ...COLUMNAS_LINEA.map((c) => el('td', { texto: formatoEntero(it[c]) }))));
 
-    const tabla = el('table', { clase: 'min-w-full divide-y divide-gray-200' },
-        el('thead', { clase: 'bg-blue-500 text-white sticky top-0 z-10' },
+    const tabla = el('table', {},
+        el('thead', {},
             el('tr', {},
-                el('th', { clase: 'px-3 py-2 text-left text-xs font-normal  tracking-wider whitespace-nowrap', texto: 'Fecha' }),
-                ...ENCABEZADOS.map((t) => el('th', { clase: CLASE_TH, texto: t })))),
-        el('tbody', { clase: 'bg-white divide-y divide-gray-200' }, ...filas),
-        el('tfoot', { clase: 'bg-blue-50 border-t-2 border-blue-300 sticky bottom-0 z-10' },
+                el('th', { texto: 'Fecha' }),
+                ...ENCABEZADOS.map((t) => el('th', { texto: t })))),
+        el('tbody', {}, ...filas),
+        el('tfoot', {},
             el('tr', {},
-                el('td', { clase: 'px-3 py-2 text-xs font-semibold text-gray-900 whitespace-nowrap bg-blue-50', texto: 'TOTAL' }),
-                // Total 0 → &nbsp; (celda vacía que conserva la altura).
-                ...COLUMNAS_LINEA.map((c) => el('td', { clase: celdaTotal, texto: totales[c] === 0 ? ' ' : formatoEntero(totales[c]) })))));
-
-    const scroll = el('div', { clase: 'overflow-x-auto relative' }, tabla);
-    scroll.style.maxHeight = '500px';
-    scroll.style.overflowY = 'auto';
+                el('td', { texto: 'Total' }),
+                // Total 0 → espacio (celda vacía que conserva la altura).
+                ...COLUMNAS_LINEA.map((c) => el('td', { texto: totales[c] === 0 ? ' ' : formatoEntero(totales[c]) })))));
 
     enlazarSeleccion(filas);
 
-    return el('div', { clase: 'bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden' },
-        scroll,
-        el('div', { clase: 'bg-gray-50 px-3 py-1 border-t border-gray-200' },
-            el('span', { clase: 'text-xs text-gray-500', texto: `${items.length} registro(s)` })));
+    const dias = items.length === 1 ? '1 día de tejido' : `${items.length} días de tejido`;
+    return el('div', { clase: 'detalle-telar' },
+        el('div', { clase: 'detalle-telar__barra' },
+            el('span', { texto: dias }),
+            el('span', { clase: 'detalle-telar__pista', texto: 'Clic en una fila para resaltarla' })),
+        el('div', { clase: 'detalle-telar__scroll' }, tabla));
 }
 
-/** Hover y selección de una fila del modal (azul), igual que antes. */
+/** Una fila resaltada a la vez; el hover lo resuelve el CSS. */
 function enlazarSeleccion(rows: HTMLTableRowElement[]): void {
     rows.forEach((row) => {
-        row.addEventListener('mouseenter', () => {
-            row.style.backgroundColor = row.classList.contains('bg-blue-500') ? '#1d4ed8' : '#dbeafe';
-        });
-        row.addEventListener('mouseleave', () => {
-            row.style.backgroundColor = row.classList.contains('bg-blue-500') ? '#3b82f6' : '';
-        });
         row.addEventListener('click', () => {
-            rows.forEach((r) => {
-                r.classList.remove('bg-blue-500', 'text-white');
-                r.classList.add(Number(r.dataset.rowIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-50');
-                r.style.backgroundColor = '';
-                r.querySelectorAll('td').forEach((cell) => {
-                    cell.classList.remove('text-white');
-                    cell.classList.add('text-gray-700', 'text-gray-900');
-                });
-            });
-            row.classList.add('bg-blue-500', 'text-white');
-            row.classList.remove('bg-white', 'bg-gray-50');
-            row.style.backgroundColor = '#3b82f6';
-            row.querySelectorAll('td').forEach((cell) => {
-                cell.classList.add('text-white');
-                cell.classList.remove('text-gray-700', 'text-gray-900');
-            });
+            rows.forEach((r) => r.classList.toggle('is-selected', r === row));
         });
     });
 }
@@ -199,18 +174,18 @@ function openLinesModal(programaId: string | number): void {
     currentLinesAbortController = controlador;
     const requestId = ++currentLinesRequestId;
 
-    const cargando = el('div', { attrs: { id: 'lines-modal-content' }, clase: 'w-full' },
-        el('div', { clase: 'flex items-center justify-center py-12' },
+    const cargando = el('div', { attrs: { id: 'lines-modal-content' }, clase: 'detalle-telar__host' },
+        el('div', { clase: 'detalle-telar__estado' },
             el('div', { clase: 'flex flex-col items-center gap-3' },
                 el('div', { clase: 'w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin' }),
                 el('span', { clase: 'text-gray-700 font-medium', texto: 'Cargando detalle del telar...' }))));
 
-    // Modal propio con tabla, totales y selección (solo lectura: botón Cerrar, Esc o clic fuera).
+    // Modal a casi toda la ventana (ui-dialogo--pantalla). Solo lectura: Cerrar, Esc o clic fuera.
     void notify.dialog({
         titulo: 'Detalle del Telar',
-        html: '<div id="lines-modal-content" class="w-full"></div>',
+        html: '<div id="lines-modal-content" class="detalle-telar__host"></div>',
         tono: null,
-        ancho: '2xl',
+        ancho: 'pantalla',
         botones: [{ texto: 'Cerrar', valor: 'cerrar', variante: 'secundario' }],
         alAbrir: (root) => {
             root.replaceChildren(cargando);

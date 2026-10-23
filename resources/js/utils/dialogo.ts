@@ -26,7 +26,7 @@ export interface ContextoValidar {
     error(mensaje: string): void;
 }
 
-export type AnchoDialogo = 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+export type AnchoDialogo = 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'pantalla';
 
 export interface OpcionesDialogo {
     titulo: string;
