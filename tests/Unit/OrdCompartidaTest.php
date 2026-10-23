@@ -8,11 +8,11 @@ use Tests\TestCase;
 
 class OrdCompartidaTest extends TestCase
 {
-    public function test_obtener_ord_compartida_desde_registro_array_retorna_int(): void
+    /** OrdCompartida es texto: el NoProduccion tal cual (recortado), también el folio M de Muestras. */
+    public function test_obtener_ord_compartida_desde_registro_retorna_el_no_produccion_como_texto(): void
     {
-        $resultado = OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '12345']);
-
-        $this->assertSame(12345, $resultado);
+        $this->assertSame('12345', OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '12345']));
+        $this->assertSame('M3175', OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => ' M3175 ']));
     }
 
     public function test_obtener_ord_compartida_desde_registro_sin_no_produccion_retorna_null(): void
@@ -20,7 +20,7 @@ class OrdCompartidaTest extends TestCase
         $this->assertNull(OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => null]));
         $this->assertNull(OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '']));
         $this->assertNull(OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '   ']));
-        $this->assertNull(OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => 'abc']));
+        $this->assertNull(OrdCompartida::obtenerOrdCompartidaDesdeRegistro(['NoProduccion' => '0']));
         $this->assertNull(OrdCompartida::obtenerOrdCompartidaDesdeRegistro(null));
     }
 
