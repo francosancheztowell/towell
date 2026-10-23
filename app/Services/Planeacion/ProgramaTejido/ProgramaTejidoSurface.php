@@ -7,6 +7,7 @@ namespace App\Services\Planeacion\ProgramaTejido;
 use App\Helpers\FolioHelper;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Superficie de Programa Tejido (PT-02 · 02.1): Programa o Muestras.
@@ -159,9 +160,31 @@ enum ProgramaTejidoSurface: string
      */
     public function siguienteFolio(): string
     {
-        return $this->esMuestras()
-            ? FolioHelper::obtenerSiguienteFolio('Muestras', 4)
-            : FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
+        [$modulo, $digitos] = $this->secuenciaFolio();
+
+        return FolioHelper::obtenerSiguienteFolio($modulo, $digitos);
+    }
+
+    /**
+     * El folio que tomaría la próxima orden liberada, sin consumirlo (para la pantalla). La
+     * secuencia guarda el último usado, así que es consecutivo + 1; '' si no hay secuencia o la
+     * consulta falla (es solo una vista previa: no debe tumbar la página).
+     */
+    public function proximoFolio(): string
+    {
+        [$modulo, $digitos] = $this->secuenciaFolio();
+
+        return rescue(function () use ($modulo, $digitos) {
+            $fila = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->first(['prefijo', 'consecutivo']);
+
+            return $fila === null ? '' : $fila->prefijo.str_pad((string) ((int) $fila->consecutivo + 1), $digitos, '0', STR_PAD_LEFT);
+        }, '');
+    }
+
+    /** @return array{0: string, 1: int} módulo de SSYSFoliosSecuencias y dígitos del consecutivo */
+    private function secuenciaFolio(): array
+    {
+        return $this->esMuestras() ? ['Muestras', 4] : ['Planeacion', 5];
     }
 
     private function config(string $clave): mixed

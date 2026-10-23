@@ -279,7 +279,7 @@ class LiberarOrdenesController extends Controller
         $bomIds = $registrosInput->pluck('bomId')->map(fn ($v) => trim((string) $v))->filter()->unique();
 
         $registrosBd = ReqProgramaTejido::whereIn('Id', $registrosInput->pluck('id')->map(fn ($v) => (int) $v)->all())
-            ->get(['Id', 'ItemId', 'InventSizeId', 'SalonTejidoId', 'NoExisteBase'])
+            ->get(['Id', 'ItemId', 'InventSizeId', 'SalonTejidoId', 'NoExisteBase', 'NoProduccion'])
             ->keyBy('Id');
 
         // index() esconde los renglones con NoExisteBase, pero liberar() no los rechazaba: un id
@@ -295,6 +295,21 @@ class LiberarOrdenesController extends Controller
                 'success' => false,
                 'message' => 'No se pueden liberar registros marcados con "No existe base": '
                     .implode(', ', $sinBase).'.',
+            ], 422);
+        }
+
+        // index() solo lista renglones sin NoProduccion; liberar() no lo revisaba y pisaba la orden.
+        // Así pasó el 23-oct-2026: la pantalla de Muestras posteaba a la ruta de Programa y, con los
+        // mismos Id, re-liberó órdenes de Programa (37040 → 37069 → 37071) y les cambió los marbetes.
+        $yaLiberados = $registrosBd
+            ->filter(fn ($r) => trim((string) $r->getAttribute('NoProduccion')) !== '')
+            ->map(fn ($r) => $r->Id.' (orden '.trim((string) $r->getAttribute('NoProduccion')).')')
+            ->values()
+            ->all();
+        if ($yaLiberados !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Estos registros ya están liberados y no se vuelven a liberar: '.implode(', ', $yaLiberados).'. Recarga la página.',
             ], 422);
         }
 

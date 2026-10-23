@@ -1193,4 +1193,59 @@ class LiberarOrdenesLiberarTest extends TestCase
         $cat = DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', 'M3175')->first();
         $this->assertSame(['M3175', 'M3175', 1], [$cat->OrdCompartida, $cat->OrdPrincipal, (int) $cat->OrdCompartidaLider]);
     }
+
+    /** @return array{rutas: array<string, string>, html: string} la vista de Liberar renderizada en $ruta */
+    private function paginaLiberar(string $ruta): array
+    {
+        $this->attachDboFlogTables();
+        $request = Request::create($ruta, 'GET', ['dias' => 10.999]);
+        app()->instance('request', $request);
+        $view = (new LiberarOrdenesController)->index($request);
+        $this->actingAs(new Usuario(['nombre' => 'QA']));
+        $html = $view->render();
+        $this->assertSame(1, preg_match("/data-pagina='([^']+)'/", $html, $m));
+
+        return ['rutas' => json_decode(html_entity_decode($m[1]), true)['rutas'], 'html' => $html];
+    }
+
+    /**
+     * 23-oct-2026: la pantalla de Muestras posteaba a la ruta de Programa. Como MuestrasPrograma
+     * comparte los Id, liberar una muestra re-liberaba la orden de Programa con ese Id.
+     */
+    public function test_la_pagina_de_muestras_usa_las_rutas_de_muestras(): void
+    {
+        $this->sembrarFolios();
+        $this->sembrarRegistro();
+        ['rutas' => $muestras, 'html' => $html] = $this->paginaLiberar('/planeacion/muestras/liberar-ordenes');
+        $this->assertSame(route('muestras.liberar-ordenes.procesar'), $muestras['procesar']);
+        $this->assertSame(route('muestras.index'), $muestras['redirect']);
+        foreach (['tipoHilo', 'bom', 'codigoDibujo', 'flog'] as $clave) {
+            $this->assertStringContainsString('/planeacion/muestras/liberar-ordenes/', $muestras[$clave], $clave);
+        }
+
+        // Dice que son muestras y qué folio va a tomar (sin consumirlo).
+        $this->assertStringContainsString('<title>Liberar Muestras · Towell</title>', $html);
+        $this->assertStringContainsString('placeholder="Auto (desde M3175)"', $html);
+
+        ['rutas' => $programa, 'html' => $html] = $this->paginaLiberar('/planeacion/programa-tejido/liberar-ordenes');
+        $this->assertSame(route('programa-tejido.liberar-ordenes.procesar'), $programa['procesar']);
+        $this->assertSame(route('catalogos.req-programa-tejido'), $programa['redirect']);
+        $this->assertStringContainsString('<title>Liberar Órdenes · Towell</title>', $html);
+        $this->assertStringContainsString('placeholder="Auto (desde 37071)"', $html);
+        $this->assertSame(['Planeacion' => 37070, 'Muestras' => 3174], $this->consecutivos(), 'la vista previa no consume folios');
+    }
+
+    /** Un renglón que ya tiene NoProduccion no se vuelve a liberar (no se pisa su orden ni sus marbetes). */
+    public function test_no_vuelve_a_liberar_un_registro_que_ya_tiene_no_produccion(): void
+    {
+        $liberado = $this->sembrarRegistro(['NoProduccion' => '37040', 'TotalRollos' => 24, 'SaldoMarbete' => 24]);
+        $nuevo = $this->sembrarRegistro(['NoTelarId' => '202']);
+        $antes = DB::connection('sqlsrv')->table('ReqProgramaTejido')->orderBy('Id')->get();
+
+        $response = $this->liberar([$this->itemLiberar($nuevo, '77050'), $this->itemLiberar($liberado, '77051')]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertStringContainsString($liberado.' (orden 37040)', $response->getData(true)['message']);
+        $this->assertEquals($antes, DB::connection('sqlsrv')->table('ReqProgramaTejido')->orderBy('Id')->get(), 'no se escribe nada del lote');
+    }
 }

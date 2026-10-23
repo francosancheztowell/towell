@@ -32,7 +32,7 @@
 </div>
 @endsection
 
-@section('page-title', 'Liberar Órdenes')
+@section('page-title', $superficieLiberar->esMuestras() ? 'Liberar Muestras' : 'Liberar Órdenes')
 
 @section('content')
 <div class="w-full" style="height: calc(100vh - 70px); display: flex; flex-direction: column;">
@@ -86,7 +86,11 @@
             ['field' => 'HiloAX', 'label' => 'Hilo AX'],
         ];
 
-        $formatValue = function($registro, $field) use ($hilosOptions) {
+        // Folio que tomará la primera orden (Muestras: M3175…; Programa: 37072…), sin consumirlo.
+        $proximoFolio = $superficieLiberar->proximoFolio();
+        $placeholderFolio = $proximoFolio !== '' ? 'Auto (desde '.$proximoFolio.')' : 'Auto (folio)';
+
+        $formatValue = function($registro, $field) use ($hilosOptions, $placeholderFolio) {
             if ($field === 'select') {
                 $checked = 'checked'; // Todos marcados por defecto
                 return '<input type="checkbox" class="row-checkbox w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 mx-auto block" data-id="' . ($registro->Id ?? '') . '" ' . $checked . '>';
@@ -97,7 +101,7 @@
                 return '<input type="text"
                                class="no-produccion-input w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                data-id="' . htmlspecialchars((string)$id, ENT_QUOTES, 'UTF-8') . '"
-                               placeholder="Auto (folio)"
+                               placeholder="' . e($placeholderFolio) . '"
                                style="min-width:160px;">';
             }
 
@@ -457,14 +461,17 @@
         };
         @endphp
         @php
+        // Rutas de la superficie: Muestras manda a /planeacion/muestras/... Antes eran fijas a Programa y,
+        // como MuestrasPrograma comparte los Id, liberar una muestra liberaba la orden de Programa.
+        $rutaLiberar = $superficieLiberar->esMuestras() ? 'muestras.liberar-ordenes.' : 'programa-tejido.liberar-ordenes.';
         $paginaLiberar = [
             'rutas' => [
-                'procesar' => route('programa-tejido.liberar-ordenes.procesar'),
-                'redirect' => route('catalogos.req-programa-tejido'),
-                'tipoHilo' => route('programa-tejido.liberar-ordenes.tipo-hilo'),
-                'bom' => route('programa-tejido.liberar-ordenes.bom'),
-                'codigoDibujo' => route('programa-tejido.liberar-ordenes.codigo-dibujo'),
-                'flog' => route('programa-tejido.liberar-ordenes.flog'),
+                'procesar' => route($rutaLiberar.'procesar'),
+                'redirect' => \App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController::urlRegreso($superficieLiberar),
+                'tipoHilo' => route($rutaLiberar.'tipo-hilo'),
+                'bom' => route($rutaLiberar.'bom'),
+                'codigoDibujo' => route($rutaLiberar.'codigo-dibujo'),
+                'flog' => route($rutaLiberar.'flog'),
             ],
             'columnas' => $columns,
             // Flogs vigentes de AX (estado vigente + línea abierta), misma regla que valida el servidor.
