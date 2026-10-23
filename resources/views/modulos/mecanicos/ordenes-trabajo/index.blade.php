@@ -442,7 +442,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const estatus = orden.Estatus || 'Activo';
             const folioCerrado = ['Terminado', 'Calificado', 'Autorizado', 'Cancelado'].includes(estatus);
             let accionPrincipal = '';
-            const btnBase = 'inline-flex min-h-9 min-w-20 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold sm:min-h-10 sm:min-w-24 sm:px-3 sm:py-2 sm:text-sm md:min-h-11 md:px-4 md:max-lg:px-3 short:min-h-10 short:py-1';
+            // Solo se ofrece en OT Activas; el servidor rechaza las que ya tienen renglones registrados.
+            const conEliminar = puedeEliminar && estatus === 'Activo';
+            // Con el botón de eliminar al lado, la acción principal pierde el ancho mínimo para que quepan ambos en la celda.
+            const btnBase = conEliminar
+                ? 'inline-flex min-h-9 min-w-0 shrink items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold sm:min-h-10 sm:text-sm md:min-h-11 lg:px-3 short:min-h-10 short:py-1'
+                : 'inline-flex min-h-9 min-w-20 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold sm:min-h-10 sm:min-w-24 sm:px-3 sm:py-2 sm:text-sm md:min-h-11 md:px-4 md:max-lg:px-3 short:min-h-10 short:py-1';
             if (modoTejedor) {
                 accionPrincipal = estatus === 'Terminado'
                     ? `<a href="${capturaUrl}" class="${btnBase} bg-indigo-600 text-white hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`
@@ -452,9 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 accionPrincipal = `<a href="${capturaUrl}" class="${btnBase} border border-gray-300 text-gray-700 hover:bg-gray-100" title="Ver"><i class="fas fa-eye"></i> Ver</a>`;
             }
-            // Solo se ofrece en OT Activas; el servidor rechaza las que ya tienen renglones registrados.
-            if (puedeEliminar && estatus === 'Activo') {
-                accionPrincipal = `<div class="flex items-center justify-center gap-1.5">${accionPrincipal}<button type="button" data-eliminar-folio="${folio}" class="${btnBase} min-w-0 border border-red-300 text-red-700 hover:bg-red-50 sm:min-w-0" title="Eliminar orden" aria-label="Eliminar orden ${folio}"><i class="fas fa-trash"></i></button></div>`;
+            if (conEliminar) {
+                accionPrincipal = `<div class="flex flex-nowrap items-center justify-center gap-1">${accionPrincipal}<button type="button" data-eliminar-folio="${folio}" class="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-red-300 text-xs text-red-700 hover:bg-red-50 sm:size-10 sm:text-sm md:size-11 short:size-10" title="Eliminar orden" aria-label="Eliminar orden ${folio}"><i class="fas fa-trash"></i></button></div>`;
             }
 
             const mecanico = String(orden.NomMecanico || '').trim();
