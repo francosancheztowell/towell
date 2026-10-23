@@ -250,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const horaSugerida = @json($horaSugerida);
     const telaresCatalogo = @json($telares);
     const puedeEditar = @json($puedeEditar);
+    const puedeEliminar = @json($puedeEliminar);
     const modoTejedor = @json($modoTejedor);
     const columnas = {
         folio: { param: 'folio', label: 'Folio' },
@@ -450,6 +451,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 accionPrincipal = `<a href="${capturaUrl}" class="${btnBase} bg-gray-900 text-white hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`;
             } else {
                 accionPrincipal = `<a href="${capturaUrl}" class="${btnBase} border border-gray-300 text-gray-700 hover:bg-gray-100" title="Ver"><i class="fas fa-eye"></i> Ver</a>`;
+            }
+            // Solo se ofrece en OT Activas; el servidor rechaza las que ya tienen renglones registrados.
+            if (puedeEliminar && estatus === 'Activo') {
+                accionPrincipal = `<div class="flex items-center justify-center gap-1.5">${accionPrincipal}<button type="button" data-eliminar-folio="${folio}" class="${btnBase} min-w-0 border border-red-300 text-red-700 hover:bg-red-50 sm:min-w-0" title="Eliminar orden" aria-label="Eliminar orden ${folio}"><i class="fas fa-trash"></i></button></div>`;
             }
 
             const mecanico = String(orden.NomMecanico || '').trim();
@@ -848,6 +853,29 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#btn-cerrar-filtros')?.addEventListener('click', cerrarPanelFiltros);
 
     $('#btn-nueva-orden')?.addEventListener('click', abrirNuevaOrden);
+
+    ordenesBody.addEventListener('click', async (event) => {
+        const boton = event.target.closest('[data-eliminar-folio]');
+        if (! boton) return;
+        const folio = boton.dataset.eliminarFolio;
+        const confirmado = await window.notify.confirm({
+            title: `¿Eliminar la orden ${folio}?`,
+            text: 'Solo se eliminan órdenes sin renglones registrados. No se puede deshacer.',
+            confirmText: 'Sí, eliminar',
+            confirmColor: '#dc2626',
+        });
+        if (! confirmado) return;
+
+        boton.disabled = true;
+        try {
+            const result = await api(`${baseUrl}/${encodeURIComponent(folio)}`, { method: 'DELETE' });
+            notificar('success', result.message || 'Orden de trabajo eliminada.');
+            await cargarOrdenes();
+        } catch (error) {
+            boton.disabled = false;
+            notificar('error', mensajeError(error));
+        }
+    });
     $('#cabecera-orden').addEventListener('input', (event) => {
         event.target.value = event.target.value.replace(/\s+/g, '');
     });

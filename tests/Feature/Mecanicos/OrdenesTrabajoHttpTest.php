@@ -9,6 +9,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -70,7 +71,20 @@ class OrdenesTrabajoHttpTest extends TestCase
             $table->string('numero_empleado')->nullable();
             $table->string('NoTelarId')->nullable();
         });
-        $this->createTablaDbo('ManFallasParos', ['Id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'Folio' => 'TEXT', 'Calidad' => 'INTEGER']);
+        $this->createTablaDbo('ManFallasParos', [
+            'Id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            'Folio' => 'TEXT',
+            'Calidad' => 'INTEGER',
+            'MaquinaId' => 'TEXT',
+            'Falla' => 'TEXT',
+            'Descripcion' => 'TEXT',
+            'Fecha' => 'TEXT',
+            'Hora' => 'TEXT',
+            'OrdenTrabajo' => 'TEXT',
+            'Turno' => 'INTEGER',
+            'Obs' => 'TEXT',
+            'ObsCierre' => 'TEXT',
+        ]);
         $this->createTablaDbo('SSYSFoliosSecuencias', [
             'Id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
             'modulo' => 'TEXT',
@@ -257,16 +271,107 @@ class OrdenesTrabajoHttpTest extends TestCase
         $this->assertSame(1, DB::table('MecOrdenTrabajoLine')->count());
     }
 
-    public function test_eliminar_orden_se_lleva_sus_renglones(): void
+    public function test_eliminar_orden_sin_renglones_capturados_se_lleva_los_vacios(): void
     {
         $this->comoUsuario('MANTENIMIENTO', ['acceso', 'eliminar']);
         $this->orden('MEC00001', 'Activo');
-        $this->linea('MEC00001');
-        $this->linea('MEC00001');
+        DB::table('MecOrdenTrabajoLine')->insert(['Folio' => 'MEC00001']);
 
-        $this->deleteJson(self::URL.'/MEC00001')->assertOk();
+        $this->deleteJson(self::URL.'/MEC00001')->assertOk()->assertJsonPath('success', true);
         $this->assertSame(0, DB::table('MecOrdenTrabajoTable')->count());
         $this->assertSame(0, DB::table('MecOrdenTrabajoLine')->count());
+    }
+
+    public function test_no_se_elimina_orden_con_renglones_registrados(): void
+    {
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'eliminar']);
+        $this->orden('MEC00001', 'Activo');
+        DB::table('MecOrdenTrabajoLine')->insert(['Folio' => 'MEC00001']);
+        $this->linea('MEC00001');
+
+        $this->deleteJson(self::URL.'/MEC00001')
+            ->assertStatus(422)
+            ->assertJsonPath('error', 'La orden tiene renglones registrados; no se puede eliminar.');
+        $this->assertSame(1, DB::table('MecOrdenTrabajoTable')->count());
+        $this->assertSame(2, DB::table('MecOrdenTrabajoLine')->count());
+    }
+
+    public function test_sin_permiso_eliminar_no_se_elimina_la_orden(): void
+    {
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'modificar']);
+        $this->orden('MEC00001', 'Activo');
+        DB::table('MecOrdenTrabajoLine')->insert(['Folio' => 'MEC00001']);
+
+        $this->deleteJson(self::URL.'/MEC00001')->assertForbidden();
+        $this->assertSame(1, DB::table('MecOrdenTrabajoTable')->count());
+    }
+
+    private function catalogoMaquinas(): void
+    {
+        Schema::connection('sqlsrv')->create('URDCatalogoMaquinas', function (Blueprint $table): void {
+            $table->string('MaquinaId')->nullable();
+            $table->string('Nombre')->nullable();
+            $table->string('Departamento')->nullable();
+        });
+    }
+
+    public function test_listado_ofrece_eliminar_con_permiso_eliminar(): void
+    {
+        $this->catalogoMaquinas();
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'modificar', 'eliminar']);
+
+        $this->get(self::URL)->assertOk()->assertViewHas('puedeEliminar', true);
+    }
+
+    public function test_listado_no_ofrece_eliminar_sin_permiso_eliminar(): void
+    {
+        $this->catalogoMaquinas();
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'modificar']);
+
+        $this->get(self::URL)->assertOk()->assertViewHas('puedeEliminar', false);
+    }
+
+    private function paro(string $folio): void
+    {
+        DB::table('dbo.ManFallasParos')->insert(['Folio' => $folio, 'MaquinaId' => '201', 'Falla' => 'Bloqueo']);
+    }
+
+    private function crearDesdeParo(string $folio): TestResponse
+    {
+        return $this->postJson(self::URL, ['FolioParo' => $folio, 'TelarId' => '201', 'TipoFalla' => 'Mecánica']);
+    }
+
+    public function test_no_se_crea_una_cuarta_orden_activa_para_el_mismo_paro(): void
+    {
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'crear']);
+        $this->paro('PF100');
+        foreach (['MEC00090', 'MEC00091', 'MEC00092'] as $folio) {
+            DB::table('MecOrdenTrabajoTable')->insert(['Folio' => $folio, 'Estatus' => 'Activo', 'FolioParo' => 'PF100']);
+        }
+
+        $this->crearDesdeParo('PF100')
+            ->assertStatus(422)
+            ->assertJsonPath('errors.FolioParo.0', 'Ya hay órdenes de trabajo abiertas para el paro PF100 (máximo 3 activas).');
+        $this->assertSame(3, DB::table('MecOrdenTrabajoTable')->count());
+    }
+
+    public function test_ordenes_no_activas_del_paro_no_cuentan_para_el_limite(): void
+    {
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'crear']);
+        $this->paro('PF100');
+        $this->paro('PF200');
+        DB::table('MecOrdenTrabajoTable')->insert([
+            ['Folio' => 'MEC00090', 'Estatus' => 'Activo', 'FolioParo' => 'PF100'],
+            ['Folio' => 'MEC00091', 'Estatus' => 'Activo', 'FolioParo' => 'PF100'],
+            ['Folio' => 'MEC00092', 'Estatus' => 'Terminado', 'FolioParo' => 'PF100'],
+            ['Folio' => 'MEC00093', 'Estatus' => 'Cancelado', 'FolioParo' => 'PF100'],
+            ['Folio' => 'MEC00094', 'Estatus' => 'Activo', 'FolioParo' => 'PF200'],
+            ['Folio' => 'MEC00095', 'Estatus' => 'Activo', 'FolioParo' => 'PF200'],
+            ['Folio' => 'MEC00096', 'Estatus' => 'Activo', 'FolioParo' => 'PF200'],
+        ]);
+
+        $this->crearDesdeParo('PF100')->assertCreated()->assertJsonPath('data.FolioParo', 'PF100');
+        $this->assertSame(3, DB::table('MecOrdenTrabajoTable')->where('FolioParo', 'PF100')->where('Estatus', 'Activo')->count());
     }
 
     public function test_no_se_elimina_el_unico_renglon(): void
