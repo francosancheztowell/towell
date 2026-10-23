@@ -87,9 +87,9 @@ const factor = (porcSeg: unknown): number => 1 + Math.max(0, aNumero(porcSeg)) /
 /** FilasDestino::saldo: sin recortar a 0 (negativo = pedido menor a lo ya producido). */
 const saldoDe = (f: FilaCalculo): number => redondear(aNumero(f.pedido) * factor(f.porcSeg) - aNumero(f.produccion));
 
-/** El saldo de la fila como lo muestra la columna Saldo. */
+/** El saldo de la fila como lo muestra la columna Saldo: sin decimales (son piezas). */
 export function saldo(fila: FilaCalculo): string {
-    return formatNumber(saldoDe(fila), 2);
+    return formatNumber(saldoDe(fila), 0);
 }
 
 /** Σ saldos contra el disponible: cuadra con ±0.5 y sin saldos negativos. */
@@ -98,8 +98,8 @@ export function cuadre(filas: FilaCalculo[], disponible: number): { asignado: st
     const asignado = redondear(saldos.reduce((a, b) => a + b, 0));
     const diferencia = redondear(asignado - disponible);
     const cuadra = Math.abs(diferencia) <= TOLERANCIA_SALDO && saldos.every((s) => s >= 0);
-    const estado = cuadra ? 'Cuadra' : `${diferencia < 0 ? 'Faltan' : 'Sobran'} ${formatNumber(Math.abs(diferencia), 2)}`;
-    return { asignado: formatNumber(asignado, 2), estado, cuadra };
+    const estado = cuadra ? 'Cuadra' : `${diferencia < 0 ? 'Faltan' : 'Sobran'} ${formatNumber(Math.abs(diferencia), 0)}`;
+    return { asignado: formatNumber(asignado, 0), estado, cuadra };
 }
 
 /** x-data del indicador de Dividir: `c` se recalcula cada vez que cambia un pedido o un %seg. */

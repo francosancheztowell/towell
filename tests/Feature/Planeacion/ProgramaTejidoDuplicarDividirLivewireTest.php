@@ -157,7 +157,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
     {
         $duplicar = $this->componente()->dispatch('pt-duplicar-abrir', id: 1);
         // En Duplicar el saldo es texto que sale de pedido y %2as: no hay input de saldo.
-        $duplicar->assertSeeHtml("x-text=\"ptDuplicar.saldo(\$wire.\$get('filas.duplicar.0'))\">1,000.00</span>")
+        $duplicar->assertSeeHtml("x-text=\"ptDuplicar.saldo(\$wire.\$get('filas.duplicar.0'))\">1,000</span>")
             ->assertDontSeeHtml('wire:model="filas.duplicar.0.saldo"')
             ->assertDontSee('Observaciones') // el modal ya no las captura: se quedan las del original
             ->assertSeeHtml('wire:change="confirmar(\'clave\', 0)"')
@@ -171,7 +171,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         $this->componente()->dispatch('pt-duplicar-abrir', id: 1)->set('modo', 'dividir')
             ->assertSeeHtml('x-data="ptDuplicar.cuadreVivo(800)"')
             ->assertSeeHtml("ptDuplicar.absorber(\$wire, 0, 'pedido', \$el.value)")
-            ->assertSeeHtml("x-text=\"ptDuplicar.saldo(\$wire.\$get('filas.dividir.0'))\">800.00</span>")
+            ->assertSeeHtml("x-text=\"ptDuplicar.saldo(\$wire.\$get('filas.dividir.0'))\">800</span>")
             ->assertDontSeeHtml('wire:model="filas.dividir.0.saldo"')
             ->assertSeeHtml('x-text="c.estado">Cuadra</span>');
     }
@@ -228,7 +228,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
 
         $this->assertFalse($c->instance()->cuadre()['cuadra']);
         $this->assertSame(300.0, $c->instance()->cuadre()['diferencia']);
-        $c->assertSeeHtml('Sobran 300.00');
+        $c->assertSeeHtml('Sobran 300');
 
         $c->call('guardar')->assertNotDispatched('pt-duplicar-guardado')->assertSet('registroId', 1);
         $this->assertEquals($antes, DB::table('ReqProgramaTejido')->orderBy('Id')->get()->toArray());
@@ -327,7 +327,9 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->assertHasNoErrors('filas.duplicar.0.clave') // mientras escribe no se marca
             ->call('confirmar', 'clave', 0)
             ->assertHasErrors(['filas.duplicar.0.clave' => 'La clave NO-EXISTE no existe en Modelos de SMIT.'])
-            ->assertSeeHtml('Corrige la clave o el flog de la fila 1.');
+            ->assertSeeHtml('La clave NO-EXISTE no existe en Modelos de SMIT.')
+            ->assertDontSeeHtml('Corrige la clave'); // el error va bajo el campo, sin aviso sobre el botón
+        $this->assertSame('', $c->instance()->pendiente()); // botón bloqueado
 
         $c->call('guardar')->assertSet('registroId', 1)->assertNotDispatched('pt-duplicar-guardado');
         $this->assertSame([], $this->filasNuevas());

@@ -50,7 +50,10 @@ trait ValidaFilasDestino
         return $this->llave() === 'duplicar' ? $filas : array_filter($filas, fn (array $f) => ! $f['existente'] && FilasDestino::filaUtil($f));
     }
 
-    /** Por qué no se puede guardar todavía (null = se puede): el botón se bloquea y lo dice. */
+    /**
+     * Por qué no se puede guardar todavía (null = se puede): el botón se bloquea y lo dice. '' =
+     * bloqueado sin aviso: la clave o el flog malos ya traen su mensaje bajo el campo.
+     */
     public function pendiente(): ?string
     {
         $llave = $this->llave();
@@ -67,7 +70,7 @@ trait ValidaFilasDestino
         }
         $marcadas = array_filter(array_keys($filas), fn (int $i) => $this->getErrorBag()->has("filas.$llave.$i.*"));
 
-        return $marcadas === [] ? null : 'Corrige la clave o el flog de la fila '.$numeros($marcadas).'.';
+        return $marcadas === [] ? null : '';
     }
 
     /** Telar, clave y flog de cada fila que se crea, y pedido no menor a lo producido; marca lo que falte. */

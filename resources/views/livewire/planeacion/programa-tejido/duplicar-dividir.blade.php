@@ -7,7 +7,7 @@
             $dividir = $modo === 'dividir';
             $llave = $dividir ? 'dividir' : 'duplicar';
             $filasModo = $filas[$llave];
-            $numero = fn ($v) => number_format((float) $v, 2);
+            $numero = fn ($v) => number_format((float) $v); // saldo y cuadre sin decimales
         @endphp
         <dialog wire:key="pt-duplicar-{{ $registroId }}" wire:ignore.self x-data x-init="$el.showModal()"
                 x-on:close="$wire.cerrar()" aria-labelledby="pt-duplicar-titulo"
@@ -36,15 +36,15 @@
                     <table class="w-full min-w-[78rem] border-separate border-spacing-y-1.5 text-sm">
                         <thead class="text-center text-sm font-semibold text-zinc-600 dark:text-zinc-300 [&_th]:px-2">
                             <tr>
-                                <th scope="col" class="w-36">Modelo</th>
-                                <th scope="col">Producto</th>
+                                <th scope="col" class="w-32">Modelo</th>
+                                <th scope="col" class="w-[18%]">Producto</th>
                                 <th scope="col" class="w-60">Flog</th>
-                                <th scope="col" class="w-[25%]">Descripción</th>
+                                <th scope="col" class="w-[28%]">Descripción</th>
                                 <th scope="col" class="w-24">Aplicación</th>
-                                <th scope="col" class="w-24">Telar</th>
+                                <th scope="col" class="w-28">Telar</th>
                                 <th scope="col" class="w-28">Pedido</th>
                                 <th scope="col" class="w-20">% 2as</th>
-                                <th scope="col" class="w-24">Saldo</th>
+                                <th scope="col" class="w-20">Saldo</th>
                                 <th scope="col" class="w-12"><span class="sr-only">Quitar</span></th>
                             </tr>
                         </thead>
@@ -65,8 +65,10 @@
                                             <div class="relative" x-data="{ foco: false }" x-on:focusin="foco = true" x-on:focusout="foco = false">
                                                 {{-- wire:change y no wire:blur: pasar por el campo sin cambiar la clave no vuelve a
                                                      consultar Modelos/AX ni pisa el Flog y la Descripción capturados. --}}
-                                                <flux:input wire:model.live.debounce.250ms="{{ $base }}.clave" wire:change="confirmar('clave', {{ $i }})"
-                                                            maxlength="100" autocomplete="off" aria-label="Clave modelo fila {{ $i + 1 }}" />
+                                                {{-- Como Producto, Flog y Descripción: un renglón que crece a dos si no cabe; sin Enter. --}}
+                                                <flux:textarea wire:model.live.debounce.250ms="{{ $base }}.clave" wire:change="confirmar('clave', {{ $i }})"
+                                                               rows="auto" resize="none" x-on:keydown.enter.prevent
+                                                               maxlength="100" autocomplete="off" aria-label="Clave modelo fila {{ $i + 1 }}" />
                                                 @include('livewire.planeacion.programa-tejido.sugerencias', ['campo' => 'clave'])
                                             </div>
                                             @error("$base.clave") <span class="mt-1 block text-caption text-red-600">{{ $message }}</span> @enderror
@@ -76,7 +78,10 @@
                                         @if ($fija)
                                             <span class="block py-2">{{ $fila['producto'] }}</span>
                                         @else
-                                            <flux:input wire:model.blur="{{ $base }}.producto" maxlength="255" autocomplete="off" aria-label="Producto fila {{ $i + 1 }}" />
+                                            {{-- Producto, Flog y Descripción: textarea de un renglón que crece a dos si el texto no
+                                                 cabe (rows="auto" = field-sizing: content). Enter no mete saltos de línea. --}}
+                                            <flux:textarea wire:model.blur="{{ $base }}.producto" rows="auto" resize="none" x-on:keydown.enter.prevent
+                                                           maxlength="255" autocomplete="off" aria-label="Producto fila {{ $i + 1 }}" />
                                         @endif
                                     </td>
                                     <td>
@@ -85,9 +90,9 @@
                                         @else
                                             {{-- Al enfocar sale la lista de flogs vigentes, primero los del artículo de la fila. --}}
                                             <div class="relative" x-data="{ foco: false }" x-on:focusin="foco = true" x-on:focusout="foco = false">
-                                                <flux:input wire:model.live.debounce.250ms="{{ $base }}.flog" wire:change="confirmar('flog', {{ $i }})"
-                                                            wire:focus="abrirSugerencias({{ $i }})"
-                                                            maxlength="100" autocomplete="off" aria-label="Flog fila {{ $i + 1 }}" />
+                                                <flux:textarea wire:model.live.debounce.250ms="{{ $base }}.flog" wire:change="confirmar('flog', {{ $i }})"
+                                                               wire:focus="abrirSugerencias({{ $i }})" rows="auto" resize="none" x-on:keydown.enter.prevent
+                                                               maxlength="100" autocomplete="off" aria-label="Flog fila {{ $i + 1 }}" />
                                                 @include('livewire.planeacion.programa-tejido.sugerencias', ['campo' => 'flog'])
                                             </div>
                                             @error("$base.flog") <span class="mt-1 block text-caption text-red-600">{{ $message }}</span> @enderror
@@ -97,7 +102,8 @@
                                         @if ($fija)
                                             <span class="block py-2">{{ $fila['descripcion'] }}</span>
                                         @else
-                                            <flux:input wire:model.blur="{{ $base }}.descripcion" maxlength="500" autocomplete="off" aria-label="Descripción fila {{ $i + 1 }}" />
+                                            <flux:textarea wire:model.blur="{{ $base }}.descripcion" rows="auto" resize="none" x-on:keydown.enter.prevent
+                                                           maxlength="500" autocomplete="off" aria-label="Descripción fila {{ $i + 1 }}" />
                                         @endif
                                     </td>
                                     <td>
@@ -190,7 +196,7 @@
                     </flux:callout>
                 @endif
 
-                @if ($pendiente !== null)
+                @if ($pendiente)
                     <p role="status" class="text-sm font-medium text-amber-700 dark:text-amber-400">{{ $pendiente }}</p>
                 @endif
                 <div class="ui-dialogo__botones">

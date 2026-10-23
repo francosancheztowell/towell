@@ -75,19 +75,19 @@ test('escucharGuardado toma el detail del evento del componente', async () => {
 
 const { saldo, cuadre, cuadreVivo, absorber } = await import('../../resources/js/programa-tejido/duplicar.ts')
 
-test('saldo: pedido × (1 + %seg/100) − producción, como lo muestra la columna Saldo', () => {
-    assert.equal(saldo({ pedido: '1000', porcSeg: '5' }), '1,050.00')
-    assert.equal(saldo({ pedido: '1,000', porcSeg: '5' }), '1,050.00')
-    assert.equal(saldo({ pedido: '333', porcSeg: '1.5' }), '337.99')
-    assert.equal(saldo({ pedido: '700', porcSeg: '0', produccion: 200 }), '500.00')
-    assert.equal(saldo({ pedido: '100', porcSeg: '0', produccion: 200 }), '-100.00') // menor a lo producido
-    assert.equal(saldo({ pedido: '', porcSeg: '' }), '0.00')
+test('saldo: pedido × (1 + %seg/100) − producción, sin decimales como lo muestra la columna Saldo', () => {
+    assert.equal(saldo({ pedido: '1000', porcSeg: '5' }), '1,050')
+    assert.equal(saldo({ pedido: '1,000', porcSeg: '5' }), '1,050')
+    assert.equal(saldo({ pedido: '333', porcSeg: '1.5' }), '338')
+    assert.equal(saldo({ pedido: '700', porcSeg: '0', produccion: 200 }), '500')
+    assert.equal(saldo({ pedido: '100', porcSeg: '0', produccion: 200 }), '-100') // menor a lo producido
+    assert.equal(saldo({ pedido: '', porcSeg: '' }), '0')
 })
 
 test('cuadre: Σ saldos desde el pedido; Faltan / Sobran / Cuadra con ±0.5 y sin saldos negativos', () => {
-    assert.deepEqual(cuadre([{ pedido: '800', produccion: 200 }, { pedido: '' }], 1000), { asignado: '600.00', estado: 'Faltan 400.00', cuadra: false })
-    assert.deepEqual(cuadre([{ pedido: '600' }, { pedido: '400.4' }], 1000), { asignado: '1,000.40', estado: 'Cuadra', cuadra: true })
-    assert.deepEqual(cuadre([{ pedido: '1200' }, { pedido: '1' }], 1000), { asignado: '1,201.00', estado: 'Sobran 201.00', cuadra: false })
+    assert.deepEqual(cuadre([{ pedido: '800', produccion: 200 }, { pedido: '' }], 1000), { asignado: '600', estado: 'Faltan 400', cuadra: false })
+    assert.deepEqual(cuadre([{ pedido: '600' }, { pedido: '400.4' }], 1000), { asignado: '1,000', estado: 'Cuadra', cuadra: true })
+    assert.deepEqual(cuadre([{ pedido: '1200' }, { pedido: '1' }], 1000), { asignado: '1,201', estado: 'Sobran 201', cuadra: false })
     assert.equal(cuadre([{ pedido: '100', produccion: 200 }, { pedido: '1100' }], 1000).cuadra, false)
 })
 
@@ -100,7 +100,7 @@ test('cuadreVivo: lee las filas de Dividir de $wire en cada acceso', () => {
     const datos: Record<string, unknown> = { 'filas.dividir': [{ pedido: '600' }] }
     const vivo = cuadreVivo(1000)
     vivo.$wire = wireFalso(datos).wire
-    assert.equal(vivo.c.estado, 'Faltan 400.00')
+    assert.equal(vivo.c.estado, 'Faltan 400')
     datos['filas.dividir'] = [{ pedido: '600' }, { pedido: '400' }]
     assert.equal(vivo.c.estado, 'Cuadra')
 })
