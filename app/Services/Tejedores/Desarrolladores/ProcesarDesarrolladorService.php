@@ -393,9 +393,16 @@ class ProcesarDesarrolladorService
             $payload['Tolerancia'] = $modeloDestino->Tolerancia ?? null;
             $payload['Clave'] = $modeloDestino->Clave ?? null;
             $payload['Vendedor'] = $modeloDestino->Vendedor ?? null;
-            $payload['FlogsId'] = $modeloDestino->FlogsId ?? ($ordenData->FlogsId ?? null);
         }
 
+        // El flog es de la orden, no del modelo: el del modelo es el de la ultima orden que lo
+        // tejio y los heredados vienen cortados a 20 caracteres. Tomarlo de ahi dejaba en
+        // CatCodificados un flog ajeno o truncado (386 ordenes de 2026). Sin flog en la orden,
+        // se conserva el que ya tiene el renglon.
+        $flogOrden = trim((string) ($ordenData->FlogsId ?? ''));
+        if ($flogOrden !== '') {
+            $payload['FlogsId'] = $flogOrden;
+        }
         // Rasurado viene de ReqProgramaTejido
         if ($ordenData && $ordenData->Rasurado !== null) {
             $payload['Razurada'] = $ordenData->Rasurado;

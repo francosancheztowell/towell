@@ -400,6 +400,38 @@ class ProcesarDesarrolladorStoreTest extends TestCase
         ], $this->fila('CatCodificados', $ids['cat']), 'CatCodificados');
     }
 
+    /**
+     * El flog de CatCodificados es el de la orden. El modelo guarda el de la ultima orden
+     * que lo tejio y, en los heredados, cortado a 20 caracteres: copiarlo dejaba en
+     * CatCodificados 'RS-JUL24-LGONZ-F0008' en vez de 'RS-JUL24-LGONZ-F000840'.
+     */
+    public function test_cat_codificados_guarda_el_flog_de_la_orden_y_no_el_del_modelo(): void
+    {
+        $ids = $this->sembrar();
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $ids['programa'])
+            ->update(['FlogsId' => 'RS-JUL24-LGONZ-F000840']);
+        DB::connection('sqlsrv')->table('ReqModelosCodificados')->where('Id', $ids['modelo'])
+            ->update(['FlogsId' => 'RS-JUL24-LGONZ-F0008']);
+        DB::connection('sqlsrv')->table('CatCodificados')->where('Id', $ids['cat'])
+            ->update(['FlogsId' => 'RS-JUL24-LGONZ-F000840']);
+
+        $this->guardarBien($this->captura());
+
+        $this->assertCampos(['FlogsId' => 'RS-JUL24-LGONZ-F000840'], $this->fila('CatCodificados', $ids['cat']), 'CatCodificados');
+    }
+
+    public function test_cat_codificados_conserva_su_flog_si_la_orden_no_trae(): void
+    {
+        $ids = $this->sembrar();
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $ids['programa'])->update(['FlogsId' => null]);
+        DB::connection('sqlsrv')->table('CatCodificados')->where('Id', $ids['cat'])
+            ->update(['FlogsId' => 'CE-AGO25-STORR-F001300']);
+
+        $this->guardarBien($this->captura());
+
+        $this->assertCampos(['FlogsId' => 'CE-AGO25-STORR-F001300'], $this->fila('CatCodificados', $ids['cat']), 'CatCodificados');
+    }
+
     public function test_cat_codificados_sella_arranque_y_la_orden_anterior_queda_finalizada(): void
     {
         $ids = $this->sembrar();
