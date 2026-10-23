@@ -37,6 +37,7 @@ class VistaOrdenesTrabajoController extends Controller
             'modoTejedor' => $modoTejedor,
             'puedeCrear' => $this->acceso->puede('crear') && ! $modoTejedor,
             'puedeEditar' => $this->acceso->puede('modificar') && ! $modoTejedor,
+            'puedeEliminar' => $this->acceso->puede('eliminar') && ! $modoTejedor,
             'turnoSugerido' => (int) TurnoHelper::getTurnoActual(),
             'fechaSugerida' => $ahora->toDateString(),
             'horaSugerida' => $ahora->format('H:i'),

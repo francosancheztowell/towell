@@ -25,6 +25,8 @@ class CrearOrdenTrabajoController extends Controller
 
     private const LONGITUD_CONSECUTIVO_FOLIOS = 5;
 
+    private const MAX_ACTIVAS_POR_PARO = 3;
+
     public function __construct(private readonly OrdenTrabajoAcceso $acceso) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -89,6 +91,8 @@ class CrearOrdenTrabajoController extends Controller
             throw ValidationException::withMessages(['FolioParo' => ['El folio de paro seleccionado ya no existe.']]);
         }
 
+        $this->validarLimiteActivasPorParo(trim((string) $paro->Folio));
+
         return [
             ...$datos,
             'TelarId' => trim((string) $paro->MaquinaId),
@@ -101,6 +105,21 @@ class CrearOrdenTrabajoController extends Controller
             'Orden' => $datos['Orden'] ?? (trim((string) $paro->OrdenTrabajo) ?: null),
             'Turno' => $paro->Turno !== null ? (int) $paro->Turno : null,
         ];
+    }
+
+    /** Evita OT duplicadas e inservibles: un paro admite a lo más MAX_ACTIVAS_POR_PARO órdenes Activas. */
+    private function validarLimiteActivasPorParo(string $folioParo): void
+    {
+        $activas = MecOrdenTrabajoModel::query()
+            ->where('FolioParo', $folioParo)
+            ->where('Estatus', MecOrdenTrabajoModel::ESTATUS_ACTIVO)
+            ->count();
+
+        if ($activas >= self::MAX_ACTIVAS_POR_PARO) {
+            throw ValidationException::withMessages([
+                'FolioParo' => ["Ya hay órdenes de trabajo abiertas para el paro {$folioParo} (máximo ".self::MAX_ACTIVAS_POR_PARO.' activas).'],
+            ]);
+        }
     }
 
     private function siguienteFolio(): string
