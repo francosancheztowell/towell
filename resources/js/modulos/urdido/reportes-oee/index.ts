@@ -8,10 +8,13 @@ if (meses) {
 }
 
 // Desglose: muestra junto a Producción sus dos partes (min. producción y paro necesario) en todo el reporte.
+// Lo abre el botón del navbar o tocar Producción (encabezados y tarjeta, [data-desglose-toggle]).
 const reporte = document.querySelector<HTMLElement>('#oee-reporte');
-document.querySelector<HTMLButtonElement>('#oee-desglose')?.addEventListener('click', (e) => {
+const botonDesglose = document.querySelector<HTMLButtonElement>('#oee-desglose');
+document.addEventListener('click', (e) => {
+    if (!(e.target as Element).closest('#oee-desglose, [data-desglose-toggle]')) return;
     const abierto = reporte?.toggleAttribute('data-desglose') ?? false;
-    (e.currentTarget as HTMLElement).setAttribute('aria-pressed', String(abierto));
+    botonDesglose?.setAttribute('aria-pressed', String(abierto));
 });
 
 // La consulta tarda (varios meses = miles de julios): el loader se quita solo al cargar la página nueva.

@@ -8,6 +8,8 @@
     // Sin calendario capturado no hay tiempo programado: guion en vez de un cero engañoso.
     $sinReg = fn (array $t) => ($v = App\Services\Urdido\OeeUrdidoService::sinRegistrar($t)) === null ? '—' : $num($v);
     $opcionesMes = collect(range(0, 17))->map(fn ($i) => now()->startOfMonth()->subMonths($i));
+    // Flecha de "dropdown" junto a Producción: gira al abrir el desglose (también la usa oee-turnos).
+    $chev = '<i class="chev fa-solid fa-chevron-right me-1.5 text-[0.6rem] text-blue-600 transition-transform" aria-hidden="true"></i>';
 @endphp
 
 @section('navbar-right')
@@ -22,8 +24,9 @@
 @endsection
 
 @section('content')
-    {{-- Producción = min. producción + paro necesario en todo el reporte; sus dos partes (.desglose) se ven con el botón. --}}
-    <div id="oee-reporte" class="pantalla-completa bg-white [&:not([data-desglose])_.desglose]:hidden">
+    {{-- Producción = min. producción + paro necesario en todo el reporte; sus dos partes (.desglose) se abren en azul
+         con el botón o al tocar Producción ([data-desglose-toggle]). --}}
+    <div id="oee-reporte" class="pantalla-completa bg-white [&:not([data-desglose])_.desglose]:hidden [&_.desglose]:bg-blue-50 [&_.desglose]:text-blue-800 [&_th.desglose]:bg-blue-100 [&_th.desglose]:text-blue-900 [&[data-desglose]_.chev]:rotate-90">
         <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-2 pb-6 md:px-4">
             {{-- Consulta: meses (varios). Siempre solo julios finalizados; cuentan todos los paros de Urdido. --}}
             <form id="oee-consulta" method="GET" action="{{ route('urdido.reportes.urdido.oee') }}" class="flex shrink-0 flex-wrap items-end gap-x-6 gap-y-3">
@@ -53,13 +56,18 @@
                     @foreach ([['Kg', $num($tot['kg'], 1)], ['Julios', $num($tot['julios'])], ['Min. programados', $num($tot['programado'])],
                         ['Min. producción', $num($tot['minutos'] + $tot['paro_nec'])], ['Min. paros', $num($tot['paro_oport'])],
                         ['Min. sin registrar', $sinReg($tot)]] as [$etq, $valor])
-                        <div class="bg-white px-4 py-3">
-                            <p class="text-sm text-slate-500">{{ $etq }}</p>
-                            <p class="text-2xl font-semibold text-slate-900">{{ $valor }}</p>
-                            @if ($loop->index === 3)
-                                <p class="desglose text-sm text-slate-500">{{ $num($tot['minutos']) }} prod. · {{ $num($tot['paro_nec']) }} paro nec.</p>
-                            @endif
-                        </div>
+                        @if ($loop->index === 3)
+                            <div class="cursor-pointer bg-white px-4 py-3 hover:bg-slate-50" data-desglose-toggle>
+                                <p class="text-sm text-slate-500">{!! $chev !!}{{ $etq }}</p>
+                                <p class="text-2xl font-semibold text-slate-900">{{ $valor }}</p>
+                                <p class="desglose mt-1 inline-block rounded-md px-1.5 py-0.5 text-sm">{{ $num($tot['minutos']) }} prod. · {{ $num($tot['paro_nec']) }} paro nec.</p>
+                            </div>
+                        @else
+                            <div class="bg-white px-4 py-3">
+                                <p class="text-sm text-slate-500">{{ $etq }}</p>
+                                <p class="text-2xl font-semibold text-slate-900">{{ $valor }}</p>
+                            </div>
+                        @endif
                     @endforeach
                 </section>
 
@@ -92,10 +100,15 @@
                                         </span>
                                         @foreach ([['Kg', $num($maq['tot']['kg'], 1), ''], ['Julios', $num($maq['tot']['julios']), ''],
                                             ['Programado', $num($maq['tot']['programado']), ''], ['Producción', $num($maq['tot']['minutos'] + $maq['tot']['paro_nec']), ''],
-                                            ['Min prod.', $num($maq['tot']['minutos']), 'desglose'], ['Paro nec.', $num($maq['tot']['paro_nec']), 'desglose'],
+                                            ['Min prod.', $num($maq['tot']['minutos']), 'desglose rounded-md px-2 py-1 group-open:bg-blue-500!'],
+                                            ['Paro nec.', $num($maq['tot']['paro_nec']), 'desglose rounded-md px-2 py-1 group-open:bg-blue-500!'],
                                             ['Paros', $num($maq['tot']['paro_oport']), ''], ['Sin registrar', $sinReg($maq['tot']), '']] as [$etq, $valor, $clase])
                                             <span class="{{ $clase }} tabular-nums md:text-right">
-                                                <span class="block whitespace-nowrap text-caption text-slate-500 group-open:text-blue-100">{{ $etq }}</span>
+                                                <span class="block whitespace-nowrap text-caption text-slate-500 group-open:text-blue-100">
+                                                    @if ($etq === 'Producción')
+                                                        <i class="chev fa-solid fa-chevron-right me-1 text-[0.55rem] text-blue-600 transition-transform group-open:text-blue-100" aria-hidden="true"></i>
+                                                    @endif{{ $etq }}
+                                                </span>
                                                 <span class="block font-semibold text-slate-900 group-open:text-white">{{ $valor }}</span>
                                             </span>
                                         @endforeach
@@ -126,7 +139,7 @@
                                                         <th class="n">Mts</th>
                                                         <th>H. inicio</th>
                                                         <th>H. final</th>
-                                                        <th class="n" title="Min. producción + paro necesario">Producción</th>
+                                                        <th class="n cursor-pointer" data-desglose-toggle title="Min. producción + paro necesario">{!! $chev !!}Producción</th>
                                                         <th class="n desglose">Min prod.</th>
                                                         <th class="n desglose">Paro nec.</th>
                                                         <th class="n">Paros</th>

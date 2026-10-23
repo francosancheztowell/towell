@@ -1,5 +1,5 @@
 {{-- Tabla por turno de reloj del OEE Urdido (OeeUrdidoTurnos): los tres turnos suman $total.
-     Recibe $turnos (1..3 => sumas), $total y los formateadores $num / $sinReg de la vista.
+     Recibe $turnos (1..3 => sumas), $total, los formateadores $num / $sinReg y la flecha $chev de la vista.
      Mismo orden de columnas que el resumen, los renglones de máquina y los julios. Producción = min. producción + paro
      necesario; .desglose (las dos partes) solo se ve con el botón Desglose. --}}
 <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -10,7 +10,7 @@
                 <th class="n">Kg</th>
                 <th class="n">Julios</th>
                 <th class="n">Programado</th>
-                <th class="n" title="Min. producción + paro necesario">Producción</th>
+                <th class="n cursor-pointer" data-desglose-toggle title="Min. producción + paro necesario">{!! $chev !!}Producción</th>
                 <th class="n desglose">Min prod.</th>
                 <th class="n desglose">Paro nec.</th>
                 <th class="n">% prod.</th>
