@@ -27,7 +27,6 @@ final class FilasDestino
         'destinos.*.pedido' => 'pedido',
         'destinos.*.saldo' => 'saldo',
         'destinos.*.porcentaje_segundos' => '% de segundas',
-        'destinos.*.observaciones' => 'observaciones',
     ];
 
     private const TOLERANCIA_SALDO = 0.5;
@@ -102,20 +101,22 @@ final class FilasDestino
             'salon' => $d['salon'], 'telar' => '', 'clave' => $d['clave'], 'producto' => $d['producto'],
             'flog' => $d['flog'], 'descripcion' => $d['descripcion'], 'aplicacion' => $d['aplicacion'],
             'custName' => $d['custName'], 'itemId' => $d['itemId'], 'inventSizeId' => $d['inventSizeId'],
-            'pedido' => '', 'porcSeg' => self::numero($d['porcSeg']), 'saldo' => '', 'observaciones' => '',
+            'pedido' => '', 'porcSeg' => self::numero($d['porcSeg']), 'saldo' => '',
             'produccion' => 0.0, 'registroId' => null, 'existente' => false, 'aviso' => null,
         ], $extra);
     }
 
     /**
-     * Copia con el pedido del original; su saldo sale del pedido (sin producción).
+     * Copia con el pedido del original; su saldo sale del pedido (sin producción). $conTelar: con
+     * el telar del registro elegido (la fila que trae el diálogo al abrir).
      *
      * @param  array<string, mixed>  $o
      * @return array<string, mixed>
      */
-    public static function filaDuplicar(array $o): array
+    public static function filaDuplicar(array $o, bool $conTelar = false): array
     {
-        $fila = self::fila($o, ['pedido' => self::numero($o['pedido'])]);
+        // La primera fila trae el telar del registro elegido; las que se agregan, sin telar.
+        $fila = self::fila($o, ['pedido' => self::numero($o['pedido']), 'telar' => $conTelar ? $o['telar'] : '']);
         $fila['saldo'] = self::numero(self::saldo($fila));
 
         return $fila;
@@ -257,7 +258,6 @@ final class FilasDestino
             'telar' => $f['telar'],
             'salon_destino' => $f['salon'],
             'porcentaje_segundos' => $f['porcSeg'],
-            'observaciones' => $f['observaciones'],
             'tamano_clave' => $f['clave'],
             'producto' => $f['producto'],
             'flog' => $f['flog'],

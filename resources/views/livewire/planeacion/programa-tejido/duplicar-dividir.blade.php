@@ -33,19 +33,18 @@
 
                 {{-- Sin overflow propio: el scroll lo hace el <dialog>, así las sugerencias (absolute z-20) no se recortan. --}}
                 <div>
-                    <table class="w-full min-w-[88rem] border-separate border-spacing-y-1.5 text-sm">
+                    <table class="w-full min-w-[78rem] border-separate border-spacing-y-1.5 text-sm">
                         <thead class="text-center text-sm font-semibold text-zinc-600 dark:text-zinc-300 [&_th]:px-2">
                             <tr>
-                                <th scope="col" class="w-36">Clave modelo</th>
+                                <th scope="col" class="w-36">Modelo</th>
                                 <th scope="col">Producto</th>
-                                <th scope="col" class="w-64">Flog</th>
-                                <th scope="col">Descripción</th>
-                                <th scope="col" class="w-28">Aplicación</th>
+                                <th scope="col" class="w-60">Flog</th>
+                                <th scope="col" class="w-[25%]">Descripción</th>
+                                <th scope="col" class="w-24">Aplicación</th>
                                 <th scope="col" class="w-24">Telar</th>
                                 <th scope="col" class="w-28">Pedido</th>
                                 <th scope="col" class="w-20">% 2as</th>
-                                <th scope="col" class="w-28">Saldo</th>
-                                <th scope="col" class="w-40">Observaciones</th>
+                                <th scope="col" class="w-24">Saldo</th>
                                 <th scope="col" class="w-12"><span class="sr-only">Quitar</span></th>
                             </tr>
                         </thead>
@@ -148,9 +147,6 @@
                                         {{-- El servidor vuelve a calcular el saldo desde el pedido al guardar. --}}
                                         <span class="block py-2 font-semibold tabular-nums" title="pedido × (1 + %2as) − producción"
                                               x-text="ptDuplicar.saldo($wire.$get('{{ $base }}'))">{{ $numero(\App\Livewire\Planeacion\ProgramaTejido\FilasDestino::saldo($fila)) }}</span>
-                                    </td>
-                                    <td>
-                                        <flux:input wire:model.blur="{{ $base }}.observaciones" maxlength="500" autocomplete="off" aria-label="Observaciones fila {{ $i + 1 }}" />
                                     </td>
                                     <td>
                                         @unless ($fija || count($filasModo) <= 1)

@@ -123,11 +123,11 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
     {
         $this->componente()
             ->dispatch('pt-duplicar-abrir', id: 1)
-            ->set('filas.duplicar.0.observaciones', 'copia')
+            ->set('filas.duplicar.0.descripcion', 'copia')
             ->set('modo', 'dividir')
             ->set('filas.dividir.1.pedido', '300')
             ->set('modo', 'duplicar')
-            ->assertSet('filas.duplicar.0.observaciones', 'copia')
+            ->assertSet('filas.duplicar.0.descripcion', 'copia')
             ->assertSet('filas.dividir.1.pedido', '300');
     }
 
@@ -159,6 +159,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         // En Duplicar el saldo es texto que sale de pedido y %2as: no hay input de saldo.
         $duplicar->assertSeeHtml("x-text=\"ptDuplicar.saldo(\$wire.\$get('filas.duplicar.0'))\">1,000.00</span>")
             ->assertDontSeeHtml('wire:model="filas.duplicar.0.saldo"')
+            ->assertDontSee('Observaciones') // el modal ya no las captura: se quedan las del original
             ->assertSeeHtml('wire:change="confirmar(\'clave\', 0)"')
             ->assertSeeHtml('wire:change="confirmar(\'flog\', 0)"')
             ->assertDontSeeHtml('wire:blur="confirmar(');
@@ -334,7 +335,17 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
 
     public function test_sin_telar_el_boton_se_bloquea_y_dice_por_que(): void
     {
-        $c = $this->componente()->dispatch('pt-duplicar-abrir', id: 1);
+        // Al abrir, la fila trae el telar del registro elegido (201) y ya se puede guardar.
+        $c = $this->componente()->dispatch('pt-duplicar-abrir', id: 1)
+            ->assertSet('filas.duplicar.0.telar', '201')
+            ->assertSeeHtml('value="SMIT|201" title="SMIT" selected');
+        $this->assertNull($c->instance()->pendiente());
+
+        // "Agregar telar" llega sin telar: hay que elegirlo.
+        $c->call('agregarFila')->assertSet('filas.duplicar.1.telar', '');
+        $this->assertSame('Elige el telar en la fila 2.', $c->instance()->pendiente());
+        $c->call('quitarFila', 1)->call('elegirTelar', 0, '');
+
         $this->assertSame('Elige el telar en la fila 1.', $c->instance()->pendiente());
         $c->assertSeeHtml('Elige el telar en la fila 1.')
             ->call('guardar')
@@ -413,7 +424,6 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->set('filas.dividir.1.pedido', '400')
             ->set('filas.dividir.2.telar', '205')
             ->set('filas.dividir.2.flog', 'FLOG-NUEVO')
-            ->set('filas.dividir.2.observaciones', 'parte nueva')
             ->set('filas.dividir.2.pedido', '100')
             ->call('guardar')
             ->assertHasNoErrors()
@@ -423,7 +433,6 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         $this->assertCount(1, $nuevas);
         // Antes la redistribución ignoraba flog/producto/clave de la fila y copiaba los del grupo.
         $this->assertSame('FLOG-NUEVO', $nuevas[0]->FlogsId);
-        $this->assertSame('parte nueva', $nuevas[0]->Observaciones);
         $this->assertEqualsWithDelta(100, $nuevas[0]->SaldoPedido, 0.01);
     }
 
@@ -467,7 +476,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
     {
         $this->componente(['crear'], 'muestras')
             ->dispatch('pt-duplicar-abrir', id: 1)
-            ->assertSet('filas.duplicar.0.telar', '')
+            ->assertSet('filas.duplicar.0.telar', '201')
             ->set('filas.duplicar.0.telar', '210')
             ->call('guardar')
             ->assertDispatched('pt-duplicar-guardado');

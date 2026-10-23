@@ -103,7 +103,7 @@ class DuplicarDividir extends Component
         $this->esGrupo = $grupo->count() >= 2;
         $this->origen = FilasDestino::origen($registro, $grupo);
         $this->filas = [
-            'duplicar' => [FilasDestino::filaDuplicar($this->origen)],
+            'duplicar' => [FilasDestino::filaDuplicar($this->origen, conTelar: true)],
             'dividir' => FilasDestino::filasDividir($grupo, $this->origen),
         ];
         $this->modo = $this->esGrupo && $this->puedeDividir() ? 'dividir' : 'duplicar';
