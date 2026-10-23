@@ -88,7 +88,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 
 .pvoc-table-scroll { overflow: auto; border: 0; border-top: 1px solid var(--pvoc-border); border-radius: 0; }
 /* La tabla del resumen crece hasta el borde inferior de la tarjeta. */
-.pvoc-subpanel > .pvoc-table-scroll { flex: 1; min-height: 240px; }
+.pvoc-subpanel > .pvoc-table-scroll { flex: 1; min-height: 10rem; }
 .pvoc-filters-shared { margin: 0; }
 /* Panel flotante de filtros de Compara, bajo la barra superior y alineado a la derecha. */
 .pvoc-filter-panel { position: fixed; z-index: 40; top: calc(var(--pt-navbar-height) + 4px); right: .5rem; display: flex; flex-direction: column; gap: .6rem; width: min(calc(100% - 1rem), 30rem); max-height: calc(100vh - var(--pt-navbar-height) - 12px); max-height: calc(100dvh - var(--pt-navbar-height) - 12px); overflow-y: auto; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; padding: .75rem; box-shadow: 0 12px 32px rgb(15 23 42 / 18%); }
@@ -198,10 +198,12 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .pvoc-zoom-value { min-width: 3.5rem; padding: .2rem .3rem; text-align: right; font-variant-numeric: tabular-nums; }
 /* El reporte visible llena lo que queda de la tarjeta; su tabla hace scroll por dentro. */
 .vh-reports { display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: 0; }
-.vh-report { display: flex; flex: 1 0 auto; flex-direction: column; border: 0; border-radius: 0; background: #fff; padding: .3rem 0 0; }
-/* Tabla y gráfica juntas: la tabla se acota y hace scroll por dentro; la tarjeta hace scroll para ver la gráfica. */
-.vh-report-table { flex: none; min-height: 0; max-height: 60vh; }
-.vh-chart { position: relative; flex: none; height: 320px; margin-top: .5rem; }
+.vh-report { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; border: 0; border-radius: 0; background: #fff; padding: .3rem 0 0; }
+/* Tabla y gráfica caben en el alto visible (tabletas incluidas): la gráfica escala con la pantalla
+   y la tabla toma el resto, con scroll por dentro. El comparativo es más alto y la tarjeta hace scroll. */
+.vh-report[data-vh-report="comparativo"] { flex: 1 0 auto; }
+.vh-report-table { flex: 1; min-height: 10rem; }
+.vh-chart { position: relative; flex: none; height: clamp(160px, 32dvh, 320px); margin-top: .5rem; }
 /* Tablas de ventas históricas: fluidas al ancho del contenedor en vez de max-content. */
 .vh-table { width: 100%; font-size: .74rem; }
 .vh-table th, .vh-table td { padding: .3rem .4rem; }
@@ -285,6 +287,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 @media (max-width: 760px) { .ventas-pvoc-dashboard { height: auto; }.pvoc-card { overflow: visible; }.pvoc-filters, .pvoc-card-header { align-items: stretch; flex-direction: column; }.pvoc-table-scroll { max-height: none; }.pvoc-card-actions { flex-wrap: wrap; }
     .pvoc-layout { flex-direction: column; }.pvoc-sidebar { flex-basis: auto; border-right: 0; border-bottom: 2px solid #bfdbfe; }.pvoc-sidebar.is-collapsed { flex-basis: auto; }
     .pvoc-zoom input[type="range"] { width: 5rem; }
+    .vh-report-table { flex: none; max-height: 60vh; }
     .vh-cmp { grid-template-columns: minmax(0, 1fr); grid-template-areas: "mo" "ya" "ma" "yb" "mb" "bt"; }
     .vh-cmp-years { flex-direction: row; flex-wrap: wrap; }
     .vh-cmp-months { grid-template-columns: repeat(6, auto); } }
@@ -314,7 +317,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .ph-filter-chip-key { color: #4b7f78; font-weight: 600; }
 .ph-filter-none { color: var(--pvoc-muted); font-size: .78rem; }
 
-.ph-scroll { flex: 1; min-height: 240px; margin: .75rem .75rem 0; border: 1px solid var(--pvoc-border); border-radius: .5rem; }
+.ph-scroll { flex: 1; min-height: 10rem; margin: .5rem .5rem 0; border: 1px solid var(--pvoc-border); border-radius: .5rem; }
 .ph-table { font-size: calc(.8rem * var(--pvoc-zoom, 1)); }
 .ph-table thead th:first-child { min-width: 26rem; }
 .ph-table td { padding-top: .32em; padding-bottom: .32em; vertical-align: middle; }
