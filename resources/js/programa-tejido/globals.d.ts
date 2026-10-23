@@ -51,9 +51,6 @@ declare global {
             };
         };
 
-        /** Flag de depuracion del modal. Lo inicializa index.ts. */
-        __PT_DEBUG?: boolean;
-
         // Puentes de los modulos del bundle (PT-TS 1): los llaman index.ts o el onclose de
         // x-ui.modal-base en los Blade de modal/*.
         abrirModalActCalendarios?: () => Promise<void>;

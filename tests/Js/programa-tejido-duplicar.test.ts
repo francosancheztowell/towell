@@ -72,3 +72,53 @@ test('escucharGuardado toma el detail del evento del componente', async () => {
     await new Promise((r) => setTimeout(r, 0))
     assert.deepEqual(recibidos, [{ modo: 'duplicar', registros_ids: [4] }])
 })
+
+const { saldoDuplicar, pedidoDerivado, cuadre, alEscribir, cuadreVivo } = await import('../../resources/js/programa-tejido/duplicar.ts')
+
+test('saldoDuplicar: pedido × (1 + %seg/100) con el formato de FilasDestino::numero', () => {
+    assert.equal(saldoDuplicar('1000', '5'), '1050')
+    assert.equal(saldoDuplicar('1,000', '5'), '1050')
+    assert.equal(saldoDuplicar('333', '1.5'), '337.99')
+    assert.equal(saldoDuplicar('101', '0.5'), '101.51')
+    assert.equal(saldoDuplicar('', ''), '0')
+})
+
+test('pedidoDerivado: (saldo + producción) / (1 + %seg/100), con 2 decimales', () => {
+    assert.equal(pedidoDerivado({ saldo: '1050', produccion: 0, porcSeg: '5' }), '1,000.00')
+    assert.equal(pedidoDerivado({ saldo: '500', produccion: 550, porcSeg: 5 }), '1,000.00')
+    assert.equal(pedidoDerivado({ saldo: '100', produccion: 0, porcSeg: '-3' }), '100.00')
+})
+
+test('cuadre: Faltan / Sobran / Cuadra con ±0.5 y sin saldos negativos', () => {
+    assert.deepEqual(cuadre([{ saldo: '600' }, { saldo: '' }], 1000), { asignado: '600.00', estado: 'Faltan 400.00', cuadra: false })
+    assert.deepEqual(cuadre([{ saldo: '600' }, { saldo: '400.4' }], 1000), { asignado: '1,000.40', estado: 'Cuadra', cuadra: true })
+    assert.deepEqual(cuadre([{ saldo: '1200' }, { saldo: '1' }], 1000), { asignado: '1,201.00', estado: 'Sobran 201.00', cuadra: false })
+    assert.equal(cuadre([{ saldo: '1100' }, { saldo: '-100' }], 1000).cuadra, false)
+})
+
+function wireFalso(datos: Record<string, unknown>) {
+    const sets: Array<[string, unknown, boolean | undefined]> = []
+    return {
+        sets,
+        wire: {
+            $get: (ruta: string) => datos[ruta],
+            $set: (ruta: string, valor: unknown, live?: boolean) => { sets.push([ruta, valor, live]) },
+        },
+    }
+}
+
+test('alEscribir: recalcula el saldo de la fila con lo tecleado, sin ir al servidor', () => {
+    const { wire, sets } = wireFalso({ 'filas.duplicar.0.pedido': '1000', 'filas.duplicar.0.porcSeg': '0' })
+    alEscribir(wire, 'filas.duplicar.0', 'porcSeg', '5')
+    alEscribir(wire, 'filas.duplicar.0', 'pedido', '2000')
+    assert.deepEqual(sets, [['filas.duplicar.0.saldo', '1050', false], ['filas.duplicar.0.saldo', '2000', false]])
+})
+
+test('cuadreVivo: lee las filas de Dividir de $wire en cada acceso', () => {
+    const datos: Record<string, unknown> = { 'filas.dividir': [{ saldo: '600' }] }
+    const vivo = cuadreVivo(1000)
+    vivo.$wire = wireFalso(datos).wire
+    assert.equal(vivo.c.estado, 'Faltan 400.00')
+    datos['filas.dividir'] = [{ saldo: '600' }, { saldo: '400' }]
+    assert.equal(vivo.c.estado, 'Cuadra')
+})

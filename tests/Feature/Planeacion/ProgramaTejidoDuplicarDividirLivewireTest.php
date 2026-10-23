@@ -141,6 +141,29 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->assertSet('filas.duplicar.0.saldo', '1050');
     }
 
+    /**
+     * Lo que ->set() no ve: en Livewire 4 wire:model.blur no manda request, así que el saldo y el
+     * cuadre se calculan en el navegador (ptDuplicar, duplicar.ts), y wire:blur en Clave/Flog
+     * volvía a consultar y pisaba Flog/Descripción con solo pasar por el campo.
+     */
+    public function test_cantidades_se_calculan_en_el_cliente_y_clave_flog_confirman_solo_al_cambiar(): void
+    {
+        $duplicar = $this->componente()->dispatch('pt-duplicar-abrir', id: 1);
+        $duplicar->assertSeeHtml("ptDuplicar.alEscribir(\$wire, 'filas.duplicar.0', 'pedido', \$el.value)")
+            ->assertSeeHtml("ptDuplicar.alEscribir(\$wire, 'filas.duplicar.0', 'porcSeg', \$el.value)")
+            ->assertSeeHtml('wire:change="confirmar(\'clave\', 0)"')
+            ->assertSeeHtml('wire:change="confirmar(\'flog\', 0)"')
+            ->assertDontSeeHtml('wire:blur="confirmar(');
+        foreach (['pedido', 'porcSeg', 'saldo'] as $campo) {
+            $duplicar->assertDontSeeHtml("wire:model.blur=\"filas.duplicar.0.$campo\"");
+        }
+
+        $this->componente()->dispatch('pt-duplicar-abrir', id: 1)->set('modo', 'dividir')
+            ->assertSeeHtml('x-data="ptDuplicar.cuadreVivo(800)"')
+            ->assertSeeHtml("ptDuplicar.pedidoDerivado(\$wire.\$get('filas.dividir.0'))")
+            ->assertSeeHtml('x-text="c.estado">Cuadra</span>');
+    }
+
     public function test_descuadre_deshabilita_guardar_y_no_toca_la_bd(): void
     {
         $antes = DB::table('ReqProgramaTejido')->orderBy('Id')->get()->toArray();

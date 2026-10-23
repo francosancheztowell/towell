@@ -64,7 +64,9 @@
                                         @else
                                             {{-- El div relative ancla la lista justo debajo del input (en un <td> no es fiable). --}}
                                             <div class="relative">
-                                                <flux:input wire:model.live.debounce.250ms="{{ $base }}.clave" wire:blur="confirmar('clave', {{ $i }})"
+                                                {{-- wire:change y no wire:blur: pasar por el campo sin cambiar la clave no vuelve a
+                                                     consultar Modelos/AX ni pisa el Flog y la Descripción capturados. --}}
+                                                <flux:input wire:model.live.debounce.250ms="{{ $base }}.clave" wire:change="confirmar('clave', {{ $i }})"
                                                             maxlength="100" autocomplete="off" aria-label="Clave modelo fila {{ $i + 1 }}" />
                                                 @if (($sugerencias['campo'] ?? null) === 'clave' && $sugerencias['i'] === $i)
                                                     {{-- mousedown.prevent: elegir sin disparar el blur del input. --}}
@@ -94,7 +96,7 @@
                                         @else
                                             {{-- El div relative ancla la lista justo debajo del input (en un <td> no es fiable). --}}
                                             <div class="relative">
-                                                <flux:input wire:model.live.debounce.250ms="{{ $base }}.flog" wire:blur="confirmar('flog', {{ $i }})"
+                                                <flux:input wire:model.live.debounce.250ms="{{ $base }}.flog" wire:change="confirmar('flog', {{ $i }})"
                                                             maxlength="100" autocomplete="off" aria-label="Flog fila {{ $i + 1 }}" />
                                                 @if (($sugerencias['campo'] ?? null) === 'flog' && $sugerencias['i'] === $i)
                                                     {{-- mousedown.prevent: elegir sin disparar el blur del input. --}}
@@ -143,19 +145,25 @@
                                         @endif
                                     </td>
                                     <td class="text-right">
+                                        {{-- Pedido, %2as y Saldo con wire:model sin modificador: el valor vive en el cliente al
+                                             teclear y ptDuplicar (duplicar.ts) recalcula saldo, pedido derivado y cuadre sin ir
+                                             al servidor. wire:model.blur en Livewire 4 no manda request: el saldo no se movía. --}}
                                         @if ($dividir)
-                                            <span class="block py-2 tabular-nums" title="(saldo + producción) / (1 + %2as)">{{ $numero(\App\Livewire\Planeacion\ProgramaTejido\FilasDestino::pedidoDerivado($fila)) }}</span>
+                                            <span class="block py-2 tabular-nums" title="(saldo + producción) / (1 + %2as)"
+                                                  x-text="ptDuplicar.pedidoDerivado($wire.$get('{{ $base }}'))">{{ $numero(\App\Livewire\Planeacion\ProgramaTejido\FilasDestino::pedidoDerivado($fila)) }}</span>
                                         @else
-                                            <flux:input wire:model.blur="{{ $base }}.pedido" inputmode="decimal" data-solo="decimal" data-decimales="2"
+                                            <flux:input wire:model="{{ $base }}.pedido" x-on:input="ptDuplicar.alEscribir($wire, '{{ $base }}', 'pedido', $el.value)"
+                                                        inputmode="decimal" data-solo="decimal" data-decimales="2"
                                                         class:input="text-right tabular-nums" aria-label="Pedido fila {{ $i + 1 }}" />
                                         @endif
                                     </td>
                                     <td>
-                                        <flux:input wire:model.blur="{{ $base }}.porcSeg" inputmode="decimal" data-solo="decimal" data-decimales="2"
+                                        <flux:input wire:model="{{ $base }}.porcSeg" x-on:input="ptDuplicar.alEscribir($wire, '{{ $base }}', 'porcSeg', $el.value)"
+                                                    inputmode="decimal" data-solo="decimal" data-decimales="2"
                                                     class:input="text-right tabular-nums" aria-label="Porcentaje de segundas fila {{ $i + 1 }}" />
                                     </td>
                                     <td>
-                                        <flux:input wire:model.blur="{{ $base }}.saldo" inputmode="decimal" data-solo="decimal" data-decimales="2"
+                                        <flux:input wire:model="{{ $base }}.saldo" inputmode="decimal" data-solo="decimal" data-decimales="2"
                                                     class:input="text-right tabular-nums font-semibold" aria-label="Saldo fila {{ $i + 1 }}" />
                                     </td>
                                     <td>
@@ -178,17 +186,12 @@
                                  wire:loading.attr="disabled" wire:target="agregarFila">Agregar telar</flux:button>
 
                     @if ($dividir)
-                        {{-- Se anuncia al cambiar: el planeador ve cuánto falta sin buscar el botón. --}}
-                        <p aria-live="polite" class="text-sm tabular-nums">
+                        {{-- Se anuncia al cambiar: el planeador ve cuánto falta sin buscar el botón. El texto del
+                             servidor es el inicial; cuadreVivo (duplicar.ts) lo recalcula al teclear cada saldo. --}}
+                        <p aria-live="polite" class="text-sm tabular-nums" x-data="ptDuplicar.cuadreVivo(@js($cuadre['disponible']))">
                             Disponible <strong>{{ $numero($cuadre['disponible']) }}</strong>
-                            · Asignado <strong>{{ $numero($cuadre['asignado']) }}</strong>
-                            @if ($cuadre['cuadra'])
-                                · <span class="font-semibold text-green-700">Cuadra</span>
-                            @elseif ($cuadre['diferencia'] < 0)
-                                · <span class="font-semibold text-red-600">Faltan {{ $numero(-$cuadre['diferencia']) }}</span>
-                            @else
-                                · <span class="font-semibold text-red-600">Sobran {{ $numero($cuadre['diferencia']) }}</span>
-                            @endif
+                            · Asignado <strong x-text="c.asignado">{{ $numero($cuadre['asignado']) }}</strong>
+                            · <span class="font-semibold" x-bind:class="c.cuadra ? 'text-green-700' : 'text-red-600'" x-text="c.estado">{{ $cuadre['cuadra'] ? 'Cuadra' : ($cuadre['diferencia'] < 0 ? 'Faltan '.$numero(-$cuadre['diferencia']) : 'Sobran '.$numero($cuadre['diferencia'])) }}</span>
                         </p>
                     @endif
                 </div>

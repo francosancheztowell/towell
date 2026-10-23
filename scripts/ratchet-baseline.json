@@ -1,16 +1,16 @@
 {
-  "fetch(": 47,
+  "fetch(": 40,
   "Swal.fire": 0,
   "toastr.": 0,
-  "onclick=": 93,
-  "innerHTML =": 114,
-  "X-CSRF-TOKEN": 36,
+  "onclick=": 90,
+  "innerHTML =": 111,
+  "X-CSRF-TOKEN": 29,
   "bg-opacity-": 0,
-  "<script> inline en blade": 29,
+  "<script> inline en blade": 27,
   "SQL crudo con $interpolado": 7,
   "getMessage() en response()->json": 42,
   "catch vacío": 9,
-  "try { en controllers": 336,
-  "catch genérico en controllers": 319,
-  "duplicación %": 5.78
+  "try { en controllers": 335,
+  "catch genérico en controllers": 318,
+  "duplicación %": 5.66
 }

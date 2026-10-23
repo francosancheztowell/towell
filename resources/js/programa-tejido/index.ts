@@ -10,9 +10,16 @@ import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccio
 import { indiceDestino as ptIndiceDestino, indiceMinimo as ptIndiceMinimo } from './dragdrop-logica.ts';
 import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
 import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
-import { abrirDuplicar as ptAbrirDuplicar, escucharGuardado as ptEscucharDuplicarGuardado } from './duplicar.ts';
+import {
+    abrirDuplicar as ptAbrirDuplicar,
+    alEscribir as ptAlEscribir,
+    cuadreVivo as ptCuadreVivo,
+    escucharGuardado as ptEscucharDuplicarGuardado,
+    pedidoDerivado as ptPedidoDerivado,
+    type RespuestaDuplicar as PtRespuestaDuplicar,
+} from './duplicar.ts';
 import { abrirFiltroColumna as ptAbrirFiltroColumna, textoARango as ptTextoARango, tipoDeColumna as ptTipoDeColumna, valoresDeColumna as ptValoresDeColumna } from './filtro-columna.ts';
-import { recargarConservando as ptRecargarConservando, restaurarVista as ptRestaurarVista } from './vista.ts';
+import { restaurarVista as ptRestaurarVista } from './vista.ts';
 import { chipsDe as ptChipsDe, guardarEnUrl as ptGuardarFiltrosEnUrl, leerDeUrl as ptLeerFiltrosDeUrl, pintarBarra as ptPintarBarraFiltros, deserializar as ptDeserializarFiltros, serializar as ptSerializarFiltros } from './barra-filtros.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
@@ -43,7 +50,6 @@ type PTInterno = Omit<NonNullable<Window['PT']>, 'rowCache' | 'loader'> & {
 declare global {
     var clearRowCache: (() => void) | undefined;
     var applyInlineModeToRows: (() => void) | undefined;
-    var actualizarRegistrosVinculados: Fn | undefined;
     var applyFilters: (() => void) | undefined;
     var updateTotales: () => void;
     var inlineEditMode: boolean;
@@ -55,6 +61,8 @@ declare global {
         authUserId?: unknown;
         onFiltersApplied?: (filters: any[]) => void;
         escapeHtmlPtModal: typeof escapeHtmlPtModal;
+        /** Lo que la Blade del modal Duplicar/Dividir llama al teclear (duplicar.ts). */
+        ptDuplicar: { alEscribir: typeof ptAlEscribir; cuadreVivo: typeof ptCuadreVivo; pedidoDerivado: typeof ptPedidoDerivado };
 
         allRows: any[];
         selectedRowIndex: number;
@@ -178,14 +186,6 @@ function getCsrfToken() {
 	return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '';
 }
 
-// Depuración modal programa-tejido: en consola, window.__PT_DEBUG = true antes de usar el modal
-window.__PT_DEBUG = window.__PT_DEBUG === true;
-function ptDebugLog(...args: any[]) {
-	if (window.__PT_DEBUG) {
-		console.log.apply(console, args);
-	}
-}
-
 window.escapeHtmlPtModal = escapeHtmlPtModal;
 function escapeHtmlPtModal(s: any) {
 	if (s === null || s === undefined) return '';
@@ -198,77 +198,13 @@ function escapeHtmlPtModal(s: any) {
 }
 window.escapeHtmlPtModal = escapeHtmlPtModal;
 
-function normalizeSqlDateValue(value: any) {
-	if (value === null || value === undefined) return null;
-	const raw = String(value).trim();
-	if (!raw) return null;
-	const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T');
-	const dt = new Date(normalized);
-	if (Number.isNaN(dt.getTime()) || dt.getFullYear() <= 1970) return null;
-	return dt;
-}
-
-function formatDateCellValue(value: any, type: any) {
-	const dt = normalizeSqlDateValue(value);
-	if (!dt) return '';
-	const day = String(dt.getDate()).padStart(2, '0');
-	const month = String(dt.getMonth() + 1).padStart(2, '0');
-	const year = dt.getFullYear();
-	if (type === 'datetime') {
-		const hours = String(dt.getHours()).padStart(2, '0');
-		const minutes = String(dt.getMinutes()).padStart(2, '0');
-		return `${day}/${month}/${year} ${hours}:${minutes}`;
-	}
-	return `${day}/${month}/${year}`;
-}
-
-function updateDateCell(cell: any, value: any, type: any) {
-	if (!cell || value === undefined) return;
-	cell.textContent = formatDateCellValue(value, type);
-	cell.setAttribute('data-value', value || '');
-}
-
+/** Repinta en su lugar las filas indicadas con lo que hay en BD (detalles-balanceo, de 12 en 12). */
 async function actualizarRegistrosPorIds(registrosIds: any) {
 	const ids = Array.from(new Set(registrosIds || [])).filter(Boolean);
-	if (ids.length === 0) return;
-
-	if (typeof actualizarRegistrosVinculados === 'function') {
-		await actualizarRegistrosVinculados(ids, null);
-		return;
-	}
-
 	const tb = document.querySelector('#mainTable tbody');
-	if (!tb) return;
-
-	const columns = (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
-		? columnsData
-		: (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
-			field: th.getAttribute('data-column'),
-			label: th.textContent.trim(),
-			dateType: null
-		})));
-
-	if (!columns || columns.length === 0) return;
-
-	const getDateType = (field: any) => {
-		const col = columns.find(c => c.field === field);
-		return col?.dateType || null;
-	};
-
-	const formatearValor = (registro: any, field: any, value: any) => {
-		if (typeof formatearValorCelda === 'function') {
-			return formatearValorCelda(registro, field, value, getDateType(field));
-		}
-		if (value === null || value === undefined || value === '') return '';
-		const dateType = getDateType(field);
-		if (dateType === 'date' || dateType === 'datetime') {
-			return formatDateCellValue(value, dateType);
-		}
-		if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
-			return parseFloat(value).toFixed(2);
-		}
-		return String(value);
-	};
+	const columns = columnasTabla();
+	if (ids.length === 0 || !tb || columns.length === 0) return;
+	const getDateType = (field: any) => columns.find((c: any) => c.field === field)?.dateType || null;
 
 	const fetchDetalle = async (registroId: any) => {
 		try {
@@ -309,109 +245,27 @@ async function actualizarRegistrosPorIds(registrosIds: any) {
 			fila.removeAttribute('data-ord-compartida');
 		}
 
-		columns.forEach(col => {
+		columns.forEach((col: any) => {
 			const field = col.field;
 			const value = registro[field as string] !== undefined ? registro[field as string] : null;
 			const celda = fila.querySelector(`td[data-column="${field}"]`);
 			if (!celda) return;
 			celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
-			celda.innerHTML = formatearValor(registro, field, value);
+			celda.innerHTML = formatearValorCelda(registro, field, value, getDateType(field));
 		});
+		window.PT?.filterIndex?.updateRow(fila as HTMLElement);
 	}
 }
 
-async function actualizarRegistroOriginalDividir(data: any, tableBody?: any) {
-	if (!data?.registro_id_original) return;
-	const tb = tableBody || document.querySelector('#mainTable tbody');
-	if (!tb) return;
-
-	const aplicarActualizacion = (filaOriginal: any, regOriginal: any) => {
-		const totalPedidoCell = filaOriginal.querySelector('[data-column="TotalPedido"]');
-		const saldoPedidoCell = filaOriginal.querySelector('[data-column="SaldoPedido"]');
-		const fechaFinalCell = filaOriginal.querySelector('[data-column="FechaFinal"]');
-		const fechaInicioCell = filaOriginal.querySelector('[data-column="FechaInicio"]');
-		const entregaProducCell = filaOriginal.querySelector('[data-column="EntregaProduc"]');
-		const entregaPTCell = filaOriginal.querySelector('[data-column="EntregaPT"]');
-		const entregaCteCell = filaOriginal.querySelector('[data-column="EntregaCte"]');
-		const programarProdCell = filaOriginal.querySelector('[data-column="ProgramarProd"]');
-		const horasProdCell = filaOriginal.querySelector('[data-column="HorasProd"]');
-		const diasJornadaCell = filaOriginal.querySelector('[data-column="DiasJornada"]');
-		const stdDiaCell = filaOriginal.querySelector('[data-column="StdDia"]');
-		const prodKgDiaCell = filaOriginal.querySelector('[data-column="ProdKgDia"]');
-		const horasNecesariasCell = filaOriginal.querySelector('[data-column="HorasNecesarias"]');
-		const eficienciaCell = filaOriginal.querySelector('[data-column="Eficiencia"]');
-
-		if (totalPedidoCell && regOriginal.TotalPedido !== undefined) {
-			totalPedidoCell.textContent = regOriginal.TotalPedido || '0';
-			totalPedidoCell.setAttribute('data-value', regOriginal.TotalPedido || '0');
-		}
-		if (saldoPedidoCell && regOriginal.SaldoPedido !== undefined) {
-			saldoPedidoCell.textContent = regOriginal.SaldoPedido || '0';
-			saldoPedidoCell.setAttribute('data-value', regOriginal.SaldoPedido || '0');
-		}
-
-		updateDateCell(fechaFinalCell, regOriginal.FechaFinal, 'datetime');
-		updateDateCell(fechaInicioCell, regOriginal.FechaInicio, 'datetime');
-		updateDateCell(entregaProducCell, regOriginal.EntregaProduc, 'date');
-		updateDateCell(entregaPTCell, regOriginal.EntregaPT, 'date');
-		updateDateCell(entregaCteCell, regOriginal.EntregaCte, 'datetime');
-		updateDateCell(programarProdCell, regOriginal.ProgramarProd, 'date');
-
-		if (horasProdCell && regOriginal.HorasProd !== undefined) {
-			horasProdCell.textContent = regOriginal.HorasProd ? parseFloat(regOriginal.HorasProd).toFixed(2) : '0';
-			horasProdCell.setAttribute('data-value', regOriginal.HorasProd || '0');
-		}
-		if (diasJornadaCell && regOriginal.DiasJornada !== undefined) {
-			diasJornadaCell.textContent = regOriginal.DiasJornada ? parseFloat(regOriginal.DiasJornada).toFixed(2) : '0';
-			diasJornadaCell.setAttribute('data-value', regOriginal.DiasJornada || '0');
-		}
-		if (stdDiaCell && regOriginal.StdDia !== undefined) {
-			stdDiaCell.textContent = regOriginal.StdDia ? parseFloat(regOriginal.StdDia).toFixed(2) : '0';
-			stdDiaCell.setAttribute('data-value', regOriginal.StdDia || '0');
-		}
-		if (prodKgDiaCell && regOriginal.ProdKgDia !== undefined) {
-			prodKgDiaCell.textContent = regOriginal.ProdKgDia ? parseFloat(regOriginal.ProdKgDia).toFixed(2) : '0';
-			prodKgDiaCell.setAttribute('data-value', regOriginal.ProdKgDia || '0');
-		}
-		if (horasNecesariasCell && regOriginal.HorasNecesarias !== undefined) {
-			horasNecesariasCell.textContent = regOriginal.HorasNecesarias ? parseFloat(regOriginal.HorasNecesarias).toFixed(2) : '0';
-			horasNecesariasCell.setAttribute('data-value', regOriginal.HorasNecesarias || '0');
-		}
-		if (eficienciaCell && regOriginal.Eficiencia !== undefined) {
-			eficienciaCell.textContent = regOriginal.Eficiencia ? parseFloat(regOriginal.Eficiencia).toFixed(2) + '%' : '0%';
-			eficienciaCell.setAttribute('data-value', regOriginal.Eficiencia || '0');
-		}
-	};
-
-	try {
-		if (data?.registro_original) {
-			const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
-			if (filaOriginal) {
-				aplicarActualizacion(filaOriginal, data.registro_original);
-			}
-			return;
-		}
-
-		const responseOriginal = await fetch(`/planeacion/programa-tejido/${data.registro_id_original}/detalles-balanceo?t=${Date.now()}`, {
-			headers: {
-				'Accept': 'application/json',
-				'X-CSRF-TOKEN': getCsrfToken(),
-				'Cache-Control': 'no-cache'
-			}
-		});
-
-		if (responseOriginal.ok) {
-			const resultOriginal = await responseOriginal.json();
-			if (resultOriginal.success && resultOriginal.registro) {
-				const filaOriginal = tb.querySelector(`tr.selectable-row[data-id="${data.registro_id_original}"]`);
-				if (filaOriginal) {
-					aplicarActualizacion(filaOriginal, resultOriginal.registro);
-				}
-			}
-		}
-	} catch (e) {
-		console.warn('[DEBUG] Error al actualizar registro original:', e);
-	}
+/** Columnas de la grilla: las del servidor (columnsData) o, si no hay, las del encabezado. */
+function columnasTabla(): any[] {
+	return (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
+		? columnsData
+		: (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
+			field: th.getAttribute('data-column'),
+			label: th.textContent.trim(),
+			dateType: null
+		})));
 }
 
 function buildCalendarWarningHtml(message: any, advertencias: any) {
@@ -449,742 +303,182 @@ window.ptRefrescarTelares = async (ids: string[]) => {
 	applyProgramaTejidoFilters();
 };
 
-// Modal Duplicar/Dividir (Livewire): al guardar se pintan las filas sin recargar.
+// Modal Duplicar/Dividir (Livewire): al guardar se pintan las filas sin recargar. La Blade del
+// modal llama a ptDuplicar para recalcular saldo, pedido derivado y cuadre al teclear.
+window.ptDuplicar = { alEscribir: ptAlEscribir, cuadreVivo: ptCuadreVivo, pedidoDerivado: ptPedidoDerivado };
 ptEscucharDuplicarGuardado({
-	insertar: redirectToRegistro,
+	insertar: insertarFilasNuevas,
 	refrescar: actualizarRegistrosPorIds,
 	advertenciaHtml: buildCalendarWarningHtml,
 });
 
-async function redirectToRegistro(data: any) {
-	// Evitar location.href / reload en flujos que ya actualizan la tabla sin recargar (alinear dividir con duplicar/vincular)
-	const evitarRecargaProgramaTejido = (d: any) =>
-		d?.modo === 'dividir' ||
-		d?.modo === 'duplicar' ||
-		(d?.registro_id_original != null && d?.registros_divididos != null);
-
-	ptDebugLog('[DEBUG] redirectToRegistro llamado', {
-		modo: data?.modo,
-		registros_ids: data?.registros_ids,
-		registros_ids_length: data?.registros_ids?.length,
-		registros_duplicados: data?.registros_duplicados,
-		registros_vinculados: data?.registros_vinculados,
-		tiene_registros_datos: !!data?.registros_datos,
-		registros_datos_keys: data?.registros_datos ? Object.keys(data.registros_datos) : 'N/A',
-		data_keys: Object.keys(data || {}),
-	});
-
-	// Si hay múltiples registros duplicados/vinculados O tenemos registros_ids (duplicar/dividir): agregar sin recargar
-	// El backend a veces no envía "modo", pero si envía registros_ids debemos agregar filas sin recargar
-	const tieneMultiplesRegistros = (data?.registros_duplicados && data.registros_duplicados > 1) ||
-	                                (data?.registros_vinculados && data.registros_vinculados > 1) ||
-	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 1) ||
-	                                (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length >= 1);
-
-	if (tieneMultiplesRegistros) {
-		// Preferir usar registros_ids si está disponible (más confiable)
-		// En dividir: registros_ids = solo los nuevos; el original se actualiza con actualizarRegistroOriginalDividir
-		if (data?.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
-			try {
-				const datosPrecargadosCompletos = data.registros_datos &&
-					data.registros_ids.every((id: any) => data.registros_datos[String(id)] != null);
-				// Sin datos precargados, breve espera por visibilidad en BD tras commit; con datos del servidor no hace falta 800ms
-				const delayInicialMs = datosPrecargadosCompletos ? 0 : 120;
-				if (delayInicialMs > 0) {
-					await new Promise(resolve => setTimeout(resolve, delayInicialMs));
-				}
-
-				const tb = document.querySelector('#mainTable tbody');
-				if (!tb) {
-					console.error('[DEBUG] No se encontró el tbody');
-					if (evitarRecargaProgramaTejido(data)) {
-						if (typeof showToast === 'function') {
-							showToast('No se encontró la tabla principal. Recargue la página si no ve los cambios.', 'warning');
-						}
-						return;
-					}
-					ptRecargarConservando();
-					return;
-				}
-
-				// Obtener IDs de filas existentes en el DOM
-				const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
-				const registrosAgregados: number[] = [];
-
-				ptDebugLog(`[DEBUG] 📋 IDs de registros a agregar:`, data.registros_ids);
-				ptDebugLog(`[DEBUG] 📋 registros_datos disponible:`, !!data.registros_datos, data.registros_datos ? Object.keys(data.registros_datos) : 'N/A');
-				ptDebugLog(`[DEBUG] 📋 IDs de filas existentes en DOM:`, filasExistentes);
-
-				// Agregar todos los registros usando los IDs devueltos por el backend
-				// Preferir data.registros_datos cuando el backend lo envíe (evita 404 en detalles-balanceo)
-				for (const registroId of data.registros_ids) {
-					const idStr = String(registroId);
-
-					// Verificar si ya existe en el DOM
-					if (filasExistentes.includes(idStr)) {
-						ptDebugLog(`[DEBUG] ⏭️ Registro ${idStr} ya existe en el DOM, saltando`);
-						registrosAgregados.push(parseInt(idStr));
-						continue;
-					}
-
-					try {
-						const registroPrecargado = data.registros_datos && data.registros_datos[idStr];
-						let payload: Record<string, any> = { registro_id: registroId, message: '' };
-
-						if (registroPrecargado) {
-							payload.registro = registroPrecargado;
-							payload.registros_datos = data.registros_datos;
-							// Validar telar destino igual que cuando viene del fetch
-							const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
-							const esDividir = data?.modo === 'dividir';
-							const esDuplicar = data?.modo === 'duplicar';
-							const telarValido = esVincular || esDividir || esDuplicar ||
-								(registroPrecargado.SalonTejidoId === data.salon_destino &&
-								 registroPrecargado.NoTelarId === data.telar_destino);
-							if (!telarValido) {
-								console.warn(`[DEBUG] ⚠️ Registro ${registroId} (precargado) no pertenece al telar destino`, {
-									salon_registro: registroPrecargado.SalonTejidoId,
-									salon_destino: data.salon_destino,
-									telar_registro: registroPrecargado.NoTelarId,
-									telar_destino: data.telar_destino
-								});
-								continue;
-							}
-							ptDebugLog(`[DEBUG] ➕ Agregando registro ID: ${registroId} (desde registros_datos)`, {
-								TamanoClave: registroPrecargado.TamanoClave,
-								ItemId: registroPrecargado.ItemId,
-								InventSizeId: registroPrecargado.InventSizeId,
-								SalonTejidoId: registroPrecargado.SalonTejidoId,
-								NoTelarId: registroPrecargado.NoTelarId
-							});
-							await agregarRegistroSinRecargar(payload, { preventReload: true });
-							registrosAgregados.push(parseInt(idStr));
-							filasExistentes.push(idStr);
-							continue;
-						}
-
-						// Fallback: obtener por detalles-balanceo (sin delay extra: ya hubo espera inicial si hacía falta)
-						const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
-							headers: {
-								'Accept': 'application/json',
-								'X-CSRF-TOKEN': getCsrfToken(),
-								'Cache-Control': 'no-cache'
-							}
-						});
-
-						if (response.ok) {
-							const result = await response.json();
-							if (result.success && result.registro) {
-								const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
-								const esDividir = data?.modo === 'dividir';
-								const esDuplicar = data?.modo === 'duplicar';
-								const telarValido = esVincular || esDividir || esDuplicar ||
-									(result.registro.SalonTejidoId === data.salon_destino &&
-									 result.registro.NoTelarId === data.telar_destino);
-
-								if (telarValido) {
-									ptDebugLog(`[DEBUG] ➕ Agregando registro ID: ${registroId}`, {
-										TamanoClave: result.registro.TamanoClave,
-										ItemId: result.registro.ItemId,
-										InventSizeId: result.registro.InventSizeId,
-										SalonTejidoId: result.registro.SalonTejidoId,
-										NoTelarId: result.registro.NoTelarId
-									});
-									await agregarRegistroSinRecargar({ registro_id: registroId, message: '', registro: result.registro }, { preventReload: true });
-									registrosAgregados.push(parseInt(idStr));
-									filasExistentes.push(idStr);
-								} else {
-									console.warn(`[DEBUG] ⚠️ Registro ${registroId} no pertenece al telar destino`, {
-										salon_registro: result.registro.SalonTejidoId,
-										salon_destino: data.salon_destino,
-										telar_registro: result.registro.NoTelarId,
-										telar_destino: data.telar_destino
-									});
-								}
-							} else {
-								console.warn(`[DEBUG] ⚠️ No se pudo obtener el registro ${registroId}:`, result);
-							}
-						} else {
-							console.warn(`[DEBUG] ⚠️ Error al obtener el registro ${registroId}:`, response.status);
-						}
-					} catch (e) {
-						console.warn(`[DEBUG] ⚠️ Excepción al obtener el registro ${registroId}:`, e);
-					}
-				}
-
-				if (data?.modo === 'dividir' && data?.registro_id_original) {
-					await actualizarRegistroOriginalDividir(data, tb);
-				}
-
-				// Verificar si se agregaron todos los registros
-				if (registrosAgregados.length < data.registros_ids.length) {
-					console.warn(`[DEBUG] ⚠️ Solo se agregaron ${registrosAgregados.length} de ${data.registros_ids.length} registros esperados`);
-
-					// Intentar agregar los registros faltantes
-					const idsFaltantes = data.registros_ids.filter((id: any) => !registrosAgregados.includes(parseInt(id)));
-					ptDebugLog(`[DEBUG] 🔄 Intentando agregar registros faltantes:`, idsFaltantes);
-
-					for (const idFaltante of idsFaltantes) {
-						try {
-							const idStrFaltante = String(idFaltante);
-							const registroPrecargado = data.registros_datos && data.registros_datos[idStrFaltante];
-							if (registroPrecargado) {
-								await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: registroPrecargado }, { preventReload: true });
-								registrosAgregados.push(parseInt(idFaltante));
-								continue;
-							}
-							const response = await fetch(`/planeacion/programa-tejido/${idFaltante}/detalles-balanceo?t=${Date.now()}`, {
-								headers: {
-									'Accept': 'application/json',
-									'X-CSRF-TOKEN': getCsrfToken(),
-									'Cache-Control': 'no-cache'
-								}
-							});
-
-							if (response.ok) {
-								const result = await response.json();
-								if (result.success && result.registro) {
-									await agregarRegistroSinRecargar({ registro_id: idFaltante, message: '', registro: result.registro }, { preventReload: true });
-									registrosAgregados.push(parseInt(idFaltante));
-								}
-							}
-						} catch (e) {
-							console.warn(`[DEBUG] ⚠️ Error al agregar registro faltante ${idFaltante}:`, e);
-						}
-					}
-				}
-
-				// Mostrar resumen final
-				const totalFilasFinal = tb.querySelectorAll('.selectable-row').length;
-				ptDebugLog(`[DEBUG] ✅ RESUMEN FINAL: Se agregaron ${registrosAgregados.length} de ${data.registros_ids.length} registros esperados. Total filas en tabla: ${totalFilasFinal}`);
-
-				// Verificar que todos los registros agregados estén visibles con sus datos correctos
-				registrosAgregados.forEach((id, index) => {
-					const fila = tb.querySelector(`tr.selectable-row[data-id="${id}"]`);
-					if (fila) {
-						const itemId = fila.querySelector('[data-column="ItemId"]')?.textContent?.trim() || fila.querySelector('[data-column="ItemId"]')?.getAttribute('data-value') || 'NO ENCONTRADO';
-						const inventSizeId = fila.querySelector('[data-column="InventSizeId"]')?.textContent?.trim() || fila.querySelector('[data-column="InventSizeId"]')?.getAttribute('data-value') || 'NO ENCONTRADO';
-						const tamanoClave = fila.querySelector('[data-column="TamanoClave"]')?.textContent?.trim() || fila.querySelector('[data-column="TamanoClave"]')?.getAttribute('data-value') || 'NO ENCONTRADO';
-						ptDebugLog(`[DEBUG] 📋 Registro ${index + 1} (ID: ${id}):`, {
-							TamanoClave: tamanoClave,
-							ItemId: itemId,
-							InventSizeId: inventSizeId,
-							visible: true
-						});
-					} else {
-						console.warn(`[DEBUG] ⚠️ Registro ${index + 1} (ID: ${id}) NO está visible en el DOM`);
-					}
-				});
-
-				if (typeof showToast === 'function') {
-					const totalEsperado = data.registros_ids.length;
-					const mensajeExito = data?.modo === 'dividir'
-						? (data.message || `Se dividió en ${totalEsperado} registro(s) correctamente`)
-						: data?.modo === 'duplicar'
-							? (data.message || `Se duplicaron ${totalEsperado} registro(s) correctamente`)
-							: data?.registros_vinculados
-								? `Se vincularon ${data.registros_vinculados} registro(s) correctamente`
-								: `Se procesaron ${data.registros_duplicados || totalEsperado} registro(s) correctamente`;
-
-					if (registrosAgregados.length === totalEsperado) {
-						showToast(data.message || mensajeExito, 'success');
-					} else {
-						showToast(`Se agregaron ${registrosAgregados.length} de ${totalEsperado} registro(s). Algunos pueden no estar visibles.`, 'warning');
-					}
-				}
-
-				ptDebugLog('[DEBUG] ✅ Registros agregados sin recargar, saliendo');
-				return; // IMPORTANTE: Salir aquí para NO recargar
-			} catch (error) {
-				console.error('[DEBUG] ❌ Error al agregar múltiples registros con registros_ids:', error);
-				// NO continuar con fallback que recarga - mostrar error y cerrar modal
-				if (typeof showToast === 'function') {
-					showToast('Error al agregar registros. Algunos pueden no estar visibles.', 'warning');
-				}
-				ptDebugLog('[DEBUG] ⚠️ Error pero NO recargando para modo dividir/duplicar');
-				return; // Salir sin recargar
-			}
-		}
-
-		// Fallback: Si registros_ids no está disponible, usar método anterior con IDs secuenciales
-		// SOLO para duplicar/vincular con múltiples registros (NO para dividir).
-		// Cada fila insertada usa registro.Id devuelto por detalles-balanceo (construirFilaRegistro); no se asigna data-id por heurística sin respuesta del API.
-		if (data?.modo !== 'dividir' && data?.modo !== 'duplicar' && data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
-		const totalRegistrosFallback = data?.registros_duplicados || data?.registros_vinculados || 1;
-		if (data?.registro_id && (data?.salon_destino || data?.registros_vinculados)) {
-			try {
-				ptDebugLog('[DEBUG] 🔄 Fallback: Usando método de IDs secuenciales');
-				await new Promise(resolve => setTimeout(resolve, 800));
-
-				await agregarRegistroSinRecargar({ registro_id: data.registro_id, message: data.message });
-				await new Promise(resolve => setTimeout(resolve, 300));
-
-				const tb = document.querySelector('#mainTable tbody');
-				if (tb) {
-					let filasExistentes = Array.from(tb.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
-					const primerId = parseInt(data.registro_id);
-					const registrosAgregados = [primerId];
-					const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
-
-					for (let i = 1; i < totalRegistrosFallback; i++) {
-						const siguienteId = primerId + i;
-						const tbActualizado = document.querySelector('#mainTable tbody');
-						if (tbActualizado) {
-							filasExistentes = Array.from(tbActualizado.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
-						}
-
-						if (!filasExistentes.includes(String(siguienteId))) {
-							try {
-								await new Promise(resolve => setTimeout(resolve, 300));
-								const response = await fetch(`/planeacion/programa-tejido/${siguienteId}/detalles-balanceo?t=${Date.now()}`, {
-									headers: {
-										'Accept': 'application/json',
-										'X-CSRF-TOKEN': getCsrfToken(),
-										'Cache-Control': 'no-cache'
-									}
-								});
-
-								if (response.ok) {
-									const result = await response.json();
-									if (result.success && result.registro) {
-										// Para vincular puede haber múltiples telares destino, así que la validación es más flexible
-										const telarValido = esVincular ||
-											(result.registro.SalonTejidoId === data.salon_destino &&
-											 result.registro.NoTelarId === data.telar_destino);
-
-										if (telarValido) {
-											await agregarRegistroSinRecargar({ registro_id: siguienteId, message: '' });
-											registrosAgregados.push(siguienteId);
-											await new Promise(resolve => setTimeout(resolve, 200));
-										}
-									}
-								}
-							} catch (e) {
-								console.warn(`[DEBUG] ⚠️ No se pudo obtener el registro ${siguienteId}:`, e);
-							}
-						}
-					}
-
-					if (typeof showToast === 'function') {
-						const totalEsperadoFallback = data?.registros_duplicados || data?.registros_vinculados || registrosAgregados.length;
-						const mensajeExitoFallback = data?.registros_vinculados
-							? `Se vincularon ${data.registros_vinculados} registro(s) correctamente`
-							: `Se duplicaron ${data.registros_duplicados || totalEsperadoFallback} registro(s) correctamente`;
-
-						if (registrosAgregados.length === totalEsperadoFallback) {
-							showToast(data.message || mensajeExitoFallback, 'success');
-						} else {
-							showToast(`Se agregaron ${registrosAgregados.length} de ${totalEsperadoFallback} registro(s).`, 'warning');
-						}
-					}
-				}
-				return;
-			} catch (error) {
-				console.error('[DEBUG] ❌ Error en fallback:', error);
-			}
-		}
-		}
-
-	// Último fallback: si no se pueden obtener los IDs o hay error, intentar agregar al menos el primer registro
-	// PERO NO para dividir/duplicar - esos deben tener registros_ids
-	if (data?.modo !== 'dividir' && data?.modo !== 'duplicar' && data?.registro_id) {
-		ptDebugLog('[DEBUG] 🔄 Fallback: Agregando solo el primer registro');
-		await agregarRegistroSinRecargar(data);
-		if (typeof showToast === 'function') {
-			showToast(data.message || `Se procesaron los registros. Algunos pueden no estar visibles.`, 'warning');
-		}
-		return;
-	} else if (data?.modo === 'dividir' || data?.modo === 'duplicar') {
-		// Para dividir/duplicar, si llegamos aquí es porque algo falló pero NO recargamos
-		console.warn('[DEBUG] ⚠️ Modo dividir/duplicar sin registros_ids - NO recargando');
-		if (typeof showToast === 'function') {
-			showToast('Los registros se crearon pero no se pudieron mostrar. Por favor recarga manualmente.', 'warning');
-		}
-		return;
-	} else if (data?.salon_destino && data?.telar_destino) {
-		if (evitarRecargaProgramaTejido(data)) {
-			if (typeof showToast === 'function') {
-				showToast(data.message || 'Operación completada. Actualice la vista si no ve los cambios.', 'info');
-			}
-			return;
-		}
-		const url = new URL(window.location.href);
-		url.searchParams.set('salon', data.salon_destino);
-		url.searchParams.set('telar', data.telar_destino);
-		window.location.href = url.toString();
-		return;
-	} else {
-		if (evitarRecargaProgramaTejido(data)) {
-			if (typeof showToast === 'function') {
-				showToast(data.message || 'Operación completada. Actualice la vista si no ve los cambios.', 'warning');
-			}
-			return;
-		}
-		ptDebugLog('[DEBUG] 🔄 Último fallback: recargando página');
-		ptRecargarConservando();
-		return;
+/**
+ * Inserta las filas que creó Duplicar/Dividir con lo que trae la respuesta (registros_datos).
+ * Las que ya están en la tabla (el original, los miembros del grupo) las repinta `refrescar`.
+ */
+async function insertarFilasNuevas(data: PtRespuestaDuplicar) {
+	const tb = document.querySelector('#mainTable tbody');
+	if (!tb) return;
+	const columns = columnasTabla();
+	const datos = (data.registros_datos ?? {}) as Record<string, any>;
+	const nuevas = (data.registros_ids ?? []).filter((id) => !tb.querySelector(`tr.selectable-row[data-id="${id}"]`));
+	const filas = nuevas.flatMap((id) => (datos[String(id)] ? [insertarFila(datos[String(id)], tb, columns)] : []));
+	if (filas.length > 0) {
+		window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
+		window.clearRowCache?.();
+		window.updatePinnedColumnsPositions?.();
+		window.updateTotales?.();
+		filas[filas.length - 1]?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
 	}
-	} // cierra if (tieneMultiplesRegistros)
-
-	// Si solo hay un registro, agregarlo sin recargar
-	if (data?.registro_id) {
-		await agregarRegistroSinRecargar(data);
-		if (data?.modo === 'dividir' && data?.registro_id_original) {
-			await actualizarRegistroOriginalDividir(data);
-		}
-		return;
-	}
-
-	if (evitarRecargaProgramaTejido(data)) {
-		if (typeof showToast === 'function') {
-			showToast(data.message || 'Operación completada. Actualice la vista si no ve los cambios.', 'info');
-		}
-		return;
-	}
-
-	if (data?.salon_destino && data?.telar_destino) {
-		// Si no hay registro_id pero hay destino, recargar con filtros
-		const url = new URL(window.location.href);
-		url.searchParams.set('salon', data.salon_destino);
-		url.searchParams.set('telar', data.telar_destino);
-		window.location.href = url.toString();
-		return;
-	}
-
-	ptDebugLog('[DEBUG] 🔄 Fallback final: recargando página');
-	ptRecargarConservando();
+	// duplicar.ts lo convierte en "Se guardó, pero la tabla no se pudo actualizar. Recarga la página."
+	if (filas.length < nuevas.length) throw new Error('registros_datos no trae todas las filas nuevas');
 }
 
-async function agregarRegistroSinRecargar(data: any, { preventReload = false } = {}) {
-	if (!data?.registro_id) return;
+/** Construye la fila de `registro` y la inserta en su telar, ordenada por FechaInicio. */
+function insertarFila(registro: any, tb: Element, columns: any[]) {
+	const row = construirFilaRegistro(registro, columns);
 
-	let registro = null;
+	// Encontrar la posición correcta para insertar (ordenado por NoTelar, luego por FechaInicio)
+	const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row'));
+	const noTelarNuevo = registro.NoTelarId ? String(registro.NoTelarId).trim() : '';
+	// Local, no UTC: se compara contra parsearFecha() de abajo, que construye la fecha
+	// por componentes. Mezclar ambos criterios desplazaba la insercion un dia.
+	const fechaInicio = registro.FechaInicio ? parseSqlDateTimeLocal(registro.FechaInicio) : null;
+	let insertarAntes = null;
 
-	// Usar datos pre-cargados del backend (registros_datos) cuando estén disponibles para evitar 404 en detalles-balanceo
-	if (data.registro && typeof data.registro === 'object') {
-		registro = data.registro;
-	} else if (data.registros_datos && data.registros_datos[String(data.registro_id)]) {
-		registro = data.registros_datos[String(data.registro_id)];
-	}
-
-	if (!registro) {
+	// Función auxiliar para parsear fecha desde texto
+	const parsearFecha = (fechaTexto: any) => {
+		if (!fechaTexto) return null;
 		try {
-			const response = await fetch(`/planeacion/programa-tejido/${data.registro_id}/detalles-balanceo?t=${Date.now()}`, {
-				headers: {
-					'Accept': 'application/json',
-					'X-CSRF-TOKEN': getCsrfToken(),
-					'Cache-Control': 'no-cache'
-				}
-			});
-
-			if (!response.ok) {
-				throw new Error('No se pudo obtener el registro');
+			const partes = fechaTexto.split('/');
+			if (partes.length === 3) {
+				return new Date(partes[2], partes[1] - 1, partes[0]);
 			}
+		} catch (e) {
+			// Si hay error parseando, retornar null
+		}
+		return null;
+	};
 
-			const result = await response.json();
-			if (!result.success || !result.registro) {
-				throw new Error('Registro no encontrado');
+	// Función auxiliar para obtener NoTelar de una fila
+	const obtenerNoTelar = (fila: any) => {
+		const telarCell = fila.querySelector('[data-column="NoTelarId"]');
+		return telarCell ? String(telarCell.textContent.trim()) : '';
+	};
+
+	// Función auxiliar para obtener FechaInicio de una fila
+	const obtenerFechaInicio = (fila: any) => {
+		const fechaCell = fila.querySelector('[data-column="FechaInicio"]');
+		if (fechaCell) {
+			const fechaTexto = fechaCell.textContent.trim();
+			return parsearFecha(fechaTexto);
+		}
+		return null;
+	};
+
+	// Buscar la posición correcta: primero por NoTelar, luego por FechaInicio
+	for (const filaExistente of filasExistentes) {
+		const noTelarExistente = obtenerNoTelar(filaExistente);
+		const fechaExistente = obtenerFechaInicio(filaExistente);
+
+		// Comparar primero por NoTelar (orden numérico si son números, alfabético si no)
+		const compararTelar = (telar1: any, telar2: any) => {
+			const num1 = parseInt(telar1);
+			const num2 = parseInt(telar2);
+			if (!isNaN(num1) && !isNaN(num2)) {
+				return num1 - num2; // Comparación numérica
 			}
-
-			registro = result.registro;
-		} catch (err) {
-			console.warn(`[DEBUG] ⚠️ Error al obtener el registro ${data.registro_id}:`, err);
-			throw err;
-		}
-	}
-
-	if (registro && (registro.Id === undefined || registro.Id === null || registro.Id === '') && registro.id != null) {
-		registro.Id = registro.id;
-	}
-
-	try {
-		// Verificar que los campos clave estén presentes y actualizados
-		ptDebugLog(`[DEBUG] 📥 Datos recibidos del endpoint para registro ${registro.Id}:`, {
-			TamanoClave: registro.TamanoClave,
-			ItemId: registro.ItemId,
-			InventSizeId: registro.InventSizeId,
-			CustName: registro.CustName,
-			FlogsId: registro.FlogsId,
-			NoTelarId: registro.NoTelarId,
-			SalonTejidoId: registro.SalonTejidoId
-		});
-
-		// Verificar si ya existe en la tabla
-		const tb = document.querySelector('#mainTable tbody');
-		if (!tb) {
-			if (preventReload) throw new Error('No se encontró la tabla principal (#mainTable tbody)');
-			ptRecargarConservando();
-			return;
-		}
-
-		const existe = tb.querySelector(`tr.selectable-row[data-id="${registro.Id}"]`);
-		if (existe) {
-			// El registro ya existe, solo mostrar mensaje
-			if (typeof showToast === 'function') {
-				showToast(data.message || 'Registro duplicado correctamente', 'success');
-			}
-			return;
-		}
-
-		// Obtener las columnas desde columnsData, window.columns o desde el DOM
-		const columns = (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
-			? columnsData
-			: (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
-				field: th.getAttribute('data-column'),
-				label: th.textContent.trim(),
-				dateType: null // Por ahora no detectamos el tipo de fecha desde JS
-			})));
-
-		if (!columns || columns.length === 0) {
-			if (preventReload) throw new Error('No se encontraron columnas para la tabla');
-			ptRecargarConservando();
-			return;
-		}
-
-		// Construir la fila HTML
-		const row = construirFilaRegistro(registro, columns);
-
-		// Verificar que la fila se construyó correctamente con los datos
-		const itemIdCell = row.querySelector('[data-column="ItemId"]');
-		const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
-		const tamanoClaveCell = row.querySelector('[data-column="TamanoClave"]');
-		const custNameCell = row.querySelector('[data-column="CustName"]');
-
-		ptDebugLog(`[DEBUG] ✅ Fila construida para registro ${registro.Id}:`, {
-			ItemId_celda: itemIdCell?.textContent?.trim() || itemIdCell?.innerHTML?.trim() || 'NO ENCONTRADO',
-			InventSizeId_celda: inventSizeIdCell?.textContent?.trim() || inventSizeIdCell?.innerHTML?.trim() || 'NO ENCONTRADO',
-			TamanoClave_celda: tamanoClaveCell?.textContent?.trim() || tamanoClaveCell?.innerHTML?.trim() || 'NO ENCONTRADO',
-			CustName_celda: custNameCell?.textContent?.trim() || custNameCell?.innerHTML?.trim() || 'NO ENCONTRADO',
-			ItemId_data_value: itemIdCell?.getAttribute('data-value') || 'NO ENCONTRADO',
-			InventSizeId_data_value: inventSizeIdCell?.getAttribute('data-value') || 'NO ENCONTRADO'
-		});
-
-		// Encontrar la posición correcta para insertar (ordenado por NoTelar, luego por FechaInicio)
-		const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row'));
-		const noTelarNuevo = registro.NoTelarId ? String(registro.NoTelarId).trim() : '';
-		// Local, no UTC: se compara contra parsearFecha() de abajo, que construye la fecha
-		// por componentes. Mezclar ambos criterios desplazaba la insercion un dia.
-		const fechaInicio = registro.FechaInicio ? parseSqlDateTimeLocal(registro.FechaInicio) : null;
-		let insertarAntes = null;
-
-		// Función auxiliar para parsear fecha desde texto
-		const parsearFecha = (fechaTexto: any) => {
-			if (!fechaTexto) return null;
-			try {
-				const partes = fechaTexto.split('/');
-				if (partes.length === 3) {
-					return new Date(partes[2], partes[1] - 1, partes[0]);
-				}
-			} catch (e) {
-				// Si hay error parseando, retornar null
-			}
-			return null;
+			return telar1.localeCompare(telar2); // Comparación alfabética
 		};
 
-		// Función auxiliar para obtener NoTelar de una fila
-		const obtenerNoTelar = (fila: any) => {
-			const telarCell = fila.querySelector('[data-column="NoTelarId"]');
-			return telarCell ? String(telarCell.textContent.trim()) : '';
-		};
+		const comparacionTelar = compararTelar(noTelarNuevo, noTelarExistente);
 
-		// Función auxiliar para obtener FechaInicio de una fila
-		const obtenerFechaInicio = (fila: any) => {
-			const fechaCell = fila.querySelector('[data-column="FechaInicio"]');
-			if (fechaCell) {
-				const fechaTexto = fechaCell.textContent.trim();
-				return parsearFecha(fechaTexto);
-			}
-			return null;
-		};
-
-		// Buscar la posición correcta: primero por NoTelar, luego por FechaInicio
-		for (const filaExistente of filasExistentes) {
-			const noTelarExistente = obtenerNoTelar(filaExistente);
-			const fechaExistente = obtenerFechaInicio(filaExistente);
-
-			// Comparar primero por NoTelar (orden numérico si son números, alfabético si no)
-			const compararTelar = (telar1: any, telar2: any) => {
-				const num1 = parseInt(telar1);
-				const num2 = parseInt(telar2);
-				if (!isNaN(num1) && !isNaN(num2)) {
-					return num1 - num2; // Comparación numérica
-				}
-				return telar1.localeCompare(telar2); // Comparación alfabética
-			};
-
-			const comparacionTelar = compararTelar(noTelarNuevo, noTelarExistente);
-
-			if (comparacionTelar < 0) {
-				// El telar nuevo es menor, insertar antes de esta fila
-				insertarAntes = filaExistente;
-				break;
-			} else if (comparacionTelar === 0) {
-				// Mismo telar, comparar por FechaInicio
-				if (fechaInicio && fechaExistente) {
-					if (fechaExistente > fechaInicio) {
-						insertarAntes = filaExistente;
-						break;
-					}
-				} else if (fechaInicio && !fechaExistente) {
-					// Si la fila existente no tiene fecha pero el nuevo sí, insertar después
-					continue;
-				} else if (!fechaInicio && fechaExistente) {
-					// Si el nuevo no tiene fecha pero el existente sí, insertar antes
+		if (comparacionTelar < 0) {
+			// El telar nuevo es menor, insertar antes de esta fila
+			insertarAntes = filaExistente;
+			break;
+		} else if (comparacionTelar === 0) {
+			// Mismo telar, comparar por FechaInicio
+			if (fechaInicio && fechaExistente) {
+				if (fechaExistente > fechaInicio) {
 					insertarAntes = filaExistente;
 					break;
 				}
-				// Si ambos tienen o no tienen fecha, mantener el orden actual
+			} else if (fechaInicio && !fechaExistente) {
+				// Si la fila existente no tiene fecha pero el nuevo sí, insertar después
+				continue;
+			} else if (!fechaInicio && fechaExistente) {
+				// Si el nuevo no tiene fecha pero el existente sí, insertar antes
+				insertarAntes = filaExistente;
+				break;
 			}
-			// Si el telar nuevo es mayor, continuar buscando
+			// Si ambos tienen o no tienen fecha, mantener el orden actual
 		}
+		// Si el telar nuevo es mayor, continuar buscando
+	}
 
-		// Antes de insertar, actualizar el campo "Ultimo" del registro anterior del mismo telar
-		// Solo si el nuevo registro tiene Ultimo=1
-		if (registro.Ultimo == 1 || registro.Ultimo === '1' || registro.Ultimo === 1) {
-			const salonId = registro.SalonTejidoId;
-			const telarId = registro.NoTelarId;
+	// Antes de insertar, actualizar el campo "Ultimo" del registro anterior del mismo telar
+	// Solo si el nuevo registro tiene Ultimo=1
+	if (registro.Ultimo == 1 || registro.Ultimo === '1' || registro.Ultimo === 1) {
+		const salonId = registro.SalonTejidoId;
+		const telarId = registro.NoTelarId;
 
-			const filasMismoTelar = Array.from(tb.querySelectorAll('.selectable-row')).filter(f => {
-				const rowId = f.getAttribute('data-id');
-				const fSalon = f.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim();
-				const fTelar = f.querySelector('[data-column="NoTelarId"]')?.textContent?.trim();
-				return rowId !== String(registro.Id) &&
-					fSalon === String(salonId) &&
-					fTelar === String(telarId);
-			});
-
-			// Encontrar el registro anterior que tenga Ultimo=1 y actualizarlo
-			for (const fila of filasMismoTelar) {
-				const ultimoCell = fila.querySelector('[data-column="Ultimo"]');
-				if (ultimoCell && (ultimoCell.textContent.includes('ULTIMO') || ultimoCell.querySelector('strong'))) {
-					// Actualizar visualmente el campo Ultimo del registro anterior
-					ultimoCell.innerHTML = '';
-					ultimoCell.setAttribute('data-value', '0');
-					break;
-				}
-			}
-		}
-
-		// Insertar la fila
-		ptDebugLog(`[DEBUG] 📍 Insertando fila ${registro.Id}`, {
-			insertarAntes: insertarAntes ? insertarAntes.getAttribute('data-id') : 'null (al final)',
-			totalFilasAntes: tb.querySelectorAll('.selectable-row').length
+		const filasMismoTelar = Array.from(tb.querySelectorAll('.selectable-row')).filter(f => {
+			const rowId = f.getAttribute('data-id');
+			const fSalon = f.querySelector('[data-column="SalonTejidoId"]')?.textContent?.trim();
+			const fTelar = f.querySelector('[data-column="NoTelarId"]')?.textContent?.trim();
+			return rowId !== String(registro.Id) &&
+				fSalon === String(salonId) &&
+				fTelar === String(telarId);
 		});
 
-		if (insertarAntes) {
-			tb.insertBefore(row, insertarAntes);
-		} else {
-			tb.appendChild(row);
-		}
-		window.PT?.filterIndex?.updateRow(row);
-
-		// Hacer scroll para que la nueva fila sea visible
-		if (row.scrollIntoView) {
-			row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-		}
-
-		ptDebugLog(`[DEBUG] ✅ Fila ${registro.Id} insertada. Total filas después:`, tb.querySelectorAll('.selectable-row').length);
-
-		// Actualizar window.allRows manualmente y actualizar índices
-		window.allRows = Array.from(tb.querySelectorAll('.selectable-row'));
-
-		// Actualizar data-row-index de todas las filas
-		window.allRows.forEach((fila: any, index: any) => {
-			fila.setAttribute('data-row-index', index);
-		});
-
-		// Limpiar cache de filas para que se recalcule correctamente
-		if (typeof clearRowCache === 'function') {
-			clearRowCache();
-		} else if (window.PT && window.PT.rowCache) {
-			window.PT.rowCache = new WeakMap();
-		}
-
-		// Aplicar columnas ocultas a la nueva fila basándonos en el estado del header
-		// Obtener todas las columnas del header y aplicar el mismo estado de visibilidad a la nueva fila
-		const headerCells = document.querySelectorAll<HTMLElement>('#mainTable thead th[data-column]');
-		headerCells.forEach((th) => {
-			// Extraer el índice de la columna desde las clases column-X
-			const classList = Array.from(th.classList);
-			const columnClass = classList.find(cls => cls.startsWith('column-'));
-			if (columnClass) {
-				const colIndex = parseInt(columnClass.replace('column-', ''));
-				if (!isNaN(colIndex)) {
-					// Verificar si la columna está oculta en el header
-					const isHidden = th.style.display === 'none' ||
-					                th.classList.contains('hidden') ||
-					                window.getComputedStyle(th).display === 'none';
-
-					if (isHidden) {
-						// Aplicar el mismo estado a la celda correspondiente en la nueva fila
-						const cell = row.querySelector<HTMLElement>(`td.column-${colIndex}`);
-						if (cell) {
-							cell.style.display = 'none';
-						}
-					}
-				}
+		// Encontrar el registro anterior que tenga Ultimo=1 y actualizarlo
+		for (const fila of filasMismoTelar) {
+			const ultimoCell = fila.querySelector('[data-column="Ultimo"]');
+			if (ultimoCell && (ultimoCell.textContent.includes('ULTIMO') || ultimoCell.querySelector('strong'))) {
+				// Actualizar visualmente el campo Ultimo del registro anterior
+				ultimoCell.innerHTML = '';
+				ultimoCell.setAttribute('data-value', '0');
+				break;
 			}
-		});
-
-		// Actualizar posiciones de columnas fijadas para que la nueva fila tenga los estilos correctos
-		if (typeof window.updatePinnedColumnsPositions === 'function') {
-			window.updatePinnedColumnsPositions();
-		}
-
-		// Asegurar que los campos editables (TamanoClave, FlogsId, etc.) no tengan inputs bloqueados
-		// Verificar que las celdas editables estén listas para el modo inline edit
-		row.querySelectorAll<HTMLElement>('td[data-column]').forEach(cell => {
-			const columnName = cell.getAttribute('data-column');
-			// Si el campo es editable según uiInlineEditableFields, asegurar que no tenga inputs readonly/disabled
-			if (columnName && typeof uiInlineEditableFields !== 'undefined' && uiInlineEditableFields[columnName]) {
-				// Remover cualquier input readonly o disabled que pueda existir en la celda
-				const inputs = cell.querySelectorAll<HTMLInputElement>('input[readonly], input[disabled], textarea[readonly], textarea[disabled]');
-				inputs.forEach(input => {
-					// Si es un campo editable como TamanoClave o FlogsId, eliminar el input y dejar solo el texto
-					if (columnName === 'TamanoClave' || columnName === 'FlogsId') {
-						const textValue = input.value || input.textContent || '';
-						input.remove();
-						cell.innerHTML = textValue || '';
-						cell.setAttribute('data-value', textValue);
-					} else {
-						// Para otros campos editables, solo remover los atributos bloqueados
-						input.removeAttribute('readonly');
-						input.removeAttribute('disabled');
-						input.classList.remove('bg-gray-100', 'cursor-not-allowed');
-					}
-				});
-			}
-		});
-
-		// Hacer la nueva fila seleccionable - asignar event listener
-		// La seleccion la maneja el listener delegado en tbody (bindRowSelectionOnce);
-		// las filas nuevas quedan clicables sin enganchar nada.
-
-		// Actualizar totales si existe la función
-		if (typeof window.updateTotales === 'function') {
-			window.updateTotales();
-		}
-
-		// Mostrar mensaje de éxito
-		if (typeof showToast === 'function') {
-			showToast(data.message || 'Registro duplicado correctamente', 'success');
-		}
-
-	} catch (error) {
-		console.error('Error al agregar registro:', error);
-		if (preventReload) throw error;
-		if (data?.salon_destino && data?.telar_destino) {
-			const url = new URL(window.location.href);
-			url.searchParams.set('salon', data.salon_destino);
-			url.searchParams.set('telar', data.telar_destino);
-			if (data.registro_id) {
-				url.searchParams.set('registro_id', data.registro_id);
-			}
-			window.location.href = url.toString();
-		} else {
-			ptRecargarConservando();
 		}
 	}
+
+	if (insertarAntes) {
+		tb.insertBefore(row, insertarAntes);
+	} else {
+		tb.appendChild(row);
+	}
+
+	window.PT?.filterIndex?.updateRow(row);
+
+	// Aplicar columnas ocultas a la nueva fila basándonos en el estado del header
+	// Obtener todas las columnas del header y aplicar el mismo estado de visibilidad a la nueva fila
+	const headerCells = document.querySelectorAll<HTMLElement>('#mainTable thead th[data-column]');
+	headerCells.forEach((th) => {
+		// Extraer el índice de la columna desde las clases column-X
+		const classList = Array.from(th.classList);
+		const columnClass = classList.find(cls => cls.startsWith('column-'));
+		if (columnClass) {
+			const colIndex = parseInt(columnClass.replace('column-', ''));
+			if (!isNaN(colIndex)) {
+				// Verificar si la columna está oculta en el header
+				const isHidden = th.style.display === 'none' ||
+				                th.classList.contains('hidden') ||
+				                window.getComputedStyle(th).display === 'none';
+
+				if (isHidden) {
+					// Aplicar el mismo estado a la celda correspondiente en la nueva fila
+					const cell = row.querySelector<HTMLElement>(`td.column-${colIndex}`);
+					if (cell) {
+						cell.style.display = 'none';
+					}
+				}
+			}
+		}
+	});
+
+	return row;
 }
 
 function construirFilaRegistro(registro: any, columns: any) {
@@ -5993,7 +5287,7 @@ const uiInlineEditableFields: Record<string, any> = {
           window.selectedRowIndex = -1; // -1, no null: null >= 0 es true en JS
         }
         if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
-          await actualizarRegistrosVinculados(data.registros_ids, null);
+          await actualizarRegistrosPorIds(data.registros_ids);
         }
         if (typeof refreshAllRows === 'function') refreshAllRows();
         if (typeof window.updateTotales === 'function') window.updateTotales();
@@ -6095,7 +5389,7 @@ const uiInlineEditableFields: Record<string, any> = {
           if (data.success) {
             // Actualizar registros sin recargar usando la misma función que para vincular
             if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
-              await actualizarRegistrosVinculados(data.registros_ids, null);
+              await actualizarRegistrosPorIds(data.registros_ids);
             }
 
             toast(data.message || 'Registro desvinculado correctamente', 'success');
@@ -6871,219 +6165,60 @@ const uiInlineEditableFields: Record<string, any> = {
       const primerTieneOrdCompartida = primerOrdCompartida && primerOrdCompartida.trim() !== '';
 
       // Confirmar acción
-      if (typeof window.notify === 'undefined') {
-        const mensaje = primerTieneOrdCompartida
-          ? `¿Vincular ${selectedIds.length} registro(s) usando el OrdCompartida existente (${primerOrdCompartida.trim()})?`
-          : `¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`;
-        if (!confirm(mensaje)) return;
-        doVincular(selectedIds);
-      } else {
-        const mensajeHtml = primerTieneOrdCompartida
-          ? `Se vincularán <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${escapeHtmlPtModal(primerOrdCompartida.trim())}</strong>.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`
-          : `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`;
+      const mensajeHtml = primerTieneOrdCompartida
+        ? `Se vincularán <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${escapeHtmlPtModal(primerOrdCompartida.trim())}</strong>.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`
+        : `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`;
 
-        window.notify.form({
-          title: 'Vincular registros?',
-          html: mensajeHtml,
-          icon: 'question',
-          confirmText: 'Si, vincular',
-          cancelText: 'Cancelar',
-          width: 'md',
-          preConfirm: async (ctx) => {
-            const registrosIdsOrdenados = window.selectedRowsOrder.filter((iid: any) => selectedIds.includes(iid));
-            const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : selectedIds;
-            try {
-              const r = await fetch(PT_BOOT.routes!.vincularRegistros, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({ registros_ids: idsParaEnviar })
-              });
-              const data = await r.json().catch(() => ({}));
-              if (!data.success) {
-                ctx.error(data.message || 'Error al vincular los registros');
-                return false;
-              }
-              return { data, idsParaEnviar };
-            } catch (e) {
-              ctx.error('Error al procesar la solicitud.');
+      window.notify.form({
+        title: 'Vincular registros?',
+        html: mensajeHtml,
+        icon: 'question',
+        confirmText: 'Si, vincular',
+        cancelText: 'Cancelar',
+        width: 'md',
+        preConfirm: async (ctx) => {
+          const registrosIdsOrdenados = window.selectedRowsOrder.filter((iid: any) => selectedIds.includes(iid));
+          const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : selectedIds;
+          try {
+            const r = await fetch(PT_BOOT.routes!.vincularRegistros, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
+              },
+              body: JSON.stringify({ registros_ids: idsParaEnviar })
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!data.success) {
+              ctx.error(data.message || 'Error al vincular los registros');
               return false;
             }
-          }
-        }).then((result) => {
-          if (!result) return;
-          const { data, idsParaEnviar } = result;
-          actualizarRegistrosVinculados(data.registros_ids || idsParaEnviar, data.ord_compartida);
-          toast(data.message || 'Registros vinculados correctamente', 'success');
-          window.selectedRowsIds.clear();
-          window.selectedRowsOrder = [];
-          window.multiSelectMode = false;
-          updateSelectedRowsVisual();
-          updateVincularButtonState();
-          const btn = qs('#btnVincularExistentes');
-          if (btn) {
-            btn.classList.remove('bg-blue-500','text-white','hover:bg-blue-600','ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
-            btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
-            btn.disabled = false;
-            btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
-          }
-        });
-      }
-    };
-
-    // Función para actualizar registros vinculados sin recargar
-    async function actualizarRegistrosVinculados(registrosIds: any, ordCompartida: any) {
-      const tb = document.querySelector('#mainTable tbody');
-      if (!tb) return;
-
-      // Obtener columnas para formatear valores
-      const columns = (typeof columnsData !== 'undefined' && columnsData && columnsData.length > 0)
-        ? columnsData
-        : (window.columns || Array.from(document.querySelectorAll('#mainTable thead th[data-column]')).map(th => ({
-          field: th.getAttribute('data-column'),
-          label: th.textContent.trim(),
-          dateType: null
-        })));
-
-      if (!columns || columns.length === 0) return;
-
-      // Función para obtener el tipo de fecha de una columna
-      const getDateType = (field: any) => {
-        const col = columns.find(c => c.field === field);
-        return col?.dateType || null;
-      };
-
-      // Función para formatear valor (usar la función global si existe, sino básica)
-      const formatearValor = (registro: any, field: any, value: any) => {
-        if (typeof formatearValorCelda === 'function') {
-          return formatearValorCelda(registro, field, value, getDateType(field));
-        }
-        // Fallback básico
-        if (value === null || value === undefined || value === '') return '';
-        if (getDateType(field) === 'date' || getDateType(field) === 'datetime') {
-          try {
-            const dt = new Date(value);
-            if (dt.getFullYear() <= 1970) return '';
-            return getDateType(field) === 'date'
-              ? dt.toLocaleDateString('es-MX')
-              : dt.toLocaleString('es-MX');
+            return { data, idsParaEnviar };
           } catch (e) {
-            return escapeHtmlPtModal(value);
+            ctx.error('Error al procesar la solicitud.');
+            return false;
           }
         }
-        if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
-          return parseFloat(value).toFixed(2);
+      }).then((result) => {
+        if (!result) return;
+        const { data, idsParaEnviar } = result;
+        actualizarRegistrosPorIds(data.registros_ids || idsParaEnviar);
+        toast(data.message || 'Registros vinculados correctamente', 'success');
+        window.selectedRowsIds.clear();
+        window.selectedRowsOrder = [];
+        window.multiSelectMode = false;
+        updateSelectedRowsVisual();
+        updateVincularButtonState();
+        const btn = qs('#btnVincularExistentes');
+        if (btn) {
+          btn.classList.remove('bg-blue-500','text-white','hover:bg-blue-600','ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
+          btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+          btn.disabled = false;
+          btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
         }
-        // Se asigna con innerHTML => escapar el texto libre de BD.
-        return escapeHtmlPtModal(value);
-      };
-
-      const idsUnicos = Array.from(new Set(registrosIds || [])).filter(Boolean);
-      if (idsUnicos.length === 0) return;
-
-      const fetchDetalle = async (registroId: any) => {
-        try {
-          const response = await fetch(`/planeacion/programa-tejido/${registroId}/detalles-balanceo?t=${Date.now()}`, {
-            headers: {
-              'Accept': 'application/json',
-              'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content,
-              'Cache-Control': 'no-cache'
-            }
-          });
-          if (!response.ok) return null;
-          const result = await response.json();
-          if (!result.success || !result.registro) return null;
-          return { registroId, registro: result.registro };
-        } catch (error) {
-          console.warn(`Error al actualizar registro ${registroId}:`, error);
-          return null;
-        }
-      };
-
-      const concurrenciaDetalleBalanceo = 12;
-      const resultados = [];
-      for (let i = 0; i < idsUnicos.length; i += concurrenciaDetalleBalanceo) {
-        const chunk = idsUnicos.slice(i, i + concurrenciaDetalleBalanceo);
-        const part = await Promise.all(chunk.map((id) => fetchDetalle(id)));
-        resultados.push(...part);
-      }
-
-      for (const item of resultados) {
-        if (!item) continue;
-        const { registroId, registro } = item;
-        const fila = tb.querySelector(`tr.selectable-row[data-id="${registroId}"]`);
-        if (!fila) continue;
-
-        if (registro.OrdCompartida) {
-          fila.setAttribute('data-ord-compartida', registro.OrdCompartida);
-        } else {
-          fila.removeAttribute('data-ord-compartida');
-        }
-
-        columns.forEach(col => {
-          const field = col.field;
-          const value = registro[field as string] !== undefined ? registro[field as string] : null;
-          const celda = fila.querySelector(`td[data-column="${field}"]`);
-          if (!celda) return;
-          celda.setAttribute('data-value', value !== null && value !== undefined ? String(value) : '');
-          celda.innerHTML = formatearValor(registro, field, value);
-        });
-
-        window.PT?.filterIndex?.updateRow(fila as HTMLElement);
-      }
-    }
-
-    function doVincular(registrosIds: any) {
-      PT.loader.show();
-
-      // Usar el array de orden para asegurar que el primero es realmente el primero seleccionado
-      const registrosIdsOrdenados = window.selectedRowsOrder.filter((id: any) => registrosIds.includes(id));
-      const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : registrosIds;
-
-      fetch(PT_BOOT.routes!.vincularRegistros, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({ registros_ids: idsParaEnviar })
-      })
-      .then(r => r.json())
-      .then(data => {
-        PT.loader.hide();
-
-        if (data.success) {
-          // Actualizar registros sin recargar
-          actualizarRegistrosVinculados(data.registros_ids || registrosIds, data.ord_compartida);
-
-          toast(data.message || 'Registros vinculados correctamente', 'success');
-          // Limpiar selección y desactivar modo
-          window.selectedRowsIds.clear();
-          window.selectedRowsOrder = [];
-          window.multiSelectMode = false;
-          updateSelectedRowsVisual();
-          updateVincularButtonState();
-
-          const btn = qs('#btnVincularExistentes');
-          if (btn) {
-            btn.classList.remove('bg-blue-500','text-white','hover:bg-blue-600','ring-2', 'ring-blue-300', 'bg-blue-300', 'cursor-not-allowed');
-            btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
-            btn.disabled = false;
-            btn.title = 'Vincular registros existentes - Click para activar modo selección múltiple';
-          }
-        } else {
-          toast(data.message || 'Error al vincular los registros', 'error');
-        }
-      })
-      .catch(err => {
-        PT.loader.hide();
-        toast('Error al procesar la solicitud: ' + (err.message || 'Error desconocido'), 'error');
       });
-    }
+    };
 
     // Integrar selecciÃ³n mÃºltiple en el handler existente
     document.addEventListener('DOMContentLoaded', () => {
