@@ -341,37 +341,51 @@ class OrdenesTrabajoHttpTest extends TestCase
         return $this->postJson(self::URL, ['FolioParo' => $folio, 'TelarId' => '201', 'TipoFalla' => 'Mecánica']);
     }
 
-    public function test_no_se_crea_una_cuarta_orden_activa_para_el_mismo_paro(): void
+    private function ordenActiva(string $folio, string $telar, string $tipoFalla, string $estatus = 'Activo'): void
+    {
+        DB::table('MecOrdenTrabajoTable')->insert(['Folio' => $folio, 'Estatus' => $estatus, 'TelarId' => $telar, 'TipoFalla' => $tipoFalla]);
+    }
+
+    public function test_no_se_crea_una_tercera_orden_activa_con_la_misma_falla_en_la_misma_maquina(): void
     {
         $this->comoUsuario('MANTENIMIENTO', ['acceso', 'crear']);
         $this->paro('PF100');
-        foreach (['MEC00090', 'MEC00091', 'MEC00092'] as $folio) {
-            DB::table('MecOrdenTrabajoTable')->insert(['Folio' => $folio, 'Estatus' => 'Activo', 'FolioParo' => 'PF100']);
-        }
+        $this->ordenActiva('MEC00090', '201', 'Mecánica');
+        $this->ordenActiva('MEC00091', '201', 'Mecánica');
 
         $this->crearDesdeParo('PF100')
             ->assertStatus(422)
-            ->assertJsonPath('errors.FolioParo.0', 'Ya hay órdenes de trabajo abiertas para el paro PF100 (máximo 3 activas).');
-        $this->assertSame(3, DB::table('MecOrdenTrabajoTable')->count());
+            ->assertJsonPath('errors.TipoFalla.0', 'Ya hay órdenes de trabajo abiertas para la máquina 201 con falla Mecánica (máximo 2 activas).');
+        $this->assertSame(2, DB::table('MecOrdenTrabajoTable')->count());
     }
 
-    public function test_ordenes_no_activas_del_paro_no_cuentan_para_el_limite(): void
+    public function test_el_limite_por_falla_tambien_aplica_a_la_captura_manual(): void
+    {
+        $this->comoUsuario('MANTENIMIENTO', ['acceso', 'crear']);
+        $this->ordenActiva('MEC00090', '201', 'Eléctrica');
+        $this->ordenActiva('MEC00091', '201', 'Eléctrica');
+
+        $this->postJson(self::URL, ['CapturaManual' => '1', 'TelarId' => '201', 'TipoFalla' => 'Eléctrica'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.TipoFalla.0', 'Ya hay órdenes de trabajo abiertas para la máquina 201 con falla Eléctrica (máximo 2 activas).');
+        $this->assertSame(2, DB::table('MecOrdenTrabajoTable')->count());
+    }
+
+    public function test_otras_fallas_maquinas_y_estatus_no_cuentan_para_el_limite(): void
     {
         $this->comoUsuario('MANTENIMIENTO', ['acceso', 'crear']);
         $this->paro('PF100');
-        $this->paro('PF200');
-        DB::table('MecOrdenTrabajoTable')->insert([
-            ['Folio' => 'MEC00090', 'Estatus' => 'Activo', 'FolioParo' => 'PF100'],
-            ['Folio' => 'MEC00091', 'Estatus' => 'Activo', 'FolioParo' => 'PF100'],
-            ['Folio' => 'MEC00092', 'Estatus' => 'Terminado', 'FolioParo' => 'PF100'],
-            ['Folio' => 'MEC00093', 'Estatus' => 'Cancelado', 'FolioParo' => 'PF100'],
-            ['Folio' => 'MEC00094', 'Estatus' => 'Activo', 'FolioParo' => 'PF200'],
-            ['Folio' => 'MEC00095', 'Estatus' => 'Activo', 'FolioParo' => 'PF200'],
-            ['Folio' => 'MEC00096', 'Estatus' => 'Activo', 'FolioParo' => 'PF200'],
-        ]);
+        $this->ordenActiva('MEC00090', '201', 'Mecánica');
+        $this->ordenActiva('MEC00091', '201', 'Mecánica', 'Terminado');
+        $this->ordenActiva('MEC00092', '201', 'Mecánica', 'Cancelado');
+        $this->ordenActiva('MEC00093', '201', 'Eléctrica');
+        $this->ordenActiva('MEC00094', '201', 'Eléctrica');
+        $this->ordenActiva('MEC00095', '202', 'Mecánica');
+        $this->ordenActiva('MEC00096', '202', 'Mecánica');
 
-        $this->crearDesdeParo('PF100')->assertCreated()->assertJsonPath('data.FolioParo', 'PF100');
-        $this->assertSame(3, DB::table('MecOrdenTrabajoTable')->where('FolioParo', 'PF100')->where('Estatus', 'Activo')->count());
+        $this->crearDesdeParo('PF100')->assertCreated()->assertJsonPath('data.TipoFalla', 'Mecánica');
+        $this->assertSame(2, DB::table('MecOrdenTrabajoTable')
+            ->where('TelarId', '201')->where('TipoFalla', 'Mecánica')->where('Estatus', 'Activo')->count());
     }
 
     public function test_no_se_elimina_el_unico_renglon(): void

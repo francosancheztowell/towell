@@ -25,7 +25,7 @@ class CrearOrdenTrabajoController extends Controller
 
     private const LONGITUD_CONSECUTIVO_FOLIOS = 5;
 
-    private const MAX_ACTIVAS_POR_PARO = 3;
+    private const MAX_ACTIVAS_POR_FALLA = 2;
 
     public function __construct(private readonly OrdenTrabajoAcceso $acceso) {}
 
@@ -38,6 +38,7 @@ class CrearOrdenTrabajoController extends Controller
         );
         $datos = $this->resolverOrigen($datos, $request->boolean('CapturaManual'));
         OrdenTrabajoDatos::validarOrdenNoVacia($datos);
+        $this->validarLimiteActivasPorFalla((string) $datos['TelarId'], (string) $datos['TipoFalla']);
 
         $orden = DB::transaction(function () use ($datos): MecOrdenTrabajoModel {
             $orden = MecOrdenTrabajoModel::create([
@@ -91,8 +92,6 @@ class CrearOrdenTrabajoController extends Controller
             throw ValidationException::withMessages(['FolioParo' => ['El folio de paro seleccionado ya no existe.']]);
         }
 
-        $this->validarLimiteActivasPorParo(trim((string) $paro->Folio));
-
         return [
             ...$datos,
             'TelarId' => trim((string) $paro->MaquinaId),
@@ -107,17 +106,21 @@ class CrearOrdenTrabajoController extends Controller
         ];
     }
 
-    /** Evita OT duplicadas e inservibles: un paro admite a lo más MAX_ACTIVAS_POR_PARO órdenes Activas. */
-    private function validarLimiteActivasPorParo(string $folioParo): void
+    /**
+     * Evita OT duplicadas e inservibles: una máquina admite a lo más MAX_ACTIVAS_POR_FALLA
+     * órdenes Activas del mismo tipo de falla, vengan de un paro o de captura manual.
+     */
+    private function validarLimiteActivasPorFalla(string $telarId, string $tipoFalla): void
     {
         $activas = MecOrdenTrabajoModel::query()
-            ->where('FolioParo', $folioParo)
+            ->where('TelarId', $telarId)
+            ->where('TipoFalla', $tipoFalla)
             ->where('Estatus', MecOrdenTrabajoModel::ESTATUS_ACTIVO)
             ->count();
 
-        if ($activas >= self::MAX_ACTIVAS_POR_PARO) {
+        if ($activas >= self::MAX_ACTIVAS_POR_FALLA) {
             throw ValidationException::withMessages([
-                'FolioParo' => ["Ya hay órdenes de trabajo abiertas para el paro {$folioParo} (máximo ".self::MAX_ACTIVAS_POR_PARO.' activas).'],
+                'TipoFalla' => ["Ya hay órdenes de trabajo abiertas para la máquina {$telarId} con falla {$tipoFalla} (máximo ".self::MAX_ACTIVAS_POR_FALLA.' activas).'],
             ]);
         }
     }
