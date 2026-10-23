@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\ProgramaTejido\BalancearTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log as LogFacade;
 
@@ -48,9 +49,8 @@ class ProgramaTejidoBalanceoController extends Controller
             ->orderBy('NoTelarId', 'asc')
             ->get();
 
-        $gruposCompartidos = $registrosCompartidos->groupBy(function ($item) {
-            return (string) ((int) $item->OrdCompartida);
-        });
+        // Texto: en Muestras el número de grupo lleva "M" ((int) lo volvía 0 y juntaba todos).
+        $gruposCompartidos = $registrosCompartidos->groupBy(fn ($item) => (string) OrdCompartida::normalizar($item->OrdCompartida));
 
         return view('modulos.programa-tejido.balancear', [
             'gruposCompartidos' => $gruposCompartidos,
@@ -116,7 +116,7 @@ class ProgramaTejidoBalanceoController extends Controller
      */
     public function verDetallesGrupoBalanceo($ordCompartida)
     {
-        $normalized = $this->normalizeOrdCompartidaRouteParam($ordCompartida);
+        $normalized = OrdCompartida::normalizar($ordCompartida);
         if ($normalized === null) {
             return response()->json([
                 'success' => false,
@@ -125,18 +125,5 @@ class ProgramaTejidoBalanceoController extends Controller
         }
 
         return BalancearTejido::getRegistrosPorOrdCompartida($normalized);
-    }
-
-    private function normalizeOrdCompartidaRouteParam($value): ?int
-    {
-        if ($value === null) {
-            return null;
-        }
-        $trimmed = trim((string) $value);
-        if ($trimmed === '' || ! is_numeric($trimmed)) {
-            return null;
-        }
-
-        return (int) $trimmed;
     }
 }

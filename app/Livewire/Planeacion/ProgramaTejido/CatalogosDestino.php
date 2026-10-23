@@ -10,6 +10,7 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use App\Services\Planeacion\ProgramaTejido\CatalogoModelos;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -41,8 +42,8 @@ final class CatalogosDestino
     /** @return Collection<int, ReqProgramaTejido> el grupo OrdCompartida (una consulta) o solo el registro */
     public static function grupo(ReqProgramaTejido $registro): Collection
     {
-        $ord = (int) $registro->getAttribute('OrdCompartida');
-        $grupo = $ord > 0
+        $ord = OrdCompartida::normalizar($registro->getAttribute('OrdCompartida'));
+        $grupo = $ord !== null
             ? ReqProgramaTejido::query()->select(self::COLUMNAS)->where('OrdCompartida', $ord)->orderBy('FechaInicio')->get()
             : null;
 

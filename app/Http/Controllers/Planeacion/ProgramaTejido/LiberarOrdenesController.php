@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Helpers\AuditoriaHelper;
-use App\Helpers\FolioHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -365,7 +364,7 @@ class LiberarOrdenesController extends Controller
 
                 // Generar folio o usar el valor manual ingresado por el usuario
                 $noProduccionManual = trim((string) ($item['noProduccion'] ?? ''));
-                $folio = $noProduccionManual !== '' ? $noProduccionManual : FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
+                $folio = $noProduccionManual !== '' ? $noProduccionManual : ProgramaTejidoSurface::actual()->siguienteFolio();
 
                 $folio = trim((string) $folio);
                 if ($folio === '') {

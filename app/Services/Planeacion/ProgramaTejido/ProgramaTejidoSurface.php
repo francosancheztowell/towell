@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Planeacion\ProgramaTejido;
 
+use App\Helpers\FolioHelper;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 
@@ -149,6 +150,18 @@ enum ProgramaTejidoSurface: string
     public function titulo(): string
     {
         return $this->esMuestras() ? 'Muestras' : 'Programa Tejido';
+    }
+
+    /**
+     * Siguiente NoProduccion al liberar (lo consume): Programa usa la secuencia 'Planeacion'
+     * (37071) y Muestras la suya, 'Muestras' con prefijo M (M3175). Antes Muestras tomaba el de
+     * Programa.
+     */
+    public function siguienteFolio(): string
+    {
+        return $this->esMuestras()
+            ? FolioHelper::obtenerSiguienteFolio('Muestras', 4)
+            : FolioHelper::obtenerSiguienteFolio('Planeacion', 5);
     }
 
     private function config(string $clave): mixed

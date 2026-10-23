@@ -119,7 +119,7 @@ class ProgramaTejidoInvariantTest extends TestCase
     public function test_en_muestras_el_recalculo_de_produccion_persiste_las_formulas(): void
     {
         // Hallazgo 1, invertido en PT-02 (antes: ..._falla_en_silencio). El UPDATE se filtra a
-        // las columnas físicas de MuestrasPrograma, que todavía no tiene RollosProgramados.
+        // las columnas físicas de MuestrasPrograma; RollosProgramados existe desde el 23-oct-2026.
         $this->usarSuperficie('muestras');
 
         $registro = ReqProgramaTejido::find(1);
@@ -132,7 +132,7 @@ class ProgramaTejidoInvariantTest extends TestCase
         $this->assertEquals(92, $fila->PzasRollo);
         $this->assertEquals(12, $fila->TotalRollos);
         $this->assertEquals(1104, $fila->TotalPzas);
-        $this->assertObjectNotHasProperty('RollosProgramados', $fila);
+        $this->assertEquals(12, $fila->RollosProgramados, 'igual que TotalRollos, como en Programa');
         $this->assertNotContains('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', $this->errores);
         // Programa no se tocó (mismos Id en ambas tablas).
         $this->assertNull(DB::table('ReqProgramaTejido')->where('Id', 1)->value('Repeticiones'));

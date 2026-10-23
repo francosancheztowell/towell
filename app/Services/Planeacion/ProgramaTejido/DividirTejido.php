@@ -50,11 +50,9 @@ class DividirTejido
         $registroIdOriginal = $data['registro_id_original'] ?? null;
 
         // Redistribución solo si hay un grupo real (2+ registros); un OrdCompartida huérfano en una fila no aplica
-        $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
-        $esRedistribucion = false;
-        if (! empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0') {
-            $esRedistribucion = ReqProgramaTejido::where('OrdCompartida', (int) $ordCompartidaExistente)->count() >= 2;
-        }
+        $ordCompartidaExistente = OrdCompartida::normalizar($data['ord_compartida_existente'] ?? null);
+        $esRedistribucion = $ordCompartidaExistente !== null
+            && ReqProgramaTejido::where('OrdCompartida', $ordCompartidaExistente)->count() >= 2;
 
         // Guardar y restaurar dispatcher para no romper otros flujos (igual que DuplicarTejido)
         $dispatcher = ReqProgramaTejido::suppressObservers();
@@ -63,7 +61,7 @@ class DividirTejido
 
         try {
             if ($esRedistribucion) {
-                return self::redistribuirGrupoExistente($data, (int) $ordCompartidaExistente, $destinos, $salonDestino, $hilo, $dispatcher);
+                return self::redistribuirGrupoExistente($data, (string) $ordCompartidaExistente, $destinos, $salonDestino, $hilo, $dispatcher);
             }
 
             // Obtener el registro específico a dividir, bloqueado hasta el commit (otro planeador
@@ -306,7 +304,7 @@ class DividirTejido
     }
 
     /** Original sin NoProduccion: la Id de su primera parte da el número temporal del grupo, sin líder hasta liberar. */
-    private static function grupoTemporal(ReqProgramaTejido $original, ReqProgramaTejido $parte): int
+    private static function grupoTemporal(ReqProgramaTejido $original, ReqProgramaTejido $parte): string
     {
         $temporal = OrdCompartida::temporal((int) $parte->getKey());
         foreach ([$original, $parte] as $miembro) {
@@ -325,7 +323,7 @@ class DividirTejido
      * @param  array<string, mixed>  $globales
      * @param  callable(string, string): int  $reservarPosicion
      */
-    private static function crearParte(ReqProgramaTejido $base, array $destino, ?int $ord, Carbon $inicioSiTelarVacio, $hilo, $aplicacion, array $globales, ?string $salonOrigen, callable $reservarPosicion): ReqProgramaTejido
+    private static function crearParte(ReqProgramaTejido $base, array $destino, ?string $ord, Carbon $inicioSiTelarVacio, $hilo, $aplicacion, array $globales, ?string $salonOrigen, callable $reservarPosicion): ReqProgramaTejido
     {
         $salon = (string) $destino['salon_destino'];
         $telar = (string) $destino['telar'];
@@ -663,7 +661,7 @@ class DividirTejido
      * @param  array<string, mixed>  $data
      * @param  array<int, array<string, mixed>>  $destinos  con salon_destino ya normalizado
      */
-    private static function redistribuirGrupoExistente(array $data, int $ordCompartida, array $destinos, string $salonDestino, $hilo, $dispatcher): array
+    private static function redistribuirGrupoExistente(array $data, string $ordCompartida, array $destinos, string $salonDestino, $hilo, $dispatcher): array
     {
         $registroIdOriginal = $data['registro_id_original'] ?? null;
 
@@ -780,7 +778,7 @@ class DividirTejido
 
             // Crear nuevos registros
             foreach ($destinosNuevos as $destino) {
-                $nuevo = self::crearParte($primerRegistro, $destino, (int) $ordCompartida, $fechaInicioBase, $hilo, null, self::globales($data), null, $reservarPosicion);
+                $nuevo = self::crearParte($primerRegistro, $destino, $ordCompartida, $fechaInicioBase, $hilo, null, self::globales($data), null, $reservarPosicion);
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosParaObserver[] = $nuevo;
                 $totalCreados++;
@@ -824,7 +822,7 @@ class DividirTejido
             }
 
             // Líder: FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
-            OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartida);
+            OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartida);
             $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                 ->get();
 

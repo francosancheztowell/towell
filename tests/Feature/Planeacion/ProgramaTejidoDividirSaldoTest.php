@@ -78,7 +78,7 @@ class ProgramaTejidoDividirSaldoTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('modo', 'dividir')
-            ->assertJsonPath('ord_compartida', 30001)
+            ->assertJsonPath('ord_compartida', '30001')
             ->assertJsonPath('registro_id_original', 1)
             ->assertJsonStructure(['registros_ids', 'registros_datos', 'registro_original' => ['TotalPedido', 'SaldoPedido']]);
 
@@ -204,7 +204,7 @@ class ProgramaTejidoDividirSaldoTest extends TestCase
         $this->enviar('dividir-saldo', $payload(['500', '300', '100']))->assertStatus(422);
         $this->assertSame([], $this->filasNuevas());
 
-        $this->enviar('dividir-saldo', $payload(['500', '300', '200']))->assertOk()->assertJsonPath('ord_compartida', 7);
+        $this->enviar('dividir-saldo', $payload(['500', '300', '200']))->assertOk()->assertJsonPath('ord_compartida', '7');
 
         $this->assertEqualsWithDelta(500, $this->fila(3)->SaldoPedido, 0.01);
         $this->assertEqualsWithDelta(300, $this->fila(4)->SaldoPedido, 0.01);

@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Log as LogFacade;
  * de OrdCompartida se deriva del NoProduccion del registro líder del grupo (no es un contador
  * sintético). Lo usan VincularTejido, DividirTejido y DuplicarTejido.
  *
+ * Es texto (nvarchar(15) desde el 23-oct-2026, como NoProduccion): en Muestras el folio lleva
+ * "M" (M3175). Comparar siempre como texto: un entero en el WHERE obliga a SQL Server a pasar la
+ * columna a número, no usa el índice y truena en cuanto hay un "M…".
+ *
  * Un grupo sin ningún NoProduccion (Vincular en el modal, Dividir sin liberar) lleva un número
  * temporal hasta que se libera su primera orden: entonces toma el NoProduccion de esa orden.
  */
@@ -20,18 +24,28 @@ final class OrdCompartida
 {
     /**
      * Base del número temporal: 900000000 + Id de una fila nueva del grupo. El Id no se repite y
-     * los folios de NoProduccion (37 mil en oct-2026) no llegan aquí, así que no choca con nada.
+     * los folios de NoProduccion (37 mil en oct-2026; Muestras con "M") no llegan aquí.
      */
     public const TEMPORAL = 900000000;
 
-    public static function temporal(int $idFilaNueva): int
+    /** El número de grupo como texto sin espacios; null si viene vacío o en 0. */
+    public static function normalizar(mixed $valor): ?string
     {
-        return self::TEMPORAL + $idFilaNueva;
+        $texto = trim((string) $valor);
+
+        return $texto === '' || $texto === '0' ? null : $texto;
     }
 
-    public static function esTemporal(?int $ordCompartida): bool
+    public static function temporal(int $idFilaNueva): string
     {
-        return $ordCompartida !== null && $ordCompartida >= self::TEMPORAL;
+        return (string) (self::TEMPORAL + $idFilaNueva);
+    }
+
+    public static function esTemporal(mixed $ordCompartida): bool
+    {
+        $ord = self::normalizar($ordCompartida);
+
+        return $ord !== null && ctype_digit($ord) && (int) $ord >= self::TEMPORAL;
     }
 
     /**
@@ -41,9 +55,8 @@ final class OrdCompartida
      */
     public static function fijarAlLiberar(ReqProgramaTejido $registro): void
     {
-        $temporal = (int) $registro->getAttribute('OrdCompartida');
+        $temporal = self::normalizar($registro->getAttribute('OrdCompartida'));
         $definitivo = self::obtenerOrdCompartidaDesdeRegistro($registro);
-        // Un NoProduccion manual no numérico no puede ser número de grupo: espera a la siguiente.
         if (! self::esTemporal($temporal) || $definitivo === null) {
             return;
         }
@@ -54,44 +67,23 @@ final class OrdCompartida
     }
 
     /**
-     * Deriva el OrdCompartida desde el NoProduccion del registro líder propuesto.
-     * Retorna null si el registro no tiene NoProduccion válido (no puede ser líder).
+     * Deriva el OrdCompartida desde el NoProduccion del registro líder propuesto (tal cual: en
+     * Muestras "M3175"). Retorna null si el registro no tiene NoProduccion (no puede ser líder).
      *
      * @param  ReqProgramaTejido|array|null  $lider
      */
-    public static function obtenerOrdCompartidaDesdeRegistro($lider): ?int
+    public static function obtenerOrdCompartidaDesdeRegistro($lider): ?string
     {
         if ($lider === null) {
             return null;
         }
 
-        $noProduccion = is_array($lider)
-            ? ($lider['NoProduccion'] ?? null)
-            : ($lider->NoProduccion ?? null);
-
-        if ($noProduccion === null) {
-            return null;
-        }
-
-        $limpio = trim((string) $noProduccion);
-        if ($limpio === '' || ! is_numeric($limpio)) {
-            return null;
-        }
-
-        return (int) $limpio;
+        return self::normalizar(is_array($lider) ? ($lider['NoProduccion'] ?? null) : ($lider->NoProduccion ?? null));
     }
 
     public static function seleccionarLider(Collection $registros): ?ReqProgramaTejido
     {
-        $elegibles = $registros->filter(function ($registro) {
-            $np = $registro->NoProduccion ?? null;
-            if ($np === null) {
-                return false;
-            }
-            $limpio = trim((string) $np);
-
-            return $limpio !== '' && is_numeric($limpio);
-        });
+        $elegibles = $registros->filter(fn ($registro) => self::obtenerOrdCompartidaDesdeRegistro($registro) !== null);
 
         if ($elegibles->isEmpty()) {
             return null;
@@ -111,10 +103,11 @@ final class OrdCompartida
         })->first();
     }
 
-    public static function recalcularLiderYOrdPrincipalPorOrdCompartida(int $ordCompartida): ?int
+    public static function recalcularLiderYOrdPrincipalPorOrdCompartida(mixed $ordCompartida): ?int
     {
+        $ordCompartida = self::normalizar($ordCompartida);
         // Temporal = nadie tiene NoProduccion todavía: no hay líder posible hasta liberar.
-        if ($ordCompartida <= 0 || self::esTemporal($ordCompartida)) {
+        if ($ordCompartida === null || self::esTemporal($ordCompartida)) {
             return null;
         }
 

@@ -64,10 +64,10 @@ class MovimientoDesarrolladorService
                         $idsMovidos = $this->moverRegistroConReprogramar($registroEnProceso, $todosLosRegistros, $reprogramar);
                         $idsAfectados = array_merge($idsAfectados, $idsMovidos);
                     } else {
-                        $ordCompartidaRaw = trim((string) ($registroEnProceso->OrdCompartida ?? ''));
-                        $ordCompartida = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
+                        // Texto: en Muestras el número de grupo lleva "M".
+                        $ordCompartida = OrdCompartida::normalizar($registroEnProceso->getAttribute('OrdCompartida'));
 
-                        if ($ordCompartida && $ordCompartida > 0) {
+                        if ($ordCompartida !== null) {
                             $saldoTransferir = (float) ($registroEnProceso->SaldoPedido ?? 0);
                             if ($saldoTransferir !== 0.0) {
                                 $lider = ReqProgramaTejido::query()
@@ -179,9 +179,8 @@ class MovimientoDesarrolladorService
 
                 $registroActualizadoRecargado = ReqProgramaTejido::query()->where('Id', $registroActualizado->Id)->lockForUpdate()->first();
                 if ($registroActualizadoRecargado) {
-                    $ordCompartidaRaw = trim((string) ($registroActualizadoRecargado->OrdCompartida ?? ''));
-                    $ordCompartida = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
-                    if ($ordCompartida && $ordCompartida > 0) {
+                    $ordCompartida = OrdCompartida::normalizar($registroActualizadoRecargado->getAttribute('OrdCompartida'));
+                    if ($ordCompartida !== null) {
                         $registrosCompartidos = ReqProgramaTejido::query()
                             ->where('OrdCompartida', $ordCompartida)
                             ->whereNotNull('FechaInicio')

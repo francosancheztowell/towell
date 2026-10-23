@@ -80,7 +80,7 @@ class BalanceoHttpTest extends TestCase
         return $this->actingAs($this->usuarioConPermisos($permisos))->postJson("/planeacion/{$sup}/{$accion}", $payload);
     }
 
-    private function payload(array $totales, int $ord = 7, ?string $modo = null): array
+    private function payload(array $totales, int|string $ord = 7, ?string $modo = null): array
     {
         $cambios = [];
         foreach ($totales as $id => $total) {
@@ -405,6 +405,27 @@ class BalanceoHttpTest extends TestCase
     }
 
     // ---- Muestras -----------------------------------------------------------------------------
+
+    /**
+     * En Muestras el número de grupo es el folio M del líder ("M3175", texto). Antes (int) lo
+     * volvía 0: el detalle no encontraba el grupo y el balanceo lo rechazaba.
+     */
+    public function test_muestras_balancea_un_grupo_con_folio_m(): void
+    {
+        DB::table('MuestrasPrograma')->whereIn('Id', [3, 4])->update(['OrdCompartida' => 'M3175']);
+        DB::table('MuestrasPrograma')->where('Id', 3)->update(['NoProduccion' => 'M3175']);
+
+        $this->actingAs($this->usuarioConPermisos([5 => ['acceso', 'modificar']]))
+            ->getJson('/planeacion/muestras/ver-detalles-grupo-balanceo/M3175')
+            ->assertOk()
+            ->assertJsonCount(2, 'registros');
+
+        $this->enviar('actualizar-pedidos-balanceo', $this->payload([3 => 700, 4 => 300], 'M3175'), [5 => ['modificar']], 'muestras')
+            ->assertOk()->assertJsonPath('success', true);
+
+        $this->assertFila(3, ['TotalPedido' => 700.0, 'OrdCompartida' => 'M3175', 'OrdPrincipal' => 'M3175'], 'MuestrasPrograma');
+        $this->assertFila(4, ['TotalPedido' => 300.0, 'OrdCompartida' => 'M3175', 'OrdPrincipal' => 'M3175'], 'MuestrasPrograma');
+    }
 
     public function test_muestras_balancea_su_propia_tabla_y_no_toca_programa(): void
     {

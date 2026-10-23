@@ -223,10 +223,10 @@ class FinalizarOrdenesController extends Controller
                 $key = $salonTejido.'|'.$noTelarId;
 
                 // 1a) Manejar OrdCompartida: transferir saldo al líder
-                $ordCompartidaRaw = trim((string) ($registro->OrdCompartida ?? ''));
-                $ordCompartida = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
+                // Texto: en Muestras el número de grupo lleva "M".
+                $ordCompartida = OrdCompartida::normalizar($registro->getAttribute('OrdCompartida'));
 
-                if ($ordCompartida && $ordCompartida > 0) {
+                if ($ordCompartida !== null) {
                     $saldoTransferir = (float) ($registro->SaldoPedido ?? 0);
                     if ($saldoTransferir !== 0.0) {
                         $lider = ReqProgramaTejido::query()
@@ -288,7 +288,7 @@ class FinalizarOrdenesController extends Controller
 
             // 1f) Actualizar OrdPrincipal para todas las OrdCompartida afectadas
             foreach (array_keys($ordCompartidasVistas) as $ordComp) {
-                ActualizarOrdPrincipal::ejecutar((int) $ordComp);
+                ActualizarOrdPrincipal::ejecutar((string) $ordComp);
             }
 
             // 1g) Asignar EnProceso=1 al primer restante en telares que lo perdieron

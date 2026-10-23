@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\Log;
 
 class BalancearTejido
 {
+    /** El número de grupo es texto (en Muestras "M3175"); del JSON puede llegar como número. */
+    private const REGLA_ORD_COMPARTIDA = ['required', 'regex:/^\S{1,15}$/'];
+
     // =========================================================
     // PREVIEW SOLO PARA EL MODAL (CALENDARIO)
     // =========================================================
@@ -28,7 +31,7 @@ class BalancearTejido
             'cambios.*.id' => 'required|integer',
             'cambios.*.total_pedido' => 'required|numeric|min:0',
             'cambios.*.modo' => 'nullable|string|in:saldo,total',
-            'ord_compartida' => 'required|integer',
+            'ord_compartida' => self::REGLA_ORD_COMPARTIDA,
         ]);
 
         $cambios = $request->input('cambios', []);
@@ -36,7 +39,7 @@ class BalancearTejido
         $ids = array_values(array_unique(array_map(fn ($c) => (int) $c['id'], $cambios)));
         $regs = ReqProgramaTejido::whereIn('Id', $ids)->get()->keyBy('Id');
 
-        $ordCompartida = (int) $request->input('ord_compartida');
+        $ordCompartida = (string) OrdCompartida::normalizar($request->input('ord_compartida'));
         $membershipError = self::validarCambiosPertenecenOrdCompartida($regs, $ids, $ordCompartida);
         if ($membershipError !== null) {
             return $membershipError;
@@ -220,7 +223,7 @@ class BalancearTejido
             'cambios.*.total_pedido' => 'required|numeric|min:0',
             'cambios.*.fecha_final' => 'nullable|string', // la ignoramos
             'cambios.*.modo' => 'nullable|string|in:saldo,total',
-            'ord_compartida' => 'required|integer',
+            'ord_compartida' => self::REGLA_ORD_COMPARTIDA,
         ]);
 
         $dispatcher = null;
@@ -231,7 +234,7 @@ class BalancearTejido
             $ids = array_values(array_unique(array_map(fn ($c) => (int) $c['id'], $cambios)));
             $regs = ReqProgramaTejido::whereIn('Id', $ids)->get()->keyBy('Id');
 
-            $ordCompartida = (int) $request->input('ord_compartida');
+            $ordCompartida = (string) OrdCompartida::normalizar($request->input('ord_compartida'));
             $membershipError = self::validarCambiosPertenecenOrdCompartida($regs, $ids, $ordCompartida);
             if ($membershipError !== null) {
                 return $membershipError;
@@ -373,7 +376,7 @@ class BalancearTejido
                 }
             }
 
-            if ($ordCompartida > 0) {
+            if ($ordCompartida !== '') {
                 // Balancear pedidos/fechas no debe reasignar la orden lider del grupo.
                 // Solo sincronizamos OrdPrincipal usando el lider ya persistido.
                 ActualizarOrdPrincipal::ejecutar($ordCompartida);
@@ -428,7 +431,7 @@ class BalancearTejido
         }
     }
 
-    public static function getRegistrosPorOrdCompartida(int $ordCompartida)
+    public static function getRegistrosPorOrdCompartida(string $ordCompartida)
     {
         try {
             $registros = ReqProgramaTejido::query()
@@ -523,7 +526,7 @@ class BalancearTejido
      * @param  Collection<int|string, ReqProgramaTejido>  $regsById
      * @param  array<int>  $ids
      */
-    private static function validarCambiosPertenecenOrdCompartida(Collection $regsById, array $ids, int $ordCompartida): ?JsonResponse
+    private static function validarCambiosPertenecenOrdCompartida(Collection $regsById, array $ids, string $ordCompartida): ?JsonResponse
     {
         foreach ($ids as $id) {
             if (! $regsById->has($id)) {
@@ -534,8 +537,7 @@ class BalancearTejido
                 ], 422);
             }
             $reg = $regsById->get($id);
-            $ordReg = (int) ($reg->OrdCompartida ?? 0);
-            if ($ordReg !== $ordCompartida) {
+            if (OrdCompartida::normalizar($reg->getAttribute('OrdCompartida')) !== $ordCompartida) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Todos los registros deben pertenecer al OrdCompartida indicado.',
@@ -696,7 +698,7 @@ class BalancearTejido
         AuditoriaHelper::contexto('BALANCEO_AUTO');
 
         $request->validate([
-            'ord_compartida' => 'required|integer',
+            'ord_compartida' => self::REGLA_ORD_COMPARTIDA,
             'fecha_fin_objetivo' => 'required|date',
             'cambios' => 'nullable|array',
             'cambios.*.id' => 'required_with:cambios|integer',
@@ -705,7 +707,7 @@ class BalancearTejido
             'total_objetivo' => 'nullable|numeric|min:0',
         ]);
 
-        $ordCompartida = (int) $request->input('ord_compartida');
+        $ordCompartida = (string) OrdCompartida::normalizar($request->input('ord_compartida'));
         $fechaFinObjetivo = Carbon::parse($request->input('fecha_fin_objetivo'))->endOfDay();
         $registros = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
             ->orderBy('Posicion', 'asc')

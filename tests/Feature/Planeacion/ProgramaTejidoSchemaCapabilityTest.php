@@ -34,26 +34,11 @@ class ProgramaTejidoSchemaCapabilityTest extends TestCase
      * @var array<string, array{0: list<string>, 1: string, 2: string}>
      */
     private const INVENTARIO = [
-        'app/Models/Planeacion/ReqProgramaTejido.php' => [['IdRedbooth', 'NoMarbete', 'NombreRedbooth', 'ProdId', 'RollosProgramados'], 'superficie', 'modelo: $fillable/$casts compartidos con Muestras'],
-        'app/Observers/ReqProgramaTejidoObserver.php' => [['RollosProgramados'], 'superficie', 'produccion: UPDATE de fórmulas falla en Muestras y se traga'],
-        'app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php' => [['NoMarbete', 'RollosProgramados'], 'superficie', 'marbetes: liberar en Muestras falla; editor sin ruta en Muestras'],
-        'app/Services/Planeacion/ProgramaTejido/Helpers/UtilityHelpers.php' => [['NoMarbete', 'RollosProgramados'], 'superficie', 'marbetes: solo lectura (null en Muestras)'],
+        'app/Models/Planeacion/ReqProgramaTejido.php' => [['IdRedbooth', 'NombreRedbooth'], 'superficie', 'modelo: $fillable/$casts compartidos con Muestras'],
         'app/Http/Controllers/Planeacion/ProgramaTejido/RedboothProgramaTejidoController.php' => [['IdRedbooth', 'NombreRedbooth'], 'superficie', 'redbooth: sin ruta en Muestras'],
-        'app/Services/Planeacion/ProgramaTejido/ProgramaTejidoSurface.php' => [['IdRedbooth', 'NoMarbete', 'NombreRedbooth', 'ProdId', 'ProduccionMarbetes', 'RollosProgramados'], 'superficie', 'metadata: capacidad → columnas físicas que exige (no lee ni escribe)'],
+        'app/Services/Planeacion/ProgramaTejido/ProgramaTejidoSurface.php' => [['IdRedbooth', 'NombreRedbooth'], 'superficie', 'metadata: capacidad → columnas físicas que exige (no lee ni escribe)'],
         'app/Services/Trazabilidad/TrazabilidadRedboothService.php' => [['IdRedbooth', 'NombreRedbooth'], 'programa', 'redbooth: Trazabilidad no cambia de tabla'],
-        'app/Http/Controllers/Tejedores/NotificarMontadoRollo/NotificarMontRollosController.php' => [['ProdId'], 'programa', 'produccion: DB::table(ReqProgramaTejido) fijo'],
-        'app/Models/Planeacion/Catalogos/CatCodificados.php' => [['IdRedbooth', 'NoMarbete', 'NombreRedbooth'], 'otra', 'CatCodificados'],
-        'app/Http/Controllers/Planeacion/CatalogoPlaneacion/ModelosCodificados/CodificacionController.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
-        'app/Services/Planeacion/ProgramaTejido/OrdenDeCambio/OrdenDeCambioFelpaExcel.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
-        'app/Http/Controllers/Tejido/Reportes/SaldosController.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
-        'app/Exports/Saldos2026Export.php' => [['NoMarbete'], 'otra', 'CatCodificados (vía SaldosController)'],
-        'app/Services/Planeacion/CatCodificados/Excel/CatCodificadosExcelHeaderMapper.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
-        'app/Services/Planeacion/CatCodificados/Excel/CatCodificadosExcelRowMapper.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
-        'app/Services/Planeacion/Liberar/LiberarCatCodificadosWriter.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
-        'app/Services/Planeacion/RevivirOrdenProgramaDesdeCatService.php' => [['NoMarbete'], 'otra', 'lee CatCodificados.NoMarbete'],
-        'app/Services/Planeacion/SaldoMarbeteCodificacionService.php' => [['ProduccionMarbetes'], 'otra', 'CatCodificados'],
-        'app/Http/Controllers/Engomado/CapturaFormulas/EngProduccionFormulacionController.php' => [['ProdId'], 'otra', 'Engomado'],
-        'app/Models/Engomado/EngProduccionFormulacionModel.php' => [['ProdId'], 'otra', 'Engomado'],
+        'app/Models/Planeacion/Catalogos/CatCodificados.php' => [['IdRedbooth', 'NombreRedbooth'], 'otra', 'CatCodificados'],
     ];
 
     /**
@@ -124,10 +109,10 @@ class ProgramaTejidoSchemaCapabilityTest extends TestCase
         sort($enFillable);
 
         // Caracterización: Muestras hereda $fillable de Programa, así que un create()/fill()
-        // con estas llaves llega al INSERT y SQL Server lo rechaza. ProduccionMarbetes no
-        // está en $fillable (el observer no la sincroniza a propósito).
-        $this->assertSame(['IdRedbooth', 'NoMarbete', 'NombreRedbooth', 'ProdId', 'RollosProgramados'], $enFillable);
-        $this->assertSame(['ProduccionMarbetes'], array_values(array_diff($ausentes, $enFillable)));
+        // con estas llaves llega al INSERT y SQL Server lo rechaza. Desde el 23-oct-2026 solo
+        // faltan las de Redbooth (marbetes y producción se agregaron con pt_muestras_folio_texto.sql).
+        $this->assertSame(['IdRedbooth', 'NombreRedbooth'], $enFillable);
+        $this->assertSame([], array_values(array_diff($ausentes, $enFillable)));
     }
 
     public function test_todo_codigo_que_toca_columnas_ausentes_en_muestras_esta_inventariado(): void

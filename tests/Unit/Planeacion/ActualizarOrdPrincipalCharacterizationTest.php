@@ -52,9 +52,10 @@ class ActualizarOrdPrincipalCharacterizationTest extends TestCase
     {
         ActualizarOrdPrincipal::ejecutar(50);
 
+        // Texto (nvarchar(15) desde el 23-oct-2026).
         $this->assertSame(
-            ['1' => 50, '2' => 50, '3' => 50, '4' => null],
-            DB::table('ReqProgramaTejido')->orderBy('Id')->pluck('OrdPrincipal', 'Id')->mapWithKeys(fn ($v, $k) => [(string) $k => $v])->all()
+            ['1' => '50', '2' => '50', '3' => '50', '4' => null],
+            DB::table('ReqProgramaTejido')->orderBy('Id')->pluck('OrdPrincipal', 'Id')->mapWithKeys(fn ($v, $k) => [(string) $k => $v === null ? null : (string) $v])->all()
         );
         $this->assertSame('2026-10-07 08:00:00', (string) DB::table('ReqProgramaTejido')->where('Id', 2)->value('UpdatedAt'));
         $this->assertNull(DB::table('ReqProgramaTejido')->where('Id', 4)->value('UpdatedAt'));
@@ -68,16 +69,16 @@ class ActualizarOrdPrincipalCharacterizationTest extends TestCase
         $this->assertNull($cat[15]->OrdPrincipal, 'otro grupo no se toca');
     }
 
-    public function test_sin_lider_o_con_no_produccion_vacio_o_no_numerico_no_escribe_nada(): void
+    public function test_sin_lider_o_con_no_produccion_vacio_no_escribe_nada(): void
     {
         DB::table('ReqProgramaTejido')->where('OrdCompartida', 50)->update(['OrdCompartidaLider' => null]);
         ActualizarOrdPrincipal::ejecutar(50);
 
-        // OrdPrincipal es INT: un NoProduccion manual con letras no se escribe.
-        foreach (['   ', 'MAN-60', '60.5'] as $noProduccion) {
+        foreach (['   ', null] as $noProduccion) {
             DB::table('ReqProgramaTejido')->where('Id', 4)->update(['NoProduccion' => $noProduccion]);
-            ActualizarOrdPrincipal::ejecutar(60);
+            ActualizarOrdPrincipal::ejecutar('60');
         }
+        ActualizarOrdPrincipal::ejecutar(null);
 
         $this->assertSame(0, DB::table('ReqProgramaTejido')->whereNotNull('OrdPrincipal')->count());
         $this->assertSame(0, DB::table('CatCodificados')->whereNotNull('OrdPrincipal')->count());
@@ -100,10 +101,13 @@ class ActualizarOrdPrincipalCharacterizationTest extends TestCase
 
     public function test_numero_temporal_no_choca_con_folios_y_no_tiene_lider(): void
     {
-        $this->assertSame(900000980, OrdCompartida::temporal(980));
-        $this->assertTrue(OrdCompartida::esTemporal(900000980));
-        $this->assertFalse(OrdCompartida::esTemporal(37068));
+        $this->assertSame('900000980', OrdCompartida::temporal(980));
+        $this->assertTrue(OrdCompartida::esTemporal('900000980'));
+        $this->assertTrue(OrdCompartida::esTemporal(900000980), 'del JSON o de un cast viejo puede llegar como número');
+        $this->assertFalse(OrdCompartida::esTemporal('37068'));
+        $this->assertFalse(OrdCompartida::esTemporal('M3175'), 'folio de Muestras');
         $this->assertFalse(OrdCompartida::esTemporal(null));
+        $this->assertSame([null, null, 'M3175', '37068'], array_map(OrdCompartida::normalizar(...), [' ', 0, ' M3175 ', 37068]));
 
         DB::table('ReqProgramaTejido')->insert([
             ['Id' => 7, 'NoTelarId' => '207', 'NoProduccion' => null, 'OrdCompartida' => 900000007, 'OrdCompartidaLider' => null, 'FechaInicio' => '2026-10-05 06:00:00'],
@@ -141,17 +145,36 @@ class ActualizarOrdPrincipalCharacterizationTest extends TestCase
         $this->assertSame(1, (int) DB::table('ReqProgramaTejido')->where('Id', 7)->value('OrdCompartidaLider'));
     }
 
-    public function test_al_liberar_no_toca_grupos_normales_ni_fija_con_no_produccion_no_numerico(): void
+    public function test_al_liberar_no_toca_grupos_normales_ni_ordenes_sin_grupo(): void
     {
-        DB::table('ReqProgramaTejido')->insert([
-            ['Id' => 7, 'NoTelarId' => '207', 'NoProduccion' => 'MAN-1', 'OrdCompartida' => 900000007, 'OrdCompartidaLider' => null, 'FechaInicio' => '2026-10-05 06:00:00'],
-            ['Id' => 8, 'NoTelarId' => '208', 'NoProduccion' => null, 'OrdCompartida' => 900000007, 'OrdCompartidaLider' => null, 'FechaInicio' => '2026-10-04 06:00:00'],
-        ]);
+        DB::table('ReqProgramaTejido')->insert(['Id' => 7, 'NoTelarId' => '207', 'NoProduccion' => '37075', 'OrdCompartida' => null]);
         $antes = DB::table('ReqProgramaTejido')->orderBy('Id')->get();
 
-        OrdCompartida::fijarAlLiberar(ReqProgramaTejido::find(7));
         OrdCompartida::fijarAlLiberar(ReqProgramaTejido::find(2));
+        OrdCompartida::fijarAlLiberar(ReqProgramaTejido::find(7));
 
         $this->assertEquals($antes, DB::table('ReqProgramaTejido')->orderBy('Id')->get());
+    }
+
+    /** Muestras libera con folio M: el grupo, el líder y OrdPrincipal llevan "M3175" tal cual. */
+    public function test_en_muestras_el_grupo_temporal_toma_el_folio_m_y_es_principal(): void
+    {
+        DB::table('ReqProgramaTejido')->insert([
+            ['Id' => 7, 'NoTelarId' => '207', 'NoProduccion' => 'M3175', 'OrdCompartida' => '900000007', 'OrdCompartidaLider' => null, 'FechaInicio' => '2026-10-05 06:00:00'],
+            ['Id' => 8, 'NoTelarId' => '208', 'NoProduccion' => null, 'OrdCompartida' => '900000007', 'OrdCompartidaLider' => null, 'FechaInicio' => '2026-10-04 06:00:00'],
+        ]);
+        DB::table('CatCodificados')->insert(['Id' => 17, 'OrdenTejido' => 'M3175', 'TelarId' => '207']);
+        $registro = ReqProgramaTejido::find(7);
+
+        OrdCompartida::fijarAlLiberar($registro);
+
+        $grupo = DB::table('ReqProgramaTejido')->whereIn('Id', [7, 8])->orderBy('Id')->get(['OrdCompartida', 'OrdCompartidaLider', 'OrdPrincipal']);
+        $this->assertSame([['M3175', 1, 'M3175'], ['M3175', null, 'M3175']], $grupo->map(fn ($r) => [$r->OrdCompartida, $r->OrdCompartidaLider === null ? null : (int) $r->OrdCompartidaLider, $r->OrdPrincipal])->all());
+        $this->assertSame(['M3175', 'M3175'], [$registro->OrdCompartida, $registro->OrdPrincipal]);
+        $cat = DB::table('CatCodificados')->where('Id', 17)->first();
+        $this->assertSame(['M3175', 'M3175', 1], [$cat->OrdCompartida, $cat->OrdPrincipal, (int) $cat->OrdCompartidaLider]);
+
+        // Dividir/Vincular/Balancear lo buscan como texto.
+        $this->assertSame(7, OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida(' M3175 '));
     }
 }

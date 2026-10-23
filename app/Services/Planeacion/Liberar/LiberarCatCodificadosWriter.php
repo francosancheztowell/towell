@@ -8,6 +8,7 @@ use App\Helpers\AuditoriaHelper;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -290,17 +291,8 @@ final class LiberarCatCodificadosWriter
 
             // FORZAR asignación de OrdPrincipal SIEMPRE (incluso si es null)
             if (in_array('OrdPrincipal', $columns, true)) {
-                $ordPrincipalRaw = $registro->OrdPrincipal;
-                $ordPrincipalValue = null;
-                if ($ordPrincipalRaw !== null && $ordPrincipalRaw !== '') {
-                    $ordPrincipalStr = trim((string) $ordPrincipalRaw);
-                    if (is_numeric($ordPrincipalStr)) {
-                        $ordPrincipalValue = (int) $ordPrincipalStr;
-                    } elseif ($ordPrincipalStr !== '') {
-                        $ordPrincipalValue = $ordPrincipalStr;
-                    }
-                }
-                $registroCodificado->OrdPrincipal = $ordPrincipalValue;
+                // Texto (nvarchar(15)): en Muestras "M3175".
+                $registroCodificado->OrdPrincipal = OrdCompartida::normalizar($registro->OrdPrincipal);
                 $updated = true;
             }
 
@@ -312,10 +304,7 @@ final class LiberarCatCodificadosWriter
             // FORZAR OrdCompartida y OrdCompartidaLider siempre (incluso si son null) para mantener
             // el seguimiento de órdenes compartidas en CatCodificados sincronizado con ReqProgramaTejido.
             if (in_array('OrdCompartida', $columns, true)) {
-                $ordCompartidaRaw = $registro->OrdCompartida;
-                $registroCodificado->OrdCompartida = ($ordCompartidaRaw !== null && trim((string) $ordCompartidaRaw) !== '')
-                    ? (int) trim((string) $ordCompartidaRaw)
-                    : null;
+                $registroCodificado->OrdCompartida = OrdCompartida::normalizar($registro->OrdCompartida);
                 $updated = true;
             }
 
@@ -397,18 +386,7 @@ final class LiberarCatCodificadosWriter
 
             // Obtener valores a actualizar
             $pesoMuestra = $registro->PesoMuestra !== null ? (float) $registro->PesoMuestra : null;
-            $ordPrincipalRaw = $registro->OrdPrincipal;
-            $ordPrincipal = null;
-            if ($ordPrincipalRaw !== null && $ordPrincipalRaw !== '') {
-                $ordPrincipalStr = trim((string) $ordPrincipalRaw);
-                // Si es numérico, convertir a int; si no, intentar parsearlo
-                if (is_numeric($ordPrincipalStr)) {
-                    $ordPrincipal = (int) $ordPrincipalStr;
-                } elseif ($ordPrincipalStr !== '') {
-                    // Si no es numérico pero tiene valor, intentar guardarlo (puede fallar si la columna es INT)
-                    $ordPrincipal = $ordPrincipalStr;
-                }
-            }
+            $ordPrincipal = OrdCompartida::normalizar($registro->OrdPrincipal);
 
             // Actualizar todos los registros encontrados
             foreach ($modelos as $modelo) {

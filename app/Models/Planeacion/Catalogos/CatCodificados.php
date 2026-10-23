@@ -67,7 +67,7 @@ class CatCodificados extends Model
         'Produccion' => 'float',
         'Saldos' => 'float',
         'TotalSegundas' => 'float',
-        'OrdCompartida' => 'integer', // Permitir null
+        'OrdCompartida' => 'string', // NVARCHAR(15) desde 23-oct-2026 (en Muestras "M3175")
         'OrdCompartidaLider' => 'integer', // Permitir null (BIT o INT según schema)
         // Nuevos campos agregados
         'MtsRollo' => 'float', // REAL en SQL Server
@@ -92,7 +92,7 @@ class CatCodificados extends Model
         'UsuarioModifica' => 'string', // VARCHAR(50) en SQL Server
         'CategoriaCalidad' => 'string', // VARCHAR(50) en SQL Server
         'CustName' => 'string', // NVARCHAR(150) en SQL Server
-        'OrdPrincipal' => 'integer', // INT NULL en SQL Server
+        'OrdPrincipal' => 'string', // NVARCHAR(15) desde 23-oct-2026: NoProduccion del líder
         'FechaArranque' => 'datetime', // DATETIME NULL en SQL Server
         'FechaFinaliza' => 'datetime', // DATETIME NULL en SQL Server
     ];

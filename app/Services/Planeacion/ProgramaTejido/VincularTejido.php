@@ -176,8 +176,8 @@ class VincularTejido
                 ], 400);
             }
 
-            // Normalizar OrdCompartida
-            $ordCompartidaNormalizada = (int) $ordCompartida;
+            // Texto: en Muestras el número de grupo lleva "M".
+            $ordCompartidaNormalizada = OrdCompartida::normalizar($ordCompartida);
 
             // Obtener todos los registros con la misma OrdCompartida
             $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaNormalizada)
@@ -327,10 +327,7 @@ class VincularTejido
             $ordCompartida = $registro->OrdCompartida;
             $ordCompartidaLider = $registro->OrdCompartidaLider;
 
-            $ordCompartidaValue = null;
-            if ($ordCompartida !== null && $ordCompartida !== '' && trim((string) $ordCompartida) !== '') {
-                $ordCompartidaValue = (int) trim((string) $ordCompartida);
-            }
+            $ordCompartidaValue = OrdCompartida::normalizar($ordCompartida);
 
             $ordCompartidaLiderValue = null;
             if ($ordCompartidaLider === 1 || $ordCompartidaLider === '1' || $ordCompartidaLider === true) {

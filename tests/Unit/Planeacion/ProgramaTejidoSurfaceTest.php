@@ -57,18 +57,18 @@ class ProgramaTejidoSurfaceTest extends TestCase
         $this->assertSame(array_fill_keys(array_keys(config('planeacion.superficies.programa.capacidades')), true), ProgramaTejidoSurface::Programa->capacidades());
     }
 
-    public function test_una_capacidad_a_no_se_ofrece_hasta_aplicar_su_ddl(): void
+    public function test_una_capacidad_a_solo_se_ofrece_con_su_ddl_aplicado(): void
     {
-        // marbetes y produccion están decididas A, pero sus columnas siguen en columnas_ausentes.
+        // pt_muestras_folio_texto.sql (23-oct-2026) agregó a Muestras las columnas de marbetes y producción.
         $this->assertTrue(config('planeacion.superficies.muestras.capacidades.marbetes'));
-        $this->assertFalse(ProgramaTejidoSurface::Muestras->soporta('marbetes'));
-        $this->assertFalse(ProgramaTejidoSurface::Muestras->soporta('produccion'));
-
-        // Cuando el DBA aplica pt_muestras_*.sql y se vacía columnas_ausentes, se ofrecen.
-        config()->set('planeacion.superficies.muestras.columnas_ausentes', ['IdRedbooth', 'NombreRedbooth']);
         $this->assertTrue(ProgramaTejidoSurface::Muestras->soporta('marbetes'));
         $this->assertTrue(ProgramaTejidoSurface::Muestras->soporta('produccion'));
         $this->assertFalse(ProgramaTejidoSurface::Muestras->soporta('redbooth'), 'B sigue siendo B');
+
+        // Una base sin ese DDL (columnas en columnas_ausentes) no las ofrece.
+        config()->set('planeacion.superficies.muestras.columnas_ausentes', ['NoMarbete', 'RollosProgramados', 'ProdId', 'ProduccionMarbetes', 'IdRedbooth', 'NombreRedbooth']);
+        $this->assertFalse(ProgramaTejidoSurface::Muestras->soporta('marbetes'));
+        $this->assertFalse(ProgramaTejidoSurface::Muestras->soporta('produccion'));
     }
 
     public function test_una_capacidad_sin_decidir_no_se_ofrece(): void

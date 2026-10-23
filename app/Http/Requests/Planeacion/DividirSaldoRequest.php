@@ -51,7 +51,8 @@ class DividirSaldoRequest extends FormRequest
             'descripcion' => 'nullable|string',
             'custname' => 'nullable|string|max:255',
             'invent_size_id' => 'nullable|string|max:100',
-            'ord_compartida_existente' => 'nullable|integer',
+            // Texto: en Muestras el número de grupo lleva "M" (M3175).
+            'ord_compartida_existente' => ['nullable', 'regex:/^\S{1,15}$/'],
         ];
     }
 }

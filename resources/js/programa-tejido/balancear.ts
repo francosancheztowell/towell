@@ -1244,7 +1244,8 @@ function abrirBalancearDesdeSeleccion(): void {
         return;
     }
 
-    void verDetallesGrupoBalanceo(parseInt(ordCompartida.trim(), 10));
+    // Texto tal cual: en Muestras el número de grupo lleva "M" (parseInt daba NaN).
+    void verDetallesGrupoBalanceo(ordCompartida.trim());
 }
 
 document.addEventListener('pt:selection-changed', (e) => {

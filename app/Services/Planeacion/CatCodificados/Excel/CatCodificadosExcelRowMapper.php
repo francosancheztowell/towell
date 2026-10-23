@@ -22,8 +22,6 @@ final class CatCodificadosExcelRowMapper
      * @var array<string, bool>
      */
     private const INT_FIELDS = [
-        'OrdPrincipal' => true,
-        'OrdCompartida' => true,
         'TelarId' => true,
         'Peine' => true,
         'Ancho' => true,
@@ -124,27 +122,27 @@ final class CatCodificadosExcelRowMapper
             return [];
         }
 
-        if (isset($payload['FibraId']) && !isset($payload['ColorTrama'])) {
+        if (isset($payload['FibraId']) && ! isset($payload['ColorTrama'])) {
             $payload['ColorTrama'] = $payload['FibraId'];
         }
 
-        if (isset($payload['FibraComb1']) && !isset($payload['NomColorC1'])) {
+        if (isset($payload['FibraComb1']) && ! isset($payload['NomColorC1'])) {
             $payload['NomColorC1'] = $payload['FibraComb1'];
         }
 
-        if (isset($payload['FibraComb2']) && !isset($payload['NomColorC2'])) {
+        if (isset($payload['FibraComb2']) && ! isset($payload['NomColorC2'])) {
             $payload['NomColorC2'] = $payload['FibraComb2'];
         }
 
-        if (isset($payload['FibraComb3']) && !isset($payload['NomColorC3'])) {
+        if (isset($payload['FibraComb3']) && ! isset($payload['NomColorC3'])) {
             $payload['NomColorC3'] = $payload['FibraComb3'];
         }
 
-        if (isset($payload['FibraComb4']) && !isset($payload['NomColorC4'])) {
+        if (isset($payload['FibraComb4']) && ! isset($payload['NomColorC4'])) {
             $payload['NomColorC4'] = $payload['FibraComb4'];
         }
 
-        if (isset($payload['FibraComb5']) && !isset($payload['NomColorC5'])) {
+        if (isset($payload['FibraComb5']) && ! isset($payload['NomColorC5'])) {
             $payload['NomColorC5'] = $payload['FibraComb5'];
         }
 
@@ -263,7 +261,7 @@ final class CatCodificadosExcelRowMapper
 
     private function parseInt(mixed $value): ?int
     {
-        if (!is_numeric($this->normalizeNumericString((string) $value)) && !is_numeric($value)) {
+        if (! is_numeric($this->normalizeNumericString((string) $value)) && ! is_numeric($value)) {
             return null;
         }
 
@@ -272,7 +270,7 @@ final class CatCodificadosExcelRowMapper
 
     private function parseFloat(mixed $value): ?float
     {
-        if (!is_numeric($this->normalizeNumericString((string) $value)) && !is_numeric($value)) {
+        if (! is_numeric($this->normalizeNumericString((string) $value)) && ! is_numeric($value)) {
             return null;
         }
 
@@ -288,7 +286,7 @@ final class CatCodificadosExcelRowMapper
             return null;
         }
 
-        if (!isset(self::FLOAT_PRECISION_FIELDS[$field])) {
+        if (! isset(self::FLOAT_PRECISION_FIELDS[$field])) {
             return $parsed;
         }
 

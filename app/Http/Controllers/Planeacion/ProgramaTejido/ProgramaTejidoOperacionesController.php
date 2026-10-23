@@ -11,6 +11,7 @@ use App\Services\Planeacion\ProgramaTejido\DragAndDropTejido;
 use App\Services\Planeacion\ProgramaTejido\Helpers\DateHelpers;
 use App\Services\Planeacion\ProgramaTejido\Helpers\QueryHelpers;
 use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Services\Planeacion\ProgramaTejido\VincularTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -435,7 +436,7 @@ class ProgramaTejidoOperacionesController extends Controller
 
     public function getRegistrosPorOrdCompartida($ordCompartida)
     {
-        $ordCompartida = $this->normalizeOrdCompartida($ordCompartida);
+        $ordCompartida = OrdCompartida::normalizar($ordCompartida);
         if ($ordCompartida === null) {
             return response()->json([
                 'success' => false,
@@ -444,19 +445,6 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         return BalancearTejido::getRegistrosPorOrdCompartida($ordCompartida);
-    }
-
-    private function normalizeOrdCompartida($value): ?int
-    {
-        if (is_null($value)) {
-            return null;
-        }
-        $trimmed = trim((string) $value);
-        if ($trimmed === '' || ! is_numeric($trimmed)) {
-            return null;
-        }
-
-        return (int) $trimmed;
     }
 
     /** Tras el commit un fallo de líneas no revierte nada: se reporta y la respuesta sigue siendo éxito. */

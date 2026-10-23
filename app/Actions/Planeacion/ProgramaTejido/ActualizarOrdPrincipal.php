@@ -6,6 +6,7 @@ namespace App\Actions\Planeacion\ProgramaTejido;
 
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -14,8 +15,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Escribe OrdPrincipal (= NoProduccion del líder; hasta oct-2026 era su ItemId) en todo el
- * grupo de una OrdCompartida, en ReqProgramaTejido y en CatCodificados (movido de
+ * Escribe OrdPrincipal (= NoProduccion del líder, texto: en Muestras "M3175"; hasta oct-2026
+ * era su ItemId) en todo el grupo de una OrdCompartida, en ReqProgramaTejido y en CatCodificados (movido de
  * VincularTejido::actualizarOrdPrincipalPorOrdCompartida). No abre transacción: corre dentro
  * de la del llamador (vincular, dividir, duplicar, balancear, mover desarrollador) y nunca
  * lanza; un fallo se registra en log y no tumba la operación principal.
@@ -25,19 +26,23 @@ final class ActualizarOrdPrincipal
     /** @var array<string, array<int, string>> columnas por tabla (INFORMATION_SCHEMA es costoso en SQL Server) */
     private static array $columnas = [];
 
-    public static function ejecutar(int $ordCompartida): void
+    public static function ejecutar(mixed $ordCompartida): void
     {
+        $ordCompartida = OrdCompartida::normalizar($ordCompartida);
+        if ($ordCompartida === null) {
+            return;
+        }
+
         try {
             $lider = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                 ->where('OrdCompartidaLider', 1)
                 ->first(['Id', 'NoProduccion']);
 
-            // OrdPrincipal es INT: un líder sin NoProduccion numérico no deja qué escribir.
-            $noProduccionLider = trim((string) $lider?->getAttribute('NoProduccion'));
-            if (! ctype_digit($noProduccionLider)) {
+            // Un líder sin NoProduccion no deja qué escribir.
+            $principal = OrdCompartida::obtenerOrdCompartidaDesdeRegistro($lider);
+            if ($principal === null) {
                 return;
             }
-            $principal = (int) $noProduccionLider;
 
             ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                 ->update([
@@ -91,7 +96,7 @@ final class ActualizarOrdPrincipal
      *
      * @param  Collection<int, ReqProgramaTejido>  $registros
      */
-    private static function sincronizarCatCodificados(Collection $registros, int $principal, int $ordCompartida): void
+    private static function sincronizarCatCodificados(Collection $registros, string $principal, string $ordCompartida): void
     {
         $orden = fn (Model $m, string $columna) => trim((string) $m->getAttribute($columna));
         $miembros = $registros->filter(fn (ReqProgramaTejido $r) => $orden($r, 'NoProduccion') !== '');

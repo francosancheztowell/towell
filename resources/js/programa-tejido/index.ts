@@ -6631,7 +6631,8 @@ const uiInlineEditableFields: Record<string, any> = {
           }
 
           if (typeof window.verDetallesGrupoBalanceo === 'function') {
-            window.verDetallesGrupoBalanceo(parseInt(ordCompartida));
+            // Texto tal cual: en Muestras el número de grupo lleva "M" (parseInt daba NaN).
+            window.verDetallesGrupoBalanceo(ordCompartida.trim());
           } else {
             toast('No existe verDetallesGrupoBalanceo()', 'error');
           }

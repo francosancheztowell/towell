@@ -552,11 +552,9 @@ class CatCodificacionController extends Controller
             ], 400);
         }
 
-        // Convertir a entero si es posible, sino buscar como string
-        $ordCompartidaInt = is_numeric($ordCompartida) ? (int) $ordCompartida : null;
-
+        // Siempre como texto: la columna es nvarchar (en Muestras "M3175") y un entero la convertiría.
         $registros = CatCodificados::query()
-            ->where('OrdCompartida', $ordCompartidaInt ?? $ordCompartida)
+            ->where('OrdCompartida', $ordCompartida)
             ->orderBy('OrdCompartidaLider', 'desc') // Los líderes primero
             ->orderBy('Id', 'asc')
             ->get([

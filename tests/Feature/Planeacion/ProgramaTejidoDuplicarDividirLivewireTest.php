@@ -63,7 +63,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->set('filas.dividir.1.pedido', '300')
             ->call('guardar')
             ->assertHasNoErrors()
-            ->assertDispatched('pt-duplicar-guardado', fn ($e, $p) => $p['ord_compartida'] === 7);
+            ->assertDispatched('pt-duplicar-guardado', fn ($e, $p) => $p['ord_compartida'] === '7');
 
         $this->assertEqualsWithDelta(700, DB::table('ReqProgramaTejido')->where('Id', 3)->value('SaldoPedido'), 0.01);
         $this->assertEqualsWithDelta(300, DB::table('ReqProgramaTejido')->where('Id', 4)->value('SaldoPedido'), 0.01);
@@ -242,7 +242,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->assertSet('aviso', null)
             ->assertDispatched('pt-duplicar-guardado', fn ($evento, $p) => $p['success'] === true
                 && $p['modo'] === 'dividir'
-                && $p['ord_compartida'] === 30001
+                && $p['ord_compartida'] === '30001' // texto: la columna es nvarchar (en Muestras "M3175")
                 && $p['registro_id_original'] === 1
                 && count($p['registros_ids']) === 1)
             ->assertSet('registroId', null);

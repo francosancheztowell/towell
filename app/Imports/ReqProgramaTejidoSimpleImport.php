@@ -234,7 +234,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithBatchInserts, WithCh
                 // Campo OrdCompartida: se toma del Excel usando la columna "Dividir"
                 'OrdCompartida' => $this->parseString($this->getValue($row, ['Dividir', 'dividir', 'OrdCompartida', 'ord_compartida']), 30),
                 // OrdPrincipal: se toma del Excel usando la columna "Principal"
-                'OrdPrincipal' => $this->parseInteger($this->getValue($row, ['Principal', 'principal', 'OrdPrincipal', 'ord_principal'])),
+                'OrdPrincipal' => $this->parseString($this->getValue($row, ['Principal', 'principal', 'OrdPrincipal', 'ord_principal']), 15), // texto: en Muestras "M3175"
                 'Programado' => $this->parseDateOnly($this->getValue($row, ['INN', 'Inn', 'programado'])),
                 'OrdCompartidaLider' => $this->parseBoolean($this->getValue($row, ['Lider'])),
                 // Calc4..6 en BD son FLOAT

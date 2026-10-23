@@ -7,6 +7,7 @@ use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Services\Planeacion\ProgramaTejido\EstandaresTelar;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Support\ColumnasDeTabla;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
@@ -320,7 +321,7 @@ trait ArmaDatosDesarrollador
 
         if (! empty($programaInicial->OrdCompartida)) {
             $programas = ($this->modeloPrograma())::query()
-                ->where('OrdCompartida', (int) $programaInicial->OrdCompartida)
+                ->where('OrdCompartida', OrdCompartida::normalizar($programaInicial->OrdCompartida))
                 ->lockForUpdate()
                 ->get();
         } else {

@@ -6,6 +6,7 @@ namespace App\Services\Trazabilidad;
 
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -164,8 +165,9 @@ class TrazabilidadProduccionService
                 $stdDia = $p->StdDia !== null ? (float) $p->StdDia : null;
                 $prodKgDia = $p->ProdKgDia !== null ? (float) $p->ProdKgDia : null;
                 $enProceso = (bool) $p->EnProceso;
-                $ordCompartida = $p->OrdCompartida;
-                $esOrdCompartida = filled($ordCompartida) && (int) $ordCompartida > 0;
+                // Texto: en Muestras el número de grupo lleva "M".
+                $ordCompartida = OrdCompartida::normalizar($p->OrdCompartida);
+                $esOrdCompartida = $ordCompartida !== null;
                 $programaDatos = [
                     'noTelarId' => $telarOrden,
                     'noProduccion' => $orden,
@@ -179,7 +181,7 @@ class TrazabilidadProduccionService
                     'fechaInicio' => $this->formatearSoloFecha($p->FechaInicio),
                     'fechaFinal' => $this->formatearSoloFecha($p->FechaFinal),
                     'esOrdCompartida' => $esOrdCompartida,
-                    'ordCompartida' => $esOrdCompartida ? (int) $ordCompartida : null,
+                    'ordCompartida' => $ordCompartida,
                     'esLiderOrdCompartida' => (bool) $p->OrdCompartidaLider,
                 ];
             } elseif ($codificados->has($orden)) {

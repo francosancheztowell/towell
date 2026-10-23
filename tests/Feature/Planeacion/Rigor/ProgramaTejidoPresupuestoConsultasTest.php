@@ -320,7 +320,7 @@ class ProgramaTejidoPresupuestoConsultasTest extends TestCase
         $pendiente = ($con5 - $con2) / 3;
         fwrite(STDERR, sprintf("\n[PT-PERF] vincular: 2=%d, 5=%d, %.1f por registro\n", $con2, $con5, $pendiente));
 
-        $r5->assertOk()->assertJsonPath('success', true)->assertJsonPath('ord_compartida', 50002)->assertJsonPath('registros_vinculados', 5);
+        $r5->assertOk()->assertJsonPath('success', true)->assertJsonPath('ord_compartida', '50002')->assertJsonPath('registros_vinculados', 5);
         $this->assertLessThanOrEqual(self::MAX_VINCULAR_5, $con5, implode("\n", $sql));
         $this->assertLessThanOrEqual(self::MAX_PENDIENTE_CASCADA, $pendiente);
 

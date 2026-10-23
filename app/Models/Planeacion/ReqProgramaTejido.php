@@ -185,7 +185,7 @@ class ReqProgramaTejido extends Model
         'CreatedAt' => 'datetime',
         'UpdatedAt' => 'datetime',
         'LargoCrudo' => 'integer',
-        'OrdCompartida' => 'integer', // INT para relacionar registros divididos
+        'OrdCompartida' => 'string', // NVARCHAR(15) desde 23-oct-2026: NoProduccion del líder (en Muestras "M3175")
         'OrdCompartidaLider' => 'boolean', // BIT para indicar si es el líder del grupo
         'CategoriaCalidad' => 'string', // VARCHAR en SQL Server
         'PorcentajeSegundos' => 'float',
@@ -213,7 +213,7 @@ class ReqProgramaTejido extends Model
         'FechaModificacion' => 'date', // DATE en SQL Server
         'HoraModificacion' => 'string', // TIME en SQL Server
         'UsuarioModifica' => 'string', // VARCHAR(50) en SQL Server
-        'OrdPrincipal' => 'integer', // INT NULL en SQL Server
+        'OrdPrincipal' => 'string', // NVARCHAR(15) desde 23-oct-2026: NoProduccion del líder
         'FechaArranque' => 'datetime', // DATETIME NULL en SQL Server
         'FechaFinaliza' => 'datetime', // DATETIME NULL en SQL Server
         // Texto (ej. SALDAR/CHECAR + producto); integer forzaba a 0 al guardar cadenas desde liberar órdenes

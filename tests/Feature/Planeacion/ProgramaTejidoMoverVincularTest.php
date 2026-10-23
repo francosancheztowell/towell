@@ -158,7 +158,7 @@ class ProgramaTejidoMoverVincularTest extends TestCase
     public function test_vincular_asigna_la_ord_compartida_del_primero_a_todos(): void
     {
         $this->como()->postJson('/planeacion/programa-tejido/vincular-registros-existentes', ['registros_ids' => [1, 6]])
-            ->assertOk()->assertJsonPath('success', true)->assertJsonPath('ord_compartida', 30001);
+            ->assertOk()->assertJsonPath('success', true)->assertJsonPath('ord_compartida', '30001');
 
         $this->assertSame(
             [30001, 30001],
@@ -185,7 +185,7 @@ class ProgramaTejidoMoverVincularTest extends TestCase
     {
         // El grupo se identifica por el NoProduccion del líder propuesto (Id 3 = 30003).
         $this->como()->postJson('/planeacion/programa-tejido/vincular-registros-existentes', ['registros_ids' => [3, 6]])
-            ->assertOk()->assertJsonPath('ord_compartida', 30003);
+            ->assertOk()->assertJsonPath('ord_compartida', '30003');
 
         $this->assertSame(30003, (int) DB::table('ReqProgramaTejido')->where('Id', 6)->value('OrdCompartida'));
     }

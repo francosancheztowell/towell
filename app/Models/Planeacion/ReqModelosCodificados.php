@@ -188,7 +188,7 @@ class ReqModelosCodificados extends Model
         'ColumCU' => 'integer',
         'ColumCV' => 'integer',
         'TIRAS' => 'integer',
-        'OrdPrincipal' => 'integer', // INT NULL en SQL Server
+        'OrdPrincipal' => 'string', // NVARCHAR(15) desde 23-oct-2026: NoProduccion del líder
 
         // DECIMAL fields (deben ser float/double)
         'CalibreTrama' => 'float',

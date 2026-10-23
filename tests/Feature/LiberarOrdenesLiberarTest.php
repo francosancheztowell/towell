@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Sistema\Usuario;
 use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
@@ -135,8 +136,8 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->string('NombreProyecto')->nullable();
             $table->string('TipoPedido')->nullable();
             $table->float('PesoMuestra')->nullable();
-            $table->integer('OrdPrincipal')->nullable();
-            $table->integer('OrdCompartida')->nullable();
+            $table->string('OrdPrincipal', 15)->nullable();
+            $table->string('OrdCompartida', 15)->nullable();
             $table->boolean('OrdCompartidaLider')->nullable();
             $table->date('FechaCreacion')->nullable();
             $table->string('HoraCreacion')->nullable();
@@ -196,8 +197,8 @@ class LiberarOrdenesLiberarTest extends TestCase
             // que el usuario lo baje a 0 en un renglón del catálogo.
             $table->boolean('AsignarFlogs')->default(true);
             $table->float('PesoMuestra')->nullable();
-            $table->integer('OrdPrincipal')->nullable();
-            $table->integer('OrdCompartida')->nullable();
+            $table->string('OrdPrincipal', 15)->nullable();
+            $table->string('OrdCompartida', 15)->nullable();
             $table->integer('OrdCompartidaLider')->nullable();
             $table->date('FechaCreacion')->nullable();
             $table->string('HoraCreacion')->nullable();
@@ -215,7 +216,7 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->string('SalonTejidoId')->nullable();
             $table->dateTime('FechaTejido')->nullable();
             $table->float('PesoMuestra')->nullable();
-            $table->integer('OrdPrincipal')->nullable();
+            $table->string('OrdPrincipal', 15)->nullable();
         });
 
         // El observer de ReqProgramaTejido puede intentar regenerar líneas diarias.
@@ -306,13 +307,39 @@ class LiberarOrdenesLiberarTest extends TestCase
         ], $overrides));
     }
 
-    private function liberar(array $registros)
+    /** $ruta decide la superficie (ProgramaTejidoSurface::actual() lee el request en curso). */
+    private function liberar(array $registros, string $ruta = '/planeacion/programa-tejido/liberar-ordenes/procesar')
     {
-        $request = Request::create('/planeacion/liberar-ordenes/liberar', 'POST', [
+        $request = Request::create($ruta, 'POST', [
             'registros' => $registros,
         ]);
+        app()->instance('request', $request);
 
         return (new LiberarOrdenesController)->liberar($request);
+    }
+
+    /** Secuencias de folio como en ProdTowel: Planeacion sin prefijo (37070) y Muestras con M (3174). */
+    private function sembrarFolios(): void
+    {
+        $this->createTablaDbo('SSYSFoliosSecuencias', ['Id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'modulo' => 'TEXT', 'prefijo' => 'TEXT', 'consecutivo' => 'INTEGER']);
+        $db = DB::connection('sqlsrv');
+        // SSYSFoliosSecuencia pregunta sus columnas a INFORMATION_SCHEMA (igual que BpmTest).
+        $db->statement("ATTACH DATABASE ':memory:' AS INFORMATION_SCHEMA");
+        $db->statement('CREATE TABLE INFORMATION_SCHEMA.COLUMNS (TABLE_SCHEMA TEXT, TABLE_NAME TEXT, COLUMN_NAME TEXT)');
+        foreach (['Id', 'modulo', 'prefijo', 'consecutivo'] as $columna) {
+            $db->table('INFORMATION_SCHEMA.COLUMNS')->insert(['TABLE_SCHEMA' => 'dbo', 'TABLE_NAME' => 'SSYSFoliosSecuencias', 'COLUMN_NAME' => $columna]);
+        }
+        SSYSFoliosSecuencia::flushColumnMap();
+        $db->table('dbo.SSYSFoliosSecuencias')->insert([
+            ['modulo' => 'Planeacion', 'prefijo' => null, 'consecutivo' => 37070],
+            ['modulo' => 'Muestras', 'prefijo' => 'M', 'consecutivo' => 3174],
+        ]);
+    }
+
+    /** @return array<string, int> consecutivo por módulo */
+    private function consecutivos(): array
+    {
+        return DB::connection('sqlsrv')->table('dbo.SSYSFoliosSecuencias')->pluck('consecutivo', 'modulo')->map(fn ($v) => (int) $v)->all();
     }
 
     public function test_liberar_exitoso_con_no_produccion_manual_persiste_formulas_y_sincroniza_cat_codificados(): void
@@ -1123,5 +1150,47 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertTrue($this->liberar([$this->itemLiberar($parte, '77031')])->getData(true)['success']);
 
         $this->assertSame([[77030, 1, 77030], [77030, null, 77030]], $this->estadoGrupo([$lider, $parte]));
+    }
+
+    public function test_programa_libera_con_el_folio_de_planeacion(): void
+    {
+        $this->sembrarFolios();
+        $id = $this->sembrarRegistro();
+
+        $this->assertTrue($this->liberar([['id' => $id, 'bomId' => 'BOM-CRUDO-01', 'bomName' => 'LISTA MATERIALES CRUDO 01']])->getData(true)['success']);
+
+        $this->assertSame('37071', DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('NoProduccion'));
+        $this->assertSame(['Planeacion' => 37071, 'Muestras' => 3174], $this->consecutivos());
+    }
+
+    /** Antes Muestras tomaba el folio de Planeacion: ahora usa su secuencia con prefijo M. */
+    public function test_muestras_libera_con_su_folio_m_y_no_consume_el_de_planeacion(): void
+    {
+        $this->sembrarFolios();
+        $id = $this->sembrarRegistro();
+
+        $this->assertTrue($this->liberar([['id' => $id, 'bomId' => 'BOM-CRUDO-01', 'bomName' => 'LISTA MATERIALES CRUDO 01']], '/planeacion/muestras/liberar-ordenes/procesar')->getData(true)['success']);
+
+        $this->assertSame('M3175', DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('NoProduccion'));
+        $this->assertSame(['Planeacion' => 37070, 'Muestras' => 3175], $this->consecutivos());
+    }
+
+    /** Un grupo de Muestras (número temporal) toma el folio M de su primera orden, también en CatCodificados. */
+    public function test_muestras_el_grupo_temporal_toma_el_folio_m(): void
+    {
+        $this->sembrarFolios();
+        [$a, $b] = [
+            $this->sembrarRegistro(['NoTelarId' => '201', 'OrdCompartida' => '900000301']),
+            $this->sembrarRegistro(['NoTelarId' => '202', 'OrdCompartida' => '900000301']),
+        ];
+        DB::connection('sqlsrv')->table('CatCodificados')->insert(['OrdenTejido' => 'M3175', 'TelarId' => '201', 'ItemId' => 'IT100', 'InventSizeId' => 'STD', 'Departamento' => 'JACQUARD']);
+
+        $this->assertTrue($this->liberar([$this->itemLiberar($a, '')], '/planeacion/muestras/liberar-ordenes/procesar')->getData(true)['success']);
+
+        $grupo = DB::connection('sqlsrv')->table('ReqProgramaTejido')->whereIn('Id', [$a, $b])->orderBy('Id')->get();
+        $this->assertSame([['M3175', 'M3175', 'M3175'], [null, 'M3175', 'M3175']], $grupo->map(fn ($r) => [$r->NoProduccion, $r->OrdCompartida, $r->OrdPrincipal])->all());
+        $this->assertSame([1, null], $grupo->map(fn ($r) => $r->OrdCompartidaLider === null ? null : (int) $r->OrdCompartidaLider)->all());
+        $cat = DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', 'M3175')->first();
+        $this->assertSame(['M3175', 'M3175', 1], [$cat->OrdCompartida, $cat->OrdPrincipal, (int) $cat->OrdCompartidaLider]);
     }
 }

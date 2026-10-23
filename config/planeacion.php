@@ -44,12 +44,9 @@ return [
             'tabla' => 'MuestrasPrograma',
             'tabla_lineas' => 'MuestrasProgramaLine',
             'modulo_permiso' => 5, // SYSRoles: Muestras
-            // Existen en ReqProgramaTejido y no en MuestrasPrograma (135 vs 141 columnas).
+            // Existen en ReqProgramaTejido y no en MuestrasPrograma. NoMarbete, RollosProgramados,
+            // ProdId y ProduccionMarbetes se agregaron con pt_muestras_folio_texto.sql (23-oct-2026).
             'columnas_ausentes' => [
-                'NoMarbete',
-                'RollosProgramados',
-                'ProdId',
-                'ProduccionMarbetes',
                 'IdRedbooth',
                 'NombreRedbooth',
             ],

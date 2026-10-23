@@ -9,6 +9,7 @@ use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\ProgramaTejido\DividirTejido;
 use App\Services\Planeacion\ProgramaTejido\DuplicarTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Support\Planeacion\NumeroPrograma;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Support\Collection;
@@ -42,7 +43,7 @@ final class FilasDestino
     {
         return self::datosDe($registro) + [
             'salonBd' => trim((string) $registro->getAttribute('SalonTejidoId')),
-            'ordCompartida' => (int) $registro->getAttribute('OrdCompartida') ?: null,
+            'ordCompartida' => OrdCompartida::normalizar($registro->getAttribute('OrdCompartida')),
             'disponible' => round((float) $grupo->sum(fn ($r) => (float) $r->getAttribute('SaldoPedido')), 2),
         ];
     }

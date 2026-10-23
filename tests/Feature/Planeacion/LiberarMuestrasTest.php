@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 /**
  * 02-MUESTRAS-LIBERAR.md, lo que adelanta PT-05: R6 (guard 422 sin DDL de marbetes) y
- * R7 (volver a la grilla de la superficie). El prefijo "M" (R1–R5, R8, R9) va en PT-06.
+ * R7 (volver a la grilla de la superficie). El folio "M" se prueba en LiberarOrdenesLiberarTest.
  */
 class LiberarMuestrasTest extends TestCase
 {
@@ -31,6 +31,9 @@ class LiberarMuestrasTest extends TestCase
 
     public function test_liberar_muestra_sin_ddl_responde_422(): void
     {
+        // ProdTowel ya tiene las columnas (pt_muestras_folio_texto.sql, 23-oct-2026); una base sin
+        // ese script las tendría en columnas_ausentes y la guarda debe seguir frenando.
+        config()->set('planeacion.superficies.muestras.columnas_ausentes', ['NoMarbete', 'RollosProgramados', 'ProdId', 'ProduccionMarbetes', 'IdRedbooth', 'NombreRedbooth']);
         $antes = $this->fotoSuperficies();
 
         $this->actingAs($this->usuarioConPermisos([5 => ['crear']]))

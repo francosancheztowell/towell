@@ -65,7 +65,7 @@ class ProgramaTejidoVincularLivewireTest extends TestCase
             ->assertHasNoErrors()
             ->assertDispatched('pt-duplicar-guardado', fn ($e, $p) => $p['modo'] === 'vincular'
                 && count($p['registros_ids']) === 3
-                && $p['ord_compartida'] === 900000000 + $p['registros_ids'][0]
+                && $p['ord_compartida'] === (string) (900000000 + $p['registros_ids'][0])
                 && str_contains($p['message'], 'vinculadas entre sí'));
 
         $this->assertEquals($antes, DB::table('ReqProgramaTejido')->where('Id', 1)->first(), 'el original no se toca');

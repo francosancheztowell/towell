@@ -267,7 +267,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
                     'ProgramarProd' => $this->parseDateOnly($this->getValue($row, ['Day Sheduling', 'Day Scheduling', 'Día Scheduling', 'Dia Scheduling', 'programar_prod'])),
                     'NoProduccion' => $this->parseString($this->getValue($row, ['Orden Prod.', 'Orden Prod', 'no_produccion']), 30),
                     'OrdCompartida' => $this->parseString($this->getValue($row, ['Dividir', 'dividir', 'OrdCompartida', 'ord_compartida']), 30),
-                    'OrdPrincipal' => $this->parseInteger($this->getValue($row, ['Principal', 'principal', 'OrdPrincipal', 'ord_principal'])),
+                    'OrdPrincipal' => $this->parseString($this->getValue($row, ['Principal', 'principal', 'OrdPrincipal', 'ord_principal']), 15), // texto: en Muestras "M3175"
                     'Programado' => $this->parseDateOnly($this->getValue($row, ['INN', 'Inn', 'programado'])),
                     'OrdCompartidaLider' => $this->parseBoolean($this->getValue($row, ['Lider'])),
                     'Calc4' => $this->parseFloat($this->getValue($row, ['Calc4', 'calc4', 'Calc 4'])),
