@@ -103,55 +103,55 @@ final class FilasDestino
             'flog' => $d['flog'], 'descripcion' => $d['descripcion'], 'aplicacion' => $d['aplicacion'],
             'custName' => $d['custName'], 'itemId' => $d['itemId'], 'inventSizeId' => $d['inventSizeId'],
             'pedido' => '', 'porcSeg' => self::numero($d['porcSeg']), 'saldo' => '', 'observaciones' => '',
-            'produccion' => 0.0, 'registroId' => null, 'existente' => false,
+            'produccion' => 0.0, 'registroId' => null, 'existente' => false, 'aviso' => null,
         ], $extra);
     }
 
     /**
-     * Copia con el pedido del original y saldo = pedido × (1 + %seg/100) (sin producción).
+     * Copia con el pedido del original; su saldo sale del pedido (sin producción).
      *
      * @param  array<string, mixed>  $o
      * @return array<string, mixed>
      */
     public static function filaDuplicar(array $o): array
     {
-        return self::fila($o, [
-            'pedido' => self::numero($o['pedido']),
-            'saldo' => self::saldoDuplicar($o['pedido'], $o['porcSeg']),
-        ]);
-    }
+        $fila = self::fila($o, ['pedido' => self::numero($o['pedido'])]);
+        $fila['saldo'] = self::numero(self::saldo($fila));
 
-    /** Regla 3 sin producción: saldo = pedido × (1 + %seg/100). */
-    public static function saldoDuplicar(mixed $pedido, mixed $porcSeg): string
-    {
-        return self::numero(NumeroPrograma::sanitizeNumber($pedido) * (1 + NumeroPrograma::sanitizeNumber($porcSeg) / 100));
+        return $fila;
     }
 
     /**
-     * Fila que ya existe en BD (el original o un miembro del grupo), con su saldo.
+     * Saldo = pedido × (1 + %seg/100) − producción, en los dos modos: el saldo no se captura, se
+     * captura el pedido. Sin recortar a 0: negativo = el pedido es menor a lo ya producido.
+     *
+     * @param  array<string, mixed>  $fila
+     */
+    public static function saldo(array $fila): float
+    {
+        $factor = 1 + max(0.0, NumeroPrograma::sanitizeNumber($fila['porcSeg'])) / 100;
+
+        return round(NumeroPrograma::sanitizeNumber($fila['pedido']) * $factor - (float) $fila['produccion'], 2);
+    }
+
+    /**
+     * Fila que ya existe en BD (el original o un miembro del grupo). Su pedido inicial sale del saldo
+     * pendiente, que es lo que se reparte; si no coincide con el pedido del programa, lo avisa.
      *
      * @return array<string, mixed>
      */
     public static function filaExistente(ReqProgramaTejido $r): array
     {
         $d = self::datosDe($r);
+        $pedido = NumeroPrograma::pedidoDesdeSaldo($d['saldo'], $d['produccion'], $d['porcSeg']);
+        $aviso = abs($pedido - $d['pedido']) > self::TOLERANCIA_SALDO
+            ? 'En el programa el pedido es '.number_format($d['pedido'], 2).'; con el saldo pendiente da '.number_format($pedido, 2).'.'
+            : null;
 
         return self::fila($d, [
-            'telar' => $d['telar'], 'saldo' => self::numero($d['saldo']), 'produccion' => $d['produccion'],
-            'registroId' => $d['id'], 'existente' => true,
+            'telar' => $d['telar'], 'pedido' => self::numero($pedido), 'produccion' => $d['produccion'],
+            'registroId' => $d['id'], 'existente' => true, 'aviso' => $aviso,
         ]);
-    }
-
-    /**
-     * Regla 4: pedido derivado del saldo = (saldo + producción) / (1 + %seg/100).
-     *
-     * @param  array<string, mixed>  $fila
-     */
-    public static function pedidoDerivado(array $fila): float
-    {
-        $porcSeg = max(0.0, NumeroPrograma::sanitizeNumber($fila['porcSeg']));
-
-        return round((NumeroPrograma::sanitizeNumber($fila['saldo']) + (float) $fila['produccion']) / (1 + $porcSeg / 100), 2);
     }
 
     /**
@@ -162,7 +162,7 @@ final class FilasDestino
      */
     public static function cuadre(array $filas, float $disponible): array
     {
-        $saldos = array_map(fn ($f) => NumeroPrograma::sanitizeNumber($f['saldo']), $filas);
+        $saldos = array_map(self::saldo(...), $filas);
         $asignado = round(array_sum($saldos), 2);
         $diferencia = round($asignado - $disponible, 2);
 
@@ -183,8 +183,9 @@ final class FilasDestino
     {
         return self::base($o, $registroId) + [
             'ord_compartida_existente' => $esGrupo ? $o['ordCompartida'] : null,
+            // DividirTejido recibe el saldo y de él despeja TotalPedido: se calcula aquí desde el pedido capturado.
             'destinos' => array_map(fn (array $f) => self::destino($f) + [
-                'saldo' => $f['saldo'],
+                'saldo' => self::numero(self::saldo($f)),
                 'registro_id' => $f['registroId'],
                 'es_existente' => $f['existente'],
                 'es_nuevo' => ! $f['existente'],
@@ -211,9 +212,10 @@ final class FilasDestino
         ]) + [
             'vincular' => $vincular,
             'ord_compartida_existente' => $vincular ? $o['ordCompartida'] : null,
+            // El saldo no se captura en Duplicar: sale de pedido y %seg aquí, no de lo que mande la pantalla.
             'destinos' => array_map(fn (array $f) => self::destino($f) + self::sinVacios([
                 'pedido' => $f['pedido'],
-                'saldo' => $f['saldo'],
+                'saldo' => trim((string) $f['pedido']) === '' ? '' : self::numero(self::saldo($f)),
                 'aplicacion' => $f['aplicacion'],
             ]), $filas),
         ];
@@ -234,13 +236,13 @@ final class FilasDestino
     }
 
     /**
-     * Una fila nueva sin telar ni saldo es la vacía que se ofrece por si acaso: no se manda.
+     * Una fila nueva sin telar ni pedido es la vacía que se ofrece por si acaso: no se manda.
      *
      * @param  array<string, mixed>  $f
      */
-    private static function filaUtil(array $f): bool
+    public static function filaUtil(array $f): bool
     {
-        return $f['existente'] || trim((string) $f['telar']) !== '' || NumeroPrograma::sanitizeNumber($f['saldo']) != 0.0;
+        return $f['existente'] || trim((string) $f['telar']) !== '' || NumeroPrograma::sanitizeNumber($f['pedido']) != 0.0;
     }
 
     /**

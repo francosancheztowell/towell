@@ -15,13 +15,16 @@ use Livewire\Component;
  *
  * - Se abre con el evento Livewire 'pt-duplicar-abrir' {id}. Cada modo guarda sus filas, así
  *   que cambiar de modo no pierde lo capturado.
- * - Dividir reparte SOLO el saldo: Σ saldos == saldo disponible (±0.5) o no se guarda.
+ * - Dividir reparte SOLO el saldo: Σ saldos == saldo disponible (±0.5) o no se guarda. Se captura
+ *   el pedido de cada fila y el saldo sale de él (pedido × (1 + %seg) − producción); el registro
+ *   abierto toma la diferencia mientras se teclea (duplicar.ts). Sin saldo pendiente no se divide.
  * - Guardar valida con las reglas del FormRequest y llama a DividirTejido/DuplicarTejido sin
  *   HTTP. Al éxito despacha 'pt-duplicar-guardado' con el mismo JSON que daba el endpoint.
  */
 class DuplicarDividir extends Component
 {
     use AutocompletaClaveFlog;
+    use ValidaFilasDestino;
 
     /** Programa o Muestras: decide tabla y módulo de permiso. Llega en mount() y no cambia. */
     #[Locked]
@@ -103,14 +106,16 @@ class DuplicarDividir extends Component
             'duplicar' => [FilasDestino::filaDuplicar($this->origen)],
             'dividir' => FilasDestino::filasDividir($grupo, $this->origen),
         ];
-        $this->modo = $this->esGrupo ? 'dividir' : 'duplicar';
+        $this->modo = $this->esGrupo && $this->puedeDividir() ? 'dividir' : 'duplicar';
         $this->registroId = $id;
+        $this->marcarEditables();
     }
 
     public function agregarFila(): void
     {
         $llave = $this->llave();
         $this->filas[$llave][] = $llave === 'duplicar' ? FilasDestino::filaDuplicar($this->origen) : FilasDestino::fila($this->origen);
+        $this->marcar($llave, array_key_last($this->filas[$llave]));
     }
 
     public function quitarFila(int $i): void
@@ -123,6 +128,7 @@ class DuplicarDividir extends Component
         $this->filas[$this->llave()] = array_values($filas);
         $this->sugerencias = [];
         $this->resetValidation();
+        $this->marcarEditables();
     }
 
     public function updatedModo(): void
@@ -139,7 +145,17 @@ class DuplicarDividir extends Component
     /** Dividir exige que el original tenga NoProduccion (o que ya haya grupo que redistribuir). */
     public function puedeDividir(): bool
     {
-        return $this->esGrupo || ($this->origen['conNoProduccion'] ?? false);
+        return $this->porQueNoDivide() === null;
+    }
+
+    /** null = se puede dividir. Necesita NoProduccion (o un grupo que redistribuir) y saldo pendiente. */
+    public function porQueNoDivide(): ?string
+    {
+        if (! $this->esGrupo && ! ($this->origen['conNoProduccion'] ?? false)) {
+            return 'el registro no tiene No. de producción. Libéralo primero.';
+        }
+
+        return (float) ($this->origen['disponible'] ?? 0) > 0 ? null : 'no hay saldo pendiente que dividir.';
     }
 
     public function puedeVincular(): bool
@@ -157,42 +173,22 @@ class DuplicarDividir extends Component
         }
         $this->aviso = null;
 
-        match ($campo) {
-            // Regla 3 (duplicar, sin producción): saldo = pedido × (1 + %seg/100).
-            'pedido', 'porcSeg' => $modo === 'duplicar'
-                ? $this->filas[$modo][$i]['saldo'] = FilasDestino::saldoDuplicar($fila['pedido'], $fila['porcSeg'])
-                : null,
-            // Otro salón: el telar ya no vale y la clave se vuelve a buscar en ese salón.
-            'salon' => $this->cargarClave($modo, $i, telar: ''),
-            // Mientras escribe solo se sugiere; la clave se valida al salir del campo o al elegir.
-            'clave', 'flog' => $this->sugerir($campo, $i, (string) $valor),
-            default => null,
-        };
-    }
-
-    /** La clave debe existir en Modelos para el salón de la fila; trae producto, flog y descripción. */
-    private function cargarClave(string $modo, int $i, ?string $telar = null): void
-    {
-        $campo = "filas.$modo.$i.clave";
-        $this->resetErrorBag($campo);
-        $this->filas[$modo][$i]['telar'] = $telar ?? $this->filas[$modo][$i]['telar'];
-        $fila = $this->filas[$modo][$i];
-        $clave = trim((string) $fila['clave']);
-        // Sin columna Salón: si la clave no está en el salón de la fila pero sí en otro, la fila se
-        // mueve a ese salón y el telar se vuelve a elegir (el select solo lista salones de la clave).
-        $salones = CatalogosDestino::salonesDeClave($clave);
-        if ($salones !== [] && ! in_array($fila['salon'], $salones, true)) {
-            [$fila['salon'], $fila['telar']] = [$salones[0], ''];
-        }
-        $datos = $clave === '' ? [] : CatalogosDestino::datosClave($clave, (string) $fila['salon']);
-        if ($datos === null) {
-            $this->addError($campo, "La clave {$clave} no existe en Modelos.");
+        if ($campo === 'clave' || $campo === 'flog') {
+            // Mientras escribe solo se sugiere y no se marca: se valida al cambiar el campo, al elegir o al guardar.
+            $this->resetErrorBag("filas.$modo.$i.$campo");
+            $this->sugerir($campo, $i, (string) $valor);
 
             return;
         }
-
-        $datos['producto'] = ($datos['producto'] ?? '') ?: $fila['producto'];
-        $this->filas[$modo][$i] = array_merge($fila, $datos);
+        match ($campo) {
+            // Regla 3 (duplicar, sin producción): saldo = pedido × (1 + %seg/100).
+            'pedido', 'porcSeg' => $modo === 'duplicar'
+                ? $this->filas[$modo][$i]['saldo'] = FilasDestino::numero(FilasDestino::saldo($fila))
+                : null,
+            // Otro salón: el telar ya no vale y la clave se vuelve a buscar en ese salón.
+            'salon' => $this->cargarClave($modo, $i, telar: ''),
+            default => null,
+        };
     }
 
     /**
@@ -212,7 +208,7 @@ class DuplicarDividir extends Component
         if ($vincular) {
             $this->autorizar('modificar');
         }
-        if ($this->registroId === null) {
+        if ($this->registroId === null || ! $this->listo()) {
             return;
         }
 
@@ -264,6 +260,7 @@ class DuplicarDividir extends Component
             'telaresDe' => fn (?string $clave) => CatalogosDestino::telaresParaClave((string) $clave),
             'aplicaciones' => $abierto ? CatalogosDestino::aplicaciones() : [],
             'cuadre' => $abierto ? $this->cuadre() : null,
+            'pendiente' => $abierto ? $this->pendiente() : null,
             'puedeVincular' => $abierto && $this->puedeVincular(),
         ]);
     }

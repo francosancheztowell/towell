@@ -9,6 +9,7 @@ use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\SQLiteConnection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
@@ -45,7 +46,12 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         $pdo = DB::connection('sqlsrv')->getPdo();
         DB::extend('sqlsrv', fn (array $config) => new SQLiteConnection($pdo, ':memory:', '', $config));
 
-        DB::table('ReqProgramaTejido')->whereIn('Id', [1, 3, 4])->update(['TamanoClave' => 'CLV-1']);
+        // Solo se crea con clave en Modelos del salón y flog vigente: CLV-1 existe en SMIT (no en
+        // JACQUARD) y, sin AX en los tests, cualquier flog capturado cuenta como vigente.
+        foreach (['ReqProgramaTejido', 'MuestrasPrograma'] as $tabla) {
+            DB::table($tabla)->whereIn('Id', [1, 3, 4])->update(['TamanoClave' => 'CLV-1', 'FlogsId' => 'RS-FLOG-1']);
+        }
+        DB::table('ReqModelosCodificados')->insert(['SalonTejidoId' => 'SMIT', 'TamanoClave' => 'CLV-1']);
         DB::table('URDCatalogoMaquinas')->insert([
             ['Departamento' => 'Itema', 'MaquinaId' => '201'],
             ['Departamento' => 'Smith', 'MaquinaId' => '210'],
@@ -78,7 +84,8 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->assertSet('filas.duplicar.0.pedido', '1000')
             ->assertSet('filas.duplicar.0.saldo', '1000')
             ->assertSet('filas.dividir.0.telar', '201')
-            ->assertSet('filas.dividir.0.saldo', '800')
+            ->assertSet('filas.dividir.0.pedido', '1000') // (saldo 800 + producido 200)
+            ->assertSet('filas.dividir.0.aviso', null)
             ->assertSet('filas.dividir.0.existente', true)
             ->assertCount('filas.dividir', 2)
             ->assertSee('Duplicar registro');
@@ -101,8 +108,8 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
     {
         $this->componente()
             ->dispatch('pt-duplicar-abrir', id: 3)
-            ->set('filas.dividir.0.saldo', '700')
-            ->set('filas.dividir.1.saldo', '300')
+            ->set('filas.dividir.0.pedido', '700')
+            ->set('filas.dividir.1.pedido', '300')
             ->call('guardar')
             ->assertHasNoErrors()
             ->assertDispatched('pt-duplicar-guardado', fn ($e, $p) => $p['ord_compartida'] === 7);
@@ -118,10 +125,10 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->dispatch('pt-duplicar-abrir', id: 1)
             ->set('filas.duplicar.0.observaciones', 'copia')
             ->set('modo', 'dividir')
-            ->set('filas.dividir.1.saldo', '300')
+            ->set('filas.dividir.1.pedido', '300')
             ->set('modo', 'duplicar')
             ->assertSet('filas.duplicar.0.observaciones', 'copia')
-            ->assertSet('filas.dividir.1.saldo', '300');
+            ->assertSet('filas.dividir.1.pedido', '300');
     }
 
     public function test_sin_no_produccion_no_deja_dividir(): void
@@ -149,8 +156,9 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
     public function test_cantidades_se_calculan_en_el_cliente_y_clave_flog_confirman_solo_al_cambiar(): void
     {
         $duplicar = $this->componente()->dispatch('pt-duplicar-abrir', id: 1);
-        $duplicar->assertSeeHtml("ptDuplicar.alEscribir(\$wire, 'filas.duplicar.0', 'pedido', \$el.value)")
-            ->assertSeeHtml("ptDuplicar.alEscribir(\$wire, 'filas.duplicar.0', 'porcSeg', \$el.value)")
+        // En Duplicar el saldo es texto que sale de pedido y %2as: no hay input de saldo.
+        $duplicar->assertSeeHtml("x-text=\"ptDuplicar.saldo(\$wire.\$get('filas.duplicar.0'))\">1,000.00</span>")
+            ->assertDontSeeHtml('wire:model="filas.duplicar.0.saldo"')
             ->assertSeeHtml('wire:change="confirmar(\'clave\', 0)"')
             ->assertSeeHtml('wire:change="confirmar(\'flog\', 0)"')
             ->assertDontSeeHtml('wire:blur="confirmar(');
@@ -158,10 +166,53 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             $duplicar->assertDontSeeHtml("wire:model.blur=\"filas.duplicar.0.$campo\"");
         }
 
+        // En Dividir también se captura el pedido (el original toma la diferencia) y el saldo es texto.
         $this->componente()->dispatch('pt-duplicar-abrir', id: 1)->set('modo', 'dividir')
             ->assertSeeHtml('x-data="ptDuplicar.cuadreVivo(800)"')
-            ->assertSeeHtml("ptDuplicar.pedidoDerivado(\$wire.\$get('filas.dividir.0'))")
+            ->assertSeeHtml("ptDuplicar.absorber(\$wire, 0, 'pedido', \$el.value)")
+            ->assertSeeHtml("x-text=\"ptDuplicar.saldo(\$wire.\$get('filas.dividir.0'))\">800.00</span>")
+            ->assertDontSeeHtml('wire:model="filas.dividir.0.saldo"')
             ->assertSeeHtml('x-text="c.estado">Cuadra</span>');
+    }
+
+    public function test_dividir_parte_del_saldo_y_avisa_si_no_coincide_con_el_pedido_del_programa(): void
+    {
+        // Saldo 900 con 200 producidas da pedido 1,100, pero el programa dice 1,000: se avisa, no se bloquea.
+        DB::table('ReqProgramaTejido')->where('Id', 1)->update(['SaldoPedido' => 900]);
+
+        $this->componente()
+            ->dispatch('pt-duplicar-abrir', id: 1)
+            ->assertSet('filas.dividir.0.pedido', '1100')
+            ->assertSet('filas.dividir.0.aviso', 'En el programa el pedido es 1,000.00; con el saldo pendiente da 1,100.00.')
+            ->set('modo', 'dividir')
+            ->assertSeeHtml('En el programa el pedido es 1,000.00; con el saldo pendiente da 1,100.00.');
+    }
+
+    public function test_sin_saldo_pendiente_no_deja_dividir(): void
+    {
+        DB::table('ReqProgramaTejido')->where('Id', 1)->update(['SaldoPedido' => 0]);
+
+        $this->componente()
+            ->dispatch('pt-duplicar-abrir', id: 1)
+            ->set('modo', 'dividir')
+            ->assertSet('modo', 'duplicar')
+            ->assertSeeHtml('Dividir no está disponible: no hay saldo pendiente que dividir.');
+    }
+
+    public function test_pedido_menor_a_lo_producido_no_se_guarda(): void
+    {
+        $c = $this->componente()
+            ->dispatch('pt-duplicar-abrir', id: 1)
+            ->set('modo', 'dividir')
+            ->set('filas.dividir.0.pedido', '100') // producidas 200: saldo -100
+            ->set('filas.dividir.1.telar', '210')
+            ->set('filas.dividir.1.pedido', '900');
+        $this->assertSame('El pedido de la fila 1 es menor a lo ya producido.', $c->instance()->pendiente());
+
+        $c->call('guardar')
+            ->assertHasErrors(['filas.dividir.0.pedido' => 'El pedido no puede ser menor a lo ya producido (200).'])
+            ->assertNotDispatched('pt-duplicar-guardado');
+        $this->assertSame([], $this->filasNuevas());
     }
 
     public function test_descuadre_deshabilita_guardar_y_no_toca_la_bd(): void
@@ -172,7 +223,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->dispatch('pt-duplicar-abrir', id: 1)
             ->set('modo', 'dividir')
             ->set('filas.dividir.1.telar', '210')
-            ->set('filas.dividir.1.saldo', '300');
+            ->set('filas.dividir.1.pedido', '300');
 
         $this->assertFalse($c->instance()->cuadre()['cuadra']);
         $this->assertSame(300.0, $c->instance()->cuadre()['diferencia']);
@@ -187,9 +238,9 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         $c = $this->componente()
             ->dispatch('pt-duplicar-abrir', id: 1)
             ->set('modo', 'dividir')
-            ->set('filas.dividir.0.saldo', '500')
+            ->set('filas.dividir.0.pedido', '700') // saldo 500 + producido 200
             ->set('filas.dividir.1.telar', '210')
-            ->set('filas.dividir.1.saldo', '300');
+            ->set('filas.dividir.1.pedido', '300');
 
         $this->assertTrue($c->instance()->cuadre()['cuadra']);
 
@@ -204,6 +255,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->assertSet('registroId', null);
 
         $this->assertEqualsWithDelta(500, DB::table('ReqProgramaTejido')->where('Id', 1)->value('SaldoPedido'), 0.01);
+        $this->assertEqualsWithDelta(700, DB::table('ReqProgramaTejido')->where('Id', 1)->value('TotalPedido'), 0.01); // el capturado
         [$nuevo] = $this->filasNuevas();
         $this->assertSame('210', (string) $nuevo->NoTelarId);
         $this->assertEqualsWithDelta(300, $nuevo->SaldoPedido, 0.01);
@@ -215,6 +267,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->dispatch('pt-duplicar-abrir', id: 1)
             ->set('filas.duplicar.0.telar', '210')
             ->set('filas.duplicar.0.pedido', '1,500')
+            ->set('filas.duplicar.0.saldo', '5') // el saldo no se captura: lo que mande el cliente se ignora
             ->call('guardar')
             ->assertHasNoErrors()
             ->assertDispatched('pt-duplicar-guardado', fn ($evento, $p) => $p['modo'] === 'duplicar' && count($p['registros_ids']) === 1);
@@ -222,6 +275,7 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         [$nuevo] = $this->filasNuevas();
         $this->assertSame(['SMIT', '210'], [$nuevo->SalonTejidoId, (string) $nuevo->NoTelarId]);
         $this->assertEqualsWithDelta(1500, $nuevo->TotalPedido, 0.01);
+        $this->assertEqualsWithDelta(1500, $nuevo->SaldoPedido, 0.01);
     }
 
     public function test_clave_se_autocompleta_por_prefijo_del_salon_y_se_elige(): void
@@ -263,29 +317,74 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
             ->assertSet('filas.duplicar.0.telar', '205');
     }
 
-    public function test_error_de_negocio_se_queda_en_el_dialogo(): void
+    public function test_clave_que_no_existe_en_modelos_bloquea_guardar(): void
     {
-        // CLV-1 no existe en Modelos para JACQUARD: 422 del backend.
-        $this->componente()
+        $c = $this->componente()
             ->dispatch('pt-duplicar-abrir', id: 1)
-            ->set('filas.duplicar.0.salon', 'JACQUARD')
-            ->set('filas.duplicar.0.telar', '205')
-            ->assertHasErrors('filas.duplicar.0.clave')
-            ->call('guardar')
-            ->assertSet('aviso', fn ($m) => str_contains((string) $m, 'CLV-1') && str_contains((string) $m, 'JACQUARD'))
-            ->assertSet('registroId', 1)
-            ->assertNotDispatched('pt-duplicar-guardado');
+            ->call('elegirTelar', 0, 'SMIT|210')
+            ->set('filas.duplicar.0.clave', 'NO-EXISTE')
+            ->assertHasNoErrors('filas.duplicar.0.clave') // mientras escribe no se marca
+            ->call('confirmar', 'clave', 0)
+            ->assertHasErrors(['filas.duplicar.0.clave' => 'La clave NO-EXISTE no existe en Modelos de SMIT.'])
+            ->assertSeeHtml('Corrige la clave o el flog de la fila 1.');
 
+        $c->call('guardar')->assertSet('registroId', 1)->assertNotDispatched('pt-duplicar-guardado');
         $this->assertSame([], $this->filasNuevas());
     }
 
-    public function test_fila_sin_telar_da_error_de_validacion(): void
+    public function test_sin_telar_el_boton_se_bloquea_y_dice_por_que(): void
     {
+        $c = $this->componente()->dispatch('pt-duplicar-abrir', id: 1);
+        $this->assertSame('Elige el telar en la fila 1.', $c->instance()->pendiente());
+        $c->assertSeeHtml('Elige el telar en la fila 1.')
+            ->call('guardar')
+            ->assertHasErrors(['filas.duplicar.0.telar' => 'Elige el telar.'])
+            ->assertNotDispatched('pt-duplicar-guardado')
+            ->call('elegirTelar', 0, 'SMIT|210')
+            ->assertHasNoErrors('filas.duplicar.0.telar');
+        $this->assertNull($c->instance()->pendiente());
+
+        // Volver a la opción "Telar" quita el telar: antes se quedaba el 210 y se guardaba con él.
+        $c->call('elegirTelar', 0, '')->assertSet('filas.duplicar.0.telar', '');
+        $this->assertSame('Elige el telar en la fila 1.', $c->instance()->pendiente());
+        $c->call('guardar')->assertNotDispatched('pt-duplicar-guardado');
+        $this->assertSame([], $this->filasNuevas());
+    }
+
+    public function test_flog_debe_estar_vigente_en_ax(): void
+    {
+        Cache::put('pt-duplicar:flogs', ['RS-FLOG-1' => 'PROYECTO UNO'], 600);
+
+        $c = $this->componente()
+            ->dispatch('pt-duplicar-abrir', id: 1)
+            ->call('elegirTelar', 0, 'SMIT|210')
+            ->set('filas.duplicar.0.flog', 'rs-flog-1')
+            ->call('confirmar', 'flog', 0)
+            ->assertSet('filas.duplicar.0.flog', 'RS-FLOG-1')
+            ->assertSet('filas.duplicar.0.descripcion', 'PROYECTO UNO')
+            ->assertHasNoErrors('filas.duplicar.0.flog')
+            ->set('filas.duplicar.0.flog', 'VIEJO-1')
+            ->call('confirmar', 'flog', 0)
+            ->assertHasErrors(['filas.duplicar.0.flog' => 'El flog VIEJO-1 no está vigente en AX.']);
+
+        // Releer AX falla en los tests: se queda el catálogo que había y la validación sigue.
+        $c->call('guardar')->assertHasErrors('filas.duplicar.0.flog')->assertNotDispatched('pt-duplicar-guardado');
+        $this->assertSame([], $this->filasNuevas());
+    }
+
+    public function test_al_enfocar_flog_salen_los_vigentes_primero_los_del_articulo(): void
+    {
+        Cache::put('pt-duplicar:flogs', ['A-1' => 'UNO', 'B-2' => 'DOS', 'C-3' => 'TRES'], 600);
+        Cache::put('pt-duplicar:flogs-articulo:7139|MB', ['C-3', 'X-VIEJO'], 600);
+
         $this->componente()
             ->dispatch('pt-duplicar-abrir', id: 1)
-            ->call('guardar')
-            ->assertHasErrors('destinos.0.telar')
-            ->assertNotDispatched('pt-duplicar-guardado');
+            ->set('filas.duplicar.0.itemId', '7139')
+            ->set('filas.duplicar.0.inventSizeId', 'MB')
+            ->call('abrirSugerencias', 0)
+            ->assertSet('sugerencias', ['campo' => 'flog', 'i' => 0, 'items' => ['C-3', 'A-1', 'B-2']])
+            ->assertSeeHtml('wire:focus="abrirSugerencias(0)"')
+            ->assertSeeHtml('x-on:mousedown.prevent');
     }
 
     public function test_sin_permiso_de_crear_es_forbidden(): void
@@ -306,14 +405,16 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
 
     public function test_redistribuir_grupo_respeta_lo_capturado_en_la_fila_nueva(): void
     {
+        DB::table('ReqModelosCodificados')->insert(['SalonTejidoId' => 'JACQUARD', 'TamanoClave' => 'CLV-1']);
+
         $this->componente()
             ->dispatch('pt-duplicar-abrir', id: 3)
-            ->set('filas.dividir.0.saldo', '500')
-            ->set('filas.dividir.1.saldo', '400')
+            ->set('filas.dividir.0.pedido', '500')
+            ->set('filas.dividir.1.pedido', '400')
             ->set('filas.dividir.2.telar', '205')
             ->set('filas.dividir.2.flog', 'FLOG-NUEVO')
             ->set('filas.dividir.2.observaciones', 'parte nueva')
-            ->set('filas.dividir.2.saldo', '100')
+            ->set('filas.dividir.2.pedido', '100')
             ->call('guardar')
             ->assertHasNoErrors()
             ->assertDispatched('pt-duplicar-guardado');

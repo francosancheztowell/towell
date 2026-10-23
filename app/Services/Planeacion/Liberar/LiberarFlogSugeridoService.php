@@ -122,7 +122,7 @@ final class LiberarFlogSugeridoService
     }
 
     /** TwFlogsTable (alias ft) con la regla de vigencia: estado vigente y al menos una línea abierta. */
-    private function cabecerasVigentes(): Builder
+    public function cabecerasVigentes(): Builder
     {
         return DB::connection('sqlsrv_ti')
             ->table('dbo.TwFlogsTable as ft')

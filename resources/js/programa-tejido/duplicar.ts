@@ -58,9 +58,10 @@ export async function procesarGuardado(data: RespuestaDuplicar, p: Posproceso): 
 }
 
 /*
- * Cálculos del modal en el navegador, con las mismas reglas que FilasDestino (PHP): el saldo,
- * el pedido derivado y el cuadre se ven al escribir, sin ir al servidor. El servidor vuelve a
- * calcular el saldo al recibir pedido/%seg (updatedFilas) y valida el cuadre al guardar.
+ * Cálculos del modal en el navegador, con las mismas reglas que FilasDestino (PHP). En los dos
+ * modos se captura el pedido y el saldo es texto: saldo = pedido × (1 + %seg/100) − producción.
+ * El saldo y el cuadre se ven al escribir, sin ir al servidor; al guardar el servidor vuelve a
+ * calcular el saldo desde el pedido y valida el cuadre de Dividir.
  */
 
 /** Lo que el modal usa de $wire. */
@@ -69,33 +70,31 @@ export interface WireFilas {
     $set(ruta: string, valor: unknown, live?: boolean): unknown;
 }
 
-interface FilaCuadre {
-    saldo?: unknown;
+interface FilaCalculo {
+    pedido?: unknown;
     produccion?: unknown;
     porcSeg?: unknown;
+    registroId?: unknown;
 }
 
 const TOLERANCIA_SALDO = 0.5;
 
 const aNumero = (v: unknown): number => Number.parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
-// ponytail: en medios centavos exactos (p. ej. 1.005) puede diferir 0.01 del round() de PHP; se
-// guarda el saldo que se ve, así que no descuadra. Si importa, redondear sobre el texto decimal.
+// ponytail: en medios centavos exactos (p. ej. 1.005) puede diferir 0.01 del round() de PHP; el
+// cuadre tolera ±0.5. Si importa, redondear sobre el texto decimal.
 const redondear = (n: number): number => Math.round(n * 100) / 100;
+const factor = (porcSeg: unknown): number => 1 + Math.max(0, aNumero(porcSeg)) / 100;
+/** FilasDestino::saldo: sin recortar a 0 (negativo = pedido menor a lo ya producido). */
+const saldoDe = (f: FilaCalculo): number => redondear(aNumero(f.pedido) * factor(f.porcSeg) - aNumero(f.produccion));
 
-/** Regla 3, sin producción: saldo = pedido × (1 + %seg/100). "1050", "1050.5" como FilasDestino::numero. */
-export function saldoDuplicar(pedido: unknown, porcSeg: unknown): string {
-    return String(redondear(aNumero(pedido) * (1 + aNumero(porcSeg) / 100)));
-}
-
-/** Regla 4: pedido = (saldo + producción) / (1 + %seg/100), con el formato de la vista. */
-export function pedidoDerivado(fila: FilaCuadre): string {
-    const porcSeg = Math.max(0, aNumero(fila.porcSeg));
-    return formatNumber(redondear((aNumero(fila.saldo) + aNumero(fila.produccion)) / (1 + porcSeg / 100)), 2);
+/** El saldo de la fila como lo muestra la columna Saldo. */
+export function saldo(fila: FilaCalculo): string {
+    return formatNumber(saldoDe(fila), 2);
 }
 
 /** Σ saldos contra el disponible: cuadra con ±0.5 y sin saldos negativos. */
-export function cuadre(filas: FilaCuadre[], disponible: number): { asignado: string; estado: string; cuadra: boolean } {
-    const saldos = filas.map((f) => aNumero(f.saldo));
+export function cuadre(filas: FilaCalculo[], disponible: number): { asignado: string; estado: string; cuadra: boolean } {
+    const saldos = filas.map(saldoDe);
     const asignado = redondear(saldos.reduce((a, b) => a + b, 0));
     const diferencia = redondear(asignado - disponible);
     const cuadra = Math.abs(diferencia) <= TOLERANCIA_SALDO && saldos.every((s) => s >= 0);
@@ -103,21 +102,29 @@ export function cuadre(filas: FilaCuadre[], disponible: number): { asignado: str
     return { asignado: formatNumber(asignado, 2), estado, cuadra };
 }
 
-/** Al teclear pedido o %seg de una fila de Duplicar: su saldo se recalcula solo en el cliente. */
-export function alEscribir(wire: WireFilas, base: string, campo: 'pedido' | 'porcSeg', valor: string): void {
-    // En Dividir el saldo lo captura el planeador y el pedido se deriva: no se toca.
-    if (base.startsWith('filas.dividir.')) return;
-    const fila = { pedido: wire.$get(`${base}.pedido`), porcSeg: wire.$get(`${base}.porcSeg`), [campo]: valor };
-    wire.$set(`${base}.saldo`, saldoDuplicar(fila.pedido, fila.porcSeg), false);
-}
-
-/** x-data del indicador de Dividir: `c` se recalcula cada vez que cambia un saldo. */
-export function cuadreVivo(disponible: number): { $wire?: WireFilas; readonly c: ReturnType<typeof cuadre> } {
+/** x-data del indicador de Dividir: `c` se recalcula cada vez que cambia un pedido o un %seg. */
+export function cuadreVivo(disponible: number): { $wire?: Pick<WireFilas, '$get'>; readonly c: ReturnType<typeof cuadre> } {
     return {
         get c() {
-            return cuadre((this.$wire?.$get('filas.dividir') as FilaCuadre[] | undefined) ?? [], disponible);
+            return cuadre((this.$wire?.$get('filas.dividir') as FilaCalculo[] | undefined) ?? [], disponible);
         },
     };
+}
+
+/**
+ * Dividir: al teclear el pedido o el %seg de una fila, el registro abierto (el original) toma la
+ * diferencia para que Σ saldos siga igual al disponible. Su propio pedido se corrige a mano.
+ */
+export function absorber(wire: WireFilas, i: number, campo: 'pedido' | 'porcSeg', valor: string): void {
+    if (wire.$get('modo') !== 'dividir') return;
+    const origen = (wire.$get('origen') ?? {}) as { id?: unknown; disponible?: unknown };
+    const filas = ((wire.$get('filas.dividir') as FilaCalculo[] | undefined) ?? []).map((f, j) => (j === i ? { ...f, [campo]: valor } : f));
+    const k = filas.findIndex((f) => f.registroId === origen.id);
+    const original = filas[k];
+    if (!original || k === i) return;
+    const otros = filas.reduce((suma, f, j) => (j === k ? suma : suma + saldoDe(f)), 0);
+    const pedido = (aNumero(origen.disponible) - otros + aNumero(original.produccion)) / factor(original.porcSeg);
+    wire.$set(`filas.dividir.${k}.pedido`, String(redondear(pedido)), false);
 }
 
 export function escucharGuardado(p: Posproceso, destino: EventTarget = window): void {

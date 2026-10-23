@@ -28,13 +28,13 @@
                 </div>
 
                 @if (! $dividir && ! $this->puedeDividir())
-                    <flux:text class="text-caption">Dividir no está disponible: el registro no tiene No. de producción. Libéralo primero.</flux:text>
+                    <flux:text class="text-caption">Dividir no está disponible: {{ $this->porQueNoDivide() }}</flux:text>
                 @endif
 
                 {{-- Sin overflow propio: el scroll lo hace el <dialog>, así las sugerencias (absolute z-20) no se recortan. --}}
                 <div>
                     <table class="w-full min-w-[88rem] border-separate border-spacing-y-1.5 text-sm">
-                        <thead class="text-left text-sm font-semibold text-zinc-600 dark:text-zinc-300 [&_th]:px-2">
+                        <thead class="text-center text-sm font-semibold text-zinc-600 dark:text-zinc-300 [&_th]:px-2">
                             <tr>
                                 <th scope="col" class="w-36">Clave modelo</th>
                                 <th scope="col">Producto</th>
@@ -42,9 +42,9 @@
                                 <th scope="col">Descripción</th>
                                 <th scope="col" class="w-28">Aplicación</th>
                                 <th scope="col" class="w-24">Telar</th>
-                                <th scope="col" class="w-28 text-right">Pedido</th>
-                                <th scope="col" class="w-20 text-right">% 2as</th>
-                                <th scope="col" class="w-28 text-right">Saldo</th>
+                                <th scope="col" class="w-28">Pedido</th>
+                                <th scope="col" class="w-20">% 2as</th>
+                                <th scope="col" class="w-28">Saldo</th>
                                 <th scope="col" class="w-40">Observaciones</th>
                                 <th scope="col" class="w-12"><span class="sr-only">Quitar</span></th>
                             </tr>
@@ -63,22 +63,12 @@
                                             <span class="block py-2">{{ $fila['clave'] }}</span>
                                         @else
                                             {{-- El div relative ancla la lista justo debajo del input (en un <td> no es fiable). --}}
-                                            <div class="relative">
+                                            <div class="relative" x-data="{ foco: false }" x-on:focusin="foco = true" x-on:focusout="foco = false">
                                                 {{-- wire:change y no wire:blur: pasar por el campo sin cambiar la clave no vuelve a
                                                      consultar Modelos/AX ni pisa el Flog y la Descripción capturados. --}}
                                                 <flux:input wire:model.live.debounce.250ms="{{ $base }}.clave" wire:change="confirmar('clave', {{ $i }})"
                                                             maxlength="100" autocomplete="off" aria-label="Clave modelo fila {{ $i + 1 }}" />
-                                                @if (($sugerencias['campo'] ?? null) === 'clave' && $sugerencias['i'] === $i)
-                                                    {{-- mousedown.prevent: elegir sin disparar el blur del input. --}}
-                                                    <ul role="listbox" aria-label="Sugerencias" class="absolute left-0 top-full z-20 mt-1 w-max min-w-full max-w-md max-h-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-                                                        @foreach ($sugerencias['items'] as $opcion)
-                                                            <li wire:key="sug-clave-{{ $i }}-{{ $loop->index }}">
-                                                                <button type="button" role="option" wire:mousedown.prevent="elegir('clave', {{ $i }}, @js($opcion))"
-                                                                        class="w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none dark:hover:bg-zinc-700">{{ $opcion }}</button>
-                                                            </li>
-                                                        @endforeach
-                                                    </ul>
-                                                @endif
+                                                @include('livewire.planeacion.programa-tejido.sugerencias', ['campo' => 'clave'])
                                             </div>
                                             @error("$base.clave") <span class="mt-1 block text-caption text-red-600">{{ $message }}</span> @enderror
                                         @endif
@@ -94,22 +84,14 @@
                                         @if ($fija)
                                             <span class="block py-2">{{ $fila['flog'] }}</span>
                                         @else
-                                            {{-- El div relative ancla la lista justo debajo del input (en un <td> no es fiable). --}}
-                                            <div class="relative">
+                                            {{-- Al enfocar sale la lista de flogs vigentes, primero los del artículo de la fila. --}}
+                                            <div class="relative" x-data="{ foco: false }" x-on:focusin="foco = true" x-on:focusout="foco = false">
                                                 <flux:input wire:model.live.debounce.250ms="{{ $base }}.flog" wire:change="confirmar('flog', {{ $i }})"
+                                                            wire:focus="abrirSugerencias({{ $i }})"
                                                             maxlength="100" autocomplete="off" aria-label="Flog fila {{ $i + 1 }}" />
-                                                @if (($sugerencias['campo'] ?? null) === 'flog' && $sugerencias['i'] === $i)
-                                                    {{-- mousedown.prevent: elegir sin disparar el blur del input. --}}
-                                                    <ul role="listbox" aria-label="Sugerencias" class="absolute left-0 top-full z-20 mt-1 w-max min-w-full max-w-md max-h-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-                                                        @foreach ($sugerencias['items'] as $opcion)
-                                                            <li wire:key="sug-flog-{{ $i }}-{{ $loop->index }}">
-                                                                <button type="button" role="option" wire:mousedown.prevent="elegir('flog', {{ $i }}, @js($opcion))"
-                                                                        class="w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-blue-50 focus:bg-blue-50 focus:outline-none dark:hover:bg-zinc-700">{{ $opcion }}</button>
-                                                            </li>
-                                                        @endforeach
-                                                    </ul>
-                                                @endif
+                                                @include('livewire.planeacion.programa-tejido.sugerencias', ['campo' => 'flog'])
                                             </div>
+                                            @error("$base.flog") <span class="mt-1 block text-caption text-red-600">{{ $message }}</span> @enderror
                                         @endif
                                     </td>
                                     <td>
@@ -142,29 +124,30 @@
                                                     <option value="{{ $op['valor'] }}" title="{{ $op['salon'] }}" @selected($op['salon'] === $fila['salon'] && $op['telar'] === $fila['telar'])>{{ $op['telar'] }}</option>
                                                 @endforeach
                                             </flux:select>
-                                        @endif
-                                    </td>
-                                    <td class="text-right">
-                                        {{-- Pedido, %2as y Saldo con wire:model sin modificador: el valor vive en el cliente al
-                                             teclear y ptDuplicar (duplicar.ts) recalcula saldo, pedido derivado y cuadre sin ir
-                                             al servidor. wire:model.blur en Livewire 4 no manda request: el saldo no se movía. --}}
-                                        @if ($dividir)
-                                            <span class="block py-2 tabular-nums" title="(saldo + producción) / (1 + %2as)"
-                                                  x-text="ptDuplicar.pedidoDerivado($wire.$get('{{ $base }}'))">{{ $numero(\App\Livewire\Planeacion\ProgramaTejido\FilasDestino::pedidoDerivado($fila)) }}</span>
-                                        @else
-                                            <flux:input wire:model="{{ $base }}.pedido" x-on:input="ptDuplicar.alEscribir($wire, '{{ $base }}', 'pedido', $el.value)"
-                                                        inputmode="decimal" data-solo="decimal" data-decimales="2"
-                                                        class:input="text-right tabular-nums" aria-label="Pedido fila {{ $i + 1 }}" />
+                                            @error("$base.telar") <span class="mt-1 block text-caption text-red-600">{{ $message }}</span> @enderror
                                         @endif
                                     </td>
                                     <td>
-                                        <flux:input wire:model="{{ $base }}.porcSeg" x-on:input="ptDuplicar.alEscribir($wire, '{{ $base }}', 'porcSeg', $el.value)"
+                                        {{-- Se captura el pedido; el saldo es texto (pedido × (1 + %2as) − producción). wire:model sin
+                                             modificador: el valor vive en el cliente al teclear y ptDuplicar (duplicar.ts) muestra
+                                             saldo y cuadre sin ir al servidor; en Dividir el original toma la diferencia. --}}
+                                        <flux:input wire:model="{{ $base }}.pedido" x-on:input="ptDuplicar.absorber($wire, {{ $i }}, 'pedido', $el.value)"
+                                                    inputmode="decimal" data-solo="decimal" data-decimales="2"
+                                                    class:input="text-right tabular-nums" aria-label="Pedido fila {{ $i + 1 }}" />
+                                        @if ($dividir && $fila['aviso'])
+                                            <span class="mt-1 block text-caption text-amber-700 dark:text-amber-400">{{ $fila['aviso'] }}</span>
+                                        @endif
+                                        @error("$base.pedido") <span class="mt-1 block text-caption text-red-600">{{ $message }}</span> @enderror
+                                    </td>
+                                    <td>
+                                        <flux:input wire:model="{{ $base }}.porcSeg" x-on:input="ptDuplicar.absorber($wire, {{ $i }}, 'porcSeg', $el.value)"
                                                     inputmode="decimal" data-solo="decimal" data-decimales="2"
                                                     class:input="text-right tabular-nums" aria-label="Porcentaje de segundas fila {{ $i + 1 }}" />
                                     </td>
-                                    <td>
-                                        <flux:input wire:model="{{ $base }}.saldo" inputmode="decimal" data-solo="decimal" data-decimales="2"
-                                                    class:input="text-right tabular-nums font-semibold" aria-label="Saldo fila {{ $i + 1 }}" />
+                                    <td class="text-right">
+                                        {{-- El servidor vuelve a calcular el saldo desde el pedido al guardar. --}}
+                                        <span class="block py-2 font-semibold tabular-nums" title="pedido × (1 + %2as) − producción"
+                                              x-text="ptDuplicar.saldo($wire.$get('{{ $base }}'))">{{ $numero(\App\Livewire\Planeacion\ProgramaTejido\FilasDestino::saldo($fila)) }}</span>
                                     </td>
                                     <td>
                                         <flux:input wire:model.blur="{{ $base }}.observaciones" maxlength="500" autocomplete="off" aria-label="Observaciones fila {{ $i + 1 }}" />
@@ -187,7 +170,7 @@
 
                     @if ($dividir)
                         {{-- Se anuncia al cambiar: el planeador ve cuánto falta sin buscar el botón. El texto del
-                             servidor es el inicial; cuadreVivo (duplicar.ts) lo recalcula al teclear cada saldo. --}}
+                             servidor es el inicial; cuadreVivo (duplicar.ts) lo recalcula al teclear cada pedido. --}}
                         <p aria-live="polite" class="text-sm tabular-nums" x-data="ptDuplicar.cuadreVivo(@js($cuadre['disponible']))">
                             Disponible <strong>{{ $numero($cuadre['disponible']) }}</strong>
                             · Asignado <strong x-text="c.asignado">{{ $numero($cuadre['asignado']) }}</strong>
@@ -196,26 +179,32 @@
                     @endif
                 </div>
 
-                @if ($aviso !== null || $errors->any())
+                @php
+                    // Los errores de telar, clave y flog (filas.*) salen bajo su campo; aquí solo los demás.
+                    $otrosErrores = array_filter($errors->getMessages(), fn ($campo) => ! str_starts_with($campo, 'filas.'), ARRAY_FILTER_USE_KEY);
+                @endphp
+                @if ($aviso !== null || $otrosErrores !== [])
                     <flux:callout variant="danger" icon="exclamation-triangle" role="alert">
                         <flux:callout.text>
                             @if ($aviso !== null) <span class="block">{{ $aviso }}</span> @endif
-                            @foreach ($errors->getMessages() as $campo => $mensajes)
-                                @unless (str_ends_with($campo, '.clave'))
-                                    <span class="block">{{ $mensajes[0] }}</span>
-                                @endunless
+                            @foreach ($otrosErrores as $mensajes)
+                                <span class="block">{{ $mensajes[0] }}</span>
                             @endforeach
                         </flux:callout.text>
                     </flux:callout>
                 @endif
 
+                @if ($pendiente !== null)
+                    <p role="status" class="text-sm font-medium text-amber-700 dark:text-amber-400">{{ $pendiente }}</p>
+                @endif
                 <div class="ui-dialogo__botones">
                     <button type="button" class="ui-dialogo__boton ui-dialogo__boton--secundario"
                             x-on:click="$el.closest('dialog').close()">Cancelar</button>
-                    {{-- Sin :disabled por cuadre: el render va un paso atrás del último blur y se comía el
-                         primer clic. guardar() revisa el cuadre y deja el aviso en el diálogo. --}}
-                    <button type="submit" @class(['ui-dialogo__boton ui-dialogo__boton--primario', 'bg-purple-600! hover:bg-purple-700!' => $modo === 'vincular', 'bg-green-600! hover:bg-green-700!' => $modo === 'dividir'])
-                            wire:loading.attr="data-ocupado" wire:target="guardar">
+                    {{-- Bloqueado mientras falte telar o haya clave/flog marcados: todo eso cambia en el servidor,
+                         así que el render no va atrasado. El cuadre de Dividir no bloquea (se calcula en el cliente):
+                         guardar() lo revisa y deja el aviso. --}}
+                    <button type="submit" @class(['ui-dialogo__boton ui-dialogo__boton--primario disabled:cursor-not-allowed disabled:opacity-50', 'bg-purple-600! hover:bg-purple-700!' => $modo === 'vincular', 'bg-green-600! hover:bg-green-700!' => $modo === 'dividir'])
+                            @disabled($pendiente !== null) wire:loading.attr="data-ocupado" wire:target="guardar">
                         <span wire:loading.remove wire:target="guardar">{{ ['duplicar' => 'Duplicar', 'vincular' => 'Duplicar y vincular', 'dividir' => 'Dividir'][$modo] }}</span>
                         <span wire:loading wire:target="guardar">Guardando…</span>
                     </button>

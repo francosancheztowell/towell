@@ -13,7 +13,6 @@ use App\Services\Planeacion\ProgramaTejido\CatalogoModelos;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -23,6 +22,9 @@ use Throwable;
 final class CatalogosDestino
 {
     private const SEGUNDOS_CACHE = 600;
+
+    /** Opciones de la lista de Flog (con scroll). */
+    private const SUGERENCIAS_FLOG = 30;
 
     /** Solo lo que pinta el diálogo y lo que necesita el cálculo del saldo. */
     private const COLUMNAS = [
@@ -124,9 +126,28 @@ final class CatalogosDestino
     {
         $clave = trim($clave);
 
-        return $clave === '' ? [] : Cache::remember('pt-duplicar:salones-clave:'.mb_strtoupper($clave), self::SEGUNDOS_CACHE,
+        return $clave === '' ? [] : Cache::remember(self::llaveSalones($clave), self::SEGUNDOS_CACHE,
             fn () => ReqModelosCodificados::query()->where('TamanoClave', $clave)->distinct()->pluck('SalonTejidoId')
                 ->map(fn ($s) => TelarSalonResolver::normalizeSalon((string) $s))->unique()->values()->all());
+    }
+
+    private static function llaveSalones(string $clave): string
+    {
+        return 'pt-duplicar:salones-clave:'.mb_strtoupper(trim($clave));
+    }
+
+    /** ¿La clave existe en Modelos para ese salón? Si no, se relee sin caché (modelo recién dado de alta). */
+    public static function claveEnSalon(string $clave, string $salon): bool
+    {
+        if (trim($clave) === '') {
+            return false;
+        }
+        if (in_array($salon, self::salonesDeClave($clave), true)) {
+            return true;
+        }
+        Cache::forget(self::llaveSalones($clave));
+
+        return in_array($salon, self::salonesDeClave($clave), true);
     }
 
     /**
@@ -153,39 +174,77 @@ final class CatalogosDestino
     }
 
     /**
-     * Flogs activos de AX (estados 3, 4, 5, 21) con su proyecto: ~300, una consulta cacheada.
-     * ponytail: query directa a TwFlogsTable; si crece, moverla al repositorio de AX.
+     * Flogs vigentes de AX con su proyecto, con la misma regla que Liberar (estado 3/4/5/21 y al
+     * menos una línea abierta): ~300, una consulta cacheada. $refrescar relee AX (un flog nuevo);
+     * si AX no responde se queda el catálogo que había, para no apagar la validación.
      *
      * @return array<string, string> IDFLOG => NAMEPROYECT
      */
-    public static function flogs(): array
+    public static function flogs(bool $refrescar = false): array
     {
-        return Cache::remember('pt-duplicar:flogs', self::SEGUNDOS_CACHE, function (): array {
+        $leer = function (): ?array {
             try {
-                return DB::connection('sqlsrv_ti')->table('dbo.TwFlogsTable')
-                    ->whereIn('EstadoFlog', [3, 4, 5, 21])
-                    ->whereNotNull('IDFLOG')
-                    ->orderBy('IDFLOG')
-                    ->pluck('NAMEPROYECT', 'IDFLOG')
+                return app(LiberarFlogSugeridoService::class)->cabecerasVigentes()
+                    ->orderBy('ft.IDFLOG')
+                    ->pluck('ft.NAMEPROYECT', 'ft.IDFLOG')
                     ->mapWithKeys(fn ($proyecto, $id) => [trim((string) $id) => trim((string) $proyecto)])
                     ->all();
             } catch (Throwable $e) {
                 report($e);
 
-                return []; // sin AX el flog se escribe a mano, como antes
+                return null;
             }
-        });
+        };
+        if ($refrescar && ($frescos = $leer()) !== null) {
+            Cache::put('pt-duplicar:flogs', $frescos, self::SEGUNDOS_CACHE);
+
+            return $frescos;
+        }
+
+        // Sin AX el catálogo queda vacío y el flog se escribe a mano, como antes.
+        return Cache::remember('pt-duplicar:flogs', self::SEGUNDOS_CACHE, fn () => $leer() ?? []);
     }
 
-    /** @return list<string> */
-    public static function buscarFlogs(string $texto): array
+    /** ¿El flog está vigente en AX? Sin AX (catálogo vacío) no se bloquea: se captura a mano, como antes. */
+    public static function esFlogVigente(string $flog): bool
+    {
+        $flog = trim($flog);
+        $flogs = self::flogs();
+
+        return $flog !== '' && ($flogs === [] || isset($flogs[$flog]) || isset(self::flogs(refrescar: true)[$flog]));
+    }
+
+    /**
+     * Flogs vigentes que contienen $texto (todos si está vacío), primero los del artículo de la fila.
+     *
+     * @param  list<string>  $delArticulo
+     * @return list<string>
+     */
+    public static function buscarFlogs(string $texto, array $delArticulo = []): array
     {
         $texto = mb_strtoupper(trim($texto));
+        $vigentes = array_map('strval', array_keys(self::flogs()));
+        $ids = array_unique([...array_intersect($delArticulo, $vigentes), ...$vigentes]);
 
-        return $texto === '' ? [] : array_slice(array_values(array_filter(
-            array_keys(self::flogs()),
-            fn (string $id) => str_contains(mb_strtoupper($id), $texto)
-        )), 0, 10);
+        return array_slice(array_values(array_filter(
+            $ids,
+            fn (string $id) => $texto === '' || str_contains(mb_strtoupper($id), $texto)
+        )), 0, self::SUGERENCIAS_FLOG);
+    }
+
+    /**
+     * Flogs vigentes con línea abierta de ese artículo+talla, del más reciente al más antiguo.
+     * Solo ordenan la lista: no se bloquea por artículo (las órdenes FEL no salen en las líneas).
+     *
+     * @return list<string>
+     */
+    public static function flogsDelArticulo(string $itemId, string $talla): array
+    {
+        $itemId = trim($itemId);
+
+        return $itemId === '' ? [] : Cache::remember('pt-duplicar:flogs-articulo:'.mb_strtoupper($itemId.'|'.trim($talla)), self::SEGUNDOS_CACHE,
+            fn () => app(LiberarFlogSugeridoService::class)
+                ->flogsDelLote([(new ReqProgramaTejido)->forceFill(['ItemId' => $itemId, 'InventSizeId' => $talla])])[LiberarFlogSugeridoService::claveItemTalla($itemId, $talla)] ?? []);
     }
 
     /** @return array{flogsId: string, nombreProyecto: string}|null */

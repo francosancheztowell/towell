@@ -12,10 +12,10 @@ import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactil
 import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 import {
     abrirDuplicar as ptAbrirDuplicar,
-    alEscribir as ptAlEscribir,
+    absorber as ptAbsorber,
     cuadreVivo as ptCuadreVivo,
     escucharGuardado as ptEscucharDuplicarGuardado,
-    pedidoDerivado as ptPedidoDerivado,
+    saldo as ptSaldo,
     type RespuestaDuplicar as PtRespuestaDuplicar,
 } from './duplicar.ts';
 import { abrirFiltroColumna as ptAbrirFiltroColumna, textoARango as ptTextoARango, tipoDeColumna as ptTipoDeColumna, valoresDeColumna as ptValoresDeColumna } from './filtro-columna.ts';
@@ -62,7 +62,7 @@ declare global {
         onFiltersApplied?: (filters: any[]) => void;
         escapeHtmlPtModal: typeof escapeHtmlPtModal;
         /** Lo que la Blade del modal Duplicar/Dividir llama al teclear (duplicar.ts). */
-        ptDuplicar: { alEscribir: typeof ptAlEscribir; cuadreVivo: typeof ptCuadreVivo; pedidoDerivado: typeof ptPedidoDerivado };
+        ptDuplicar: { saldo: typeof ptSaldo; cuadreVivo: typeof ptCuadreVivo; absorber: typeof ptAbsorber };
 
         allRows: any[];
         selectedRowIndex: number;
@@ -304,8 +304,9 @@ window.ptRefrescarTelares = async (ids: string[]) => {
 };
 
 // Modal Duplicar/Dividir (Livewire): al guardar se pintan las filas sin recargar. La Blade del
-// modal llama a ptDuplicar para recalcular saldo, pedido derivado y cuadre al teclear.
-window.ptDuplicar = { alEscribir: ptAlEscribir, cuadreVivo: ptCuadreVivo, pedidoDerivado: ptPedidoDerivado };
+// modal llama a ptDuplicar para mostrar saldo y cuadre al teclear, y para que en Dividir el
+// original tome la diferencia.
+window.ptDuplicar = { saldo: ptSaldo, cuadreVivo: ptCuadreVivo, absorber: ptAbsorber };
 ptEscucharDuplicarGuardado({
 	insertar: insertarFilasNuevas,
 	refrescar: actualizarRegistrosPorIds,
