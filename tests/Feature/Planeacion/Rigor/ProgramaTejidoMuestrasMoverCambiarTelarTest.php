@@ -113,9 +113,10 @@ class ProgramaTejidoMuestrasMoverCambiarTelarTest extends TestCase
         $this->assertSame([1, 2, 3], $this->valoresPosicion('MuestrasPrograma', '201'));
 
         $e = $this->estado('MuestrasPrograma', [1, 2, 6]);
-        $this->assertSame([1, 0, 0], [(int) $e[1]['EnProceso'], (int) $e[6]['EnProceso'], (int) $e[2]['EnProceso']]);
+        // Muestras no tiene en proceso (owner, 23-oct-2026): el 1 que traía la 1 se limpia y no arranca en now().
+        $this->assertSame([0, 0, 0], [(int) $e[1]['EnProceso'], (int) $e[6]['EnProceso'], (int) $e[2]['EnProceso']]);
         $this->assertSame(['0', '0', '1'], [$e[1]['Ultimo'], $e[6]['Ultimo'], $e[2]['Ultimo']], 'Ultimo solo en el último del telar');
-        $this->assertSame('2026-09-10 08:00:00', $e[1]['FechaInicio'], 'el EnProceso arranca en now()');
+        $this->assertNotSame('2026-09-10 08:00:00', $e[1]['FechaInicio'], 'la primera muestra conserva su inicio, no now()');
         $this->assertGreaterThanOrEqual(strtotime($e[1]['FechaFinal']), strtotime($e[6]['FechaInicio']));
         $this->assertGreaterThanOrEqual(strtotime($e[6]['FechaFinal']), strtotime($e[2]['FechaInicio']));
         // Totales y grupos no se tocan al reordenar.
@@ -174,28 +175,42 @@ class ProgramaTejidoMuestrasMoverCambiarTelarTest extends TestCase
         $this->assertSame($antes, $this->fotoSuperficies());
     }
 
-    public function test_mover_en_muestras_un_registro_en_proceso_es_422_sin_cambios(): void
+    /** Muestras no tiene en proceso: una muestra con el 1 de antes se mueve como cualquier otra. */
+    public function test_mover_en_muestras_una_que_venia_en_proceso_si_se_mueve(): void
     {
-        $antes = $this->fotoSuperficies();
+        $programaAntes = $this->fotoSinMuestras();
 
         $this->como()->postJson('/planeacion/muestras/1/prioridad/mover', ['new_position' => 2])
-            ->assertStatus(422)
-            ->assertExactJson([
-                'success' => false,
-                'message' => 'No se puede mover un registro en proceso. Debe finalizar el proceso antes de moverlo.',
-            ]);
+            ->assertOk()->assertJsonPath('success', true);
 
-        $this->assertSame($antes, $this->fotoSuperficies());
+        $this->assertSame([2, 6, 1], $this->posiciones('MuestrasPrograma', '201'));
+        $this->assertSame(0, DB::table('MuestrasPrograma')->where('NoTelarId', '201')->where('EnProceso', 1)->count());
+        $this->assertSame($programaAntes, $this->fotoSinMuestras(), 'Programa no se toca');
     }
 
-    public function test_mover_en_muestras_antes_del_en_proceso_es_422_sin_cambios(): void
+    /** Y se puede poner otra muestra en la primera posición (antes no se podía antes del "en proceso"). */
+    public function test_mover_en_muestras_a_la_primera_posicion(): void
     {
+        $this->como()->postJson('/planeacion/muestras/6/prioridad/mover', ['new_position' => 0])
+            ->assertOk()->assertJsonPath('success', true);
+
+        $this->assertSame([6, 1, 2], $this->posiciones('MuestrasPrograma', '201'));
+        $this->assertSame(0, DB::table('MuestrasPrograma')->where('NoTelarId', '201')->where('EnProceso', 1)->count());
+    }
+
+    /** En Programa sigue la regla de siempre: el en proceso no se mueve y nada va antes de él. */
+    public function test_mover_en_programa_sigue_respetando_el_en_proceso(): void
+    {
+        $this->usarSuperficie('programa');
         $antes = $this->fotoSuperficies();
 
-        $r = $this->como()->postJson('/planeacion/muestras/6/prioridad/mover', ['new_position' => 0])
-            ->assertStatus(422)->assertJsonPath('success', false);
-
+        $this->como([2 => ['modificar']])->postJson('/planeacion/programa-tejido/1/prioridad/mover', ['new_position' => 2])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'No se puede mover un registro en proceso. Debe finalizar el proceso antes de moverlo.');
+        $r = $this->como([2 => ['modificar']])->postJson('/planeacion/programa-tejido/6/prioridad/mover', ['new_position' => 0])
+            ->assertStatus(422);
         $this->assertStringContainsString('posición mínima permitida es 2', $r->json('message'));
+
         $this->assertSame($antes, $this->fotoSuperficies());
     }
 
@@ -238,6 +253,25 @@ class ProgramaTejidoMuestrasMoverCambiarTelarTest extends TestCase
         $this->assertSame('1', (string) $movido->Ultimo);
 
         $this->assertSame($programaAntes, $this->fotoSinMuestras());
+    }
+
+    /** Cambiar telar: en Muestras se puede colocar antes de la que traía el "en proceso"; en Programa no. */
+    public function test_cambiar_telar_antes_del_en_proceso_solo_se_permite_en_muestras(): void
+    {
+        $this->como()->postJson('/planeacion/muestras/2/cambiar-telar', [
+            'nuevo_salon' => 'SMIT', 'nuevo_telar' => '204', 'target_position' => 0,
+        ])->assertOk()->assertJsonPath('success', true);
+        $this->assertSame([2, 5], $this->posiciones('MuestrasPrograma', '204'));
+        $this->assertSame(0, DB::table('MuestrasPrograma')->where('EnProceso', 1)->whereIn('NoTelarId', ['201', '204'])->count());
+
+        $this->usarSuperficie('programa');
+        DB::table('ReqProgramaTejido')->where('Id', 5)->update(['EnProceso' => 1]);
+        $antes = $this->fotoSuperficies();
+        $r = $this->como([2 => ['modificar']])->postJson('/planeacion/programa-tejido/2/cambiar-telar', [
+            'nuevo_salon' => 'SMIT', 'nuevo_telar' => '204', 'target_position' => 0,
+        ])->assertStatus(422);
+        $this->assertStringContainsString('posición mínima permitida es 2', $r->json('message'));
+        $this->assertSame($antes, $this->fotoSuperficies());
     }
 
     public function test_cambiar_telar_en_programa_deja_muestras_intacto(): void

@@ -23,7 +23,8 @@ final class SecuenciaFechasTelar
      * Recalcula la secuencia completa (ya ordenada) a partir de $inicioOriginal.
      *
      * - Inicio = fin del anterior (snap al calendario si cae en gap); EnProceso arranca en now()
-     * - EnProceso = 1 el primer registro; Ultimo = '1' el último; Posicion = i + 1
+     * - EnProceso = 1 el primer registro (solo en Programa: Muestras no tiene en proceso);
+     *   Ultimo = '1' el último; Posicion = i + 1
      *
      * @return array{0: array<int,array<string,mixed>>, 1: array<int,array<string,mixed>>} [updates por Id, detalles]
      */
@@ -40,10 +41,13 @@ final class SecuenciaFechasTelar
         $now = now();
         $cursor = $inicioOriginal->copy();
         $fibraPrev = '';
+        // Muestras: ninguna queda en proceso ni arranca en now(), aunque traiga un 1 de antes.
+        $marcaEnProceso = ProgramaTejidoSurface::deTabla()->tieneEnProceso();
+        $enProcesoDelPrimero = (int) $marcaEnProceso;
 
         foreach ($registros as $i => $r) {
             /** @var ReqProgramaTejido $r */
-            $esEnProceso = ($r->EnProceso == 1 || $r->EnProceso === true);
+            $esEnProceso = self::estaEnProceso($r, $marcaEnProceso);
             $nuevoInicio = self::inicioEnSecuencia($r, $cursor, $esEnProceso);
             $metricas = FormulasSecuenciaTelar::metricasBase($r);
             $nuevoFin = self::finEnSecuencia($r, $nuevoInicio, self::horasNecesarias($r, $metricas), $esEnProceso);
@@ -56,7 +60,7 @@ final class SecuenciaFechasTelar
             $updates[$id] = array_merge([
                 'FechaInicio' => $tmp->FechaInicio,
                 'FechaFinal' => $tmp->FechaFinal,
-                'EnProceso' => $i === 0 ? 1 : 0,
+                'EnProceso' => $i === 0 ? $enProcesoDelPrimero : 0,
                 'Ultimo' => $i === ($n - 1) ? '1' : '0',
                 'CambioHilo' => $cambioHilo,
                 'Posicion' => $i + 1,
@@ -193,6 +197,12 @@ final class SecuenciaFechasTelar
     /* =========================================================
      *  INICIO / FIN
      * =======================================================*/
+
+    /** EnProceso de la fila; donde no hay en proceso (Muestras) siempre false, aunque traiga un 1 de antes. */
+    private static function estaEnProceso(ReqProgramaTejido $r, bool $hayEnProceso): bool
+    {
+        return $hayEnProceso && ($r->EnProceso == 1 || $r->EnProceso === true);
+    }
 
     /** Inicio = cursor (o now() para EnProceso), con snap al calendario si cae en gap (no a EnProceso). */
     private static function inicioEnSecuencia(ReqProgramaTejido $r, Carbon $cursor, bool $esEnProceso): Carbon

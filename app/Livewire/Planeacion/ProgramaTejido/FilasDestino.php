@@ -99,8 +99,8 @@ final class FilasDestino
     {
         return array_merge([
             'salon' => $d['salon'], 'telar' => '', 'clave' => $d['clave'], 'producto' => $d['producto'],
-            // Sin aplicación = "NA" (NINGUNA en ReqAplicaciones), igual que en la grilla.
-            'flog' => $d['flog'], 'descripcion' => $d['descripcion'], 'aplicacion' => $d['aplicacion'] ?: 'NA',
+            // Fila nueva: "NA" (NINGUNA = sin aplicación) aunque el original tenga otra (owner, 23-oct).
+            'flog' => $d['flog'], 'descripcion' => $d['descripcion'], 'aplicacion' => 'NA',
             'custName' => $d['custName'], 'itemId' => $d['itemId'], 'inventSizeId' => $d['inventSizeId'],
             'pedido' => '', 'porcSeg' => self::numero($d['porcSeg']), 'saldo' => '',
             'produccion' => 0.0, 'registroId' => null, 'existente' => false, 'aviso' => null,
@@ -153,6 +153,8 @@ final class FilasDestino
         return self::fila($d, [
             'telar' => $d['telar'], 'pedido' => self::numero($pedido), 'produccion' => $d['produccion'],
             'registroId' => $d['id'], 'existente' => true, 'aviso' => $aviso,
+            // La que ya existe muestra la suya (no se edita ni se manda).
+            'aplicacion' => $d['aplicacion'] ?: 'NA',
         ]);
     }
 
@@ -191,7 +193,7 @@ final class FilasDestino
                 'registro_id' => $f['registroId'],
                 'es_existente' => $f['existente'],
                 'es_nuevo' => ! $f['existente'],
-            ], array_values(array_filter($filas, self::filaUtil(...)))),
+            ] + ($f['existente'] ? [] : ['aplicacion' => $f['aplicacion']]), array_values(array_filter($filas, self::filaUtil(...)))),
         ];
     }
 

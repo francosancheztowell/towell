@@ -12,6 +12,7 @@ use App\Services\Planeacion\ProgramaTejido\Helpers\DateHelpers;
 use App\Services\Planeacion\ProgramaTejido\Helpers\QueryHelpers;
 use App\Services\Planeacion\ProgramaTejido\Helpers\TejidoHelpers;
 use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use App\Services\Planeacion\ProgramaTejido\VincularTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -209,8 +210,10 @@ class ProgramaTejidoOperacionesController extends Controller
             $destInicio = $destRegistrosOriginal->first()?->FechaInicio ?? $registro->FechaInicio ?? now();
 
             $ultimoEnProcesoIndex = -1;
+            // Muestras no tiene en proceso: no hay posición mínima en el telar destino.
+            $conEnProceso = ProgramaTejidoSurface::deTabla()->tieneEnProceso();
             foreach ($destRegistrosOriginal as $index => $regDestino) {
-                if ($regDestino->EnProceso == 1) {
+                if ($conEnProceso && $regDestino->EnProceso == 1) {
                     $ultimoEnProcesoIndex = $index;
                 }
             }

@@ -27,8 +27,8 @@ class DragAndDropTejido
 
         AuditoriaHelper::contexto('DRAGDROP');
 
-        // Validación: Registro no debe estar en proceso
-        if ((int) $registro->EnProceso === 1) {
+        // Validación: Registro no debe estar en proceso (solo Programa: Muestras no tiene en proceso)
+        if ((int) $registro->EnProceso === 1 && ProgramaTejidoSurface::deTabla()->tieneEnProceso()) {
             return response()->json([
                 'success' => false,
                 'message' => 'No se puede mover un registro en proceso. Debe finalizar el proceso antes de moverlo.',
@@ -235,6 +235,10 @@ class DragAndDropTejido
 
     private static function validarPosicionPermitida(Collection $registros, int $nuevaPosicion): void
     {
+        // Muestras no tiene en proceso: un 1 que quede de antes no limita la posición.
+        if (! ProgramaTejidoSurface::deTabla()->tieneEnProceso()) {
+            return;
+        }
         $ultimoEnProcesoIndex = -1;
 
         foreach ($registros as $index => $reg) {

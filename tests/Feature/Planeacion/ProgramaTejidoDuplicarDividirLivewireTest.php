@@ -545,19 +545,53 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         $this->assertCount(1, $this->filasNuevas());
     }
 
-    public function test_aplicacion_na_por_default_y_na_deja_la_copia_sin_aplicacion(): void
+    /** Las filas nuevas abren en "NA" aunque el original tenga otra (owner, 23-oct); NA = sin aplicación. */
+    public function test_aplicacion_na_por_default_aunque_el_original_tenga_otra(): void
     {
-        $this->componente()->dispatch('pt-duplicar-abrir', id: 1)->assertSet('filas.duplicar.0.aplicacion', 'NA');
-
         DB::table('ReqProgramaTejido')->where('Id', 1)->update(['AplicacionId' => 'BOR']);
-        $this->componente()
-            ->dispatch('pt-duplicar-abrir', id: 1)
-            ->assertSet('filas.duplicar.0.aplicacion', 'BOR')
-            ->set('filas.duplicar.0.aplicacion', 'NA') // antes la copia heredaba BOR del original
+
+        $this->componente()->dispatch('pt-duplicar-abrir', id: 1)
+            ->assertSet('filas.duplicar.0.aplicacion', 'NA')
+            ->call('agregarFila')
+            ->assertSet('filas.duplicar.1.aplicacion', 'NA')
+            ->assertSet('filas.dividir.0.aplicacion', 'BOR') // la que ya existe muestra la suya
+            ->assertSet('filas.dividir.1.aplicacion', 'NA')
+            ->call('quitarFila', 1)
             ->call('guardar')
             ->assertDispatched('pt-duplicar-guardado');
 
         [$nuevo] = $this->filasNuevas();
-        $this->assertNull($nuevo->AplicacionId);
+        $this->assertNull($nuevo->AplicacionId, 'antes la copia heredaba BOR del original');
+    }
+
+    public function test_duplicar_respeta_la_aplicacion_que_se_elige(): void
+    {
+        DB::table('ReqProgramaTejido')->where('Id', 1)->update(['AplicacionId' => 'BOR']);
+
+        $this->componente()->dispatch('pt-duplicar-abrir', id: 1)
+            ->set('filas.duplicar.0.aplicacion', 'BOR')
+            ->call('guardar')
+            ->assertDispatched('pt-duplicar-guardado');
+
+        [$nuevo] = $this->filasNuevas();
+        $this->assertSame('BOR', $nuevo->AplicacionId);
+    }
+
+    /** Dividir: la parte nueva toma la aplicación de su fila (NA por default) y el original conserva la suya. */
+    public function test_dividir_la_parte_nueva_va_en_na_y_el_original_conserva_su_aplicacion(): void
+    {
+        DB::table('ReqProgramaTejido')->where('Id', 1)->update(['AplicacionId' => 'BOR']);
+
+        $this->componente()->dispatch('pt-duplicar-abrir', id: 1)
+            ->set('modo', 'dividir')
+            ->set('filas.dividir.0.pedido', '700')
+            ->call('elegirTelar', 1, 'SMIT|210')
+            ->set('filas.dividir.1.pedido', '300')
+            ->call('guardar')
+            ->assertDispatched('pt-duplicar-guardado');
+
+        [$parte] = $this->filasNuevas();
+        $this->assertNull($parte->AplicacionId, 'antes la parte heredaba BOR por replicate()');
+        $this->assertSame('BOR', DB::table('ReqProgramaTejido')->where('Id', 1)->value('AplicacionId'));
     }
 }

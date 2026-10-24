@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Helpers\FolioHelper;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,9 +57,29 @@ enum ProgramaTejidoSurface: string
         return self::fromRequest(request());
     }
 
+    /**
+     * Superficie de la tabla que usa ahora ReqProgramaTejido (ProgramaTejidoContext la fija por
+     * request; en consola es Programa). A diferencia de actual() no mira el path: sirve en
+     * comandos y servicios que solo saben a qué tabla escriben.
+     */
+    public static function deTabla(): self
+    {
+        return ReqProgramaTejido::tableName() === self::Muestras->tabla() ? self::Muestras : self::Programa;
+    }
+
     public function esMuestras(): bool
     {
         return $this === self::Muestras;
+    }
+
+    /**
+     * Muestras no tiene orden "en proceso" (owner, 23-oct-2026): la muestra se consume al guardarla
+     * en Desarrolladores Muestras y lo que teje el telar es la orden de Programa. Planeación y
+     * Recalcular fechas marcan EnProceso solo en Programa.
+     */
+    public function tieneEnProceso(): bool
+    {
+        return ! $this->esMuestras();
     }
 
     public function tabla(): string

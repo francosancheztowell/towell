@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Actions\Planeacion\ProgramaTejido\RecalcularRegistroPorProduccion;
 use App\Helpers\AuditoriaHelper;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -100,6 +101,17 @@ class RecalcularFechasProduccionCommand extends Command
 
     private function asignarEnProcesoSiFalta(): array
     {
+        // Muestras no tiene orden en proceso (owner, 23-oct-2026): se limpia la que haya en vez de
+        // asignarla. Programa sigue igual.
+        if (! ProgramaTejidoSurface::deTabla()->tieneEnProceso()) {
+            $limpiadas = DB::table(ReqProgramaTejido::tableName())->where('EnProceso', 1)->update(['EnProceso' => 0, 'UpdatedAt' => now()]);
+            if ($limpiadas > 0) {
+                $this->info("Muestras: {$limpiadas} registro(s) ya no quedan en proceso.");
+            }
+
+            return [];
+        }
+
         $idsAsignados = [];
 
         // Escanear TODOS los telares con registros (no solo los del filtro)

@@ -34,7 +34,8 @@ class EliminarTejido
         DB::beginTransaction();
         try {
             $registro = ReqProgramaTejido::findOrFail($id);
-            if ($registro->EnProceso == 1) {
+            // En Muestras no hay en proceso: un 1 que quede de antes no impide borrar la muestra.
+            if ($registro->EnProceso == 1 && ProgramaTejidoSurface::deTabla()->tieneEnProceso()) {
                 throw MutacionRechazada::con(['success' => false, 'message' => 'No se puede eliminar un registro que está en proceso.']);
             }
 

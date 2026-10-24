@@ -542,6 +542,64 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         });
     }
 
+    /**
+     * Muestras no tiene "en proceso" (owner, 23-oct-2026): el encabezado es la orden de producción
+     * que teje el telar (Programa), sin Finalizar/Reprogramar ni alerta de saldo, porque guardar
+     * una muestra no toca esa orden. Una muestra con un EnProceso viejo no sale en el encabezado.
+     */
+    /** Usuario de Desarrolladores Muestras y la muestra 1 (M3175) en el telar 101. */
+    private function sembrarMuestra(bool $enProceso = false): void
+    {
+        $this->actingAs($this->createUsuario(['area' => 'Desarrolladores']), 'web');
+        $this->grantModulo('Desarrolladores Muestras', ['acceso']);
+        $db = DB::connection('sqlsrv');
+        $db->statement('CREATE TABLE MuestrasPrograma AS SELECT * FROM ReqProgramaTejido WHERE 0');
+        $db->table('TelTelaresOperador')->insert(['NoTelarId' => '101', 'SalonTejidoId' => 'S1']);
+        $db->table('MuestrasPrograma')->insert([
+            'Id' => 1, 'NoProduccion' => 'M3175', 'NoTelarId' => '101', 'SalonTejidoId' => 'S1', 'TamanoClave' => 'TAM1',
+            'NombreProducto' => 'MUESTRA VIEJA EN PROCESO', 'EnProceso' => $enProceso, 'FechaInicio' => '2026-03-05 06:00:00',
+        ]);
+    }
+
+    public function test_en_muestras_el_encabezado_es_la_orden_de_produccion_sin_acciones_ni_alerta(): void
+    {
+        $this->sembrarMuestra(enProceso: true);
+        $this->ordenEnProcesoConSaldo(5);
+
+        $c = Livewire::test(Captura::class, ['modo' => 'muestras'])->set('telarId', '101');
+
+        $this->assertSame(['80000', 'TOALLA EN PROCESO'], [$c->instance()->ordenEnProceso['noProduccion'], $c->instance()->ordenEnProceso['nombre']]);
+        $c->assertSee('En producción en el telar')->assertDontSeeHtml('id="accionGuardar"');
+        $this->assertFalse($c->instance()->requiereAlertaSaldo(), 'guardar una muestra no finaliza la orden de producción');
+    }
+
+    /** Guardar una muestra es un toque, igual que en Desarrolladores: sin franja "Al guardar". */
+    public function test_en_muestras_guardar_es_un_toque_con_el_boton_guardar_y_consumir(): void
+    {
+        $this->sembrarMuestra();
+
+        $c = Livewire::test(Captura::class, ['modo' => 'muestras'])->set('telarId', '101')->call('seleccionar', 1);
+
+        $this->assertFalse($c->instance()->requiereConfirmacion());
+        $this->assertNotContains('Confirma lo que va a pasar al guardar.', $c->instance()->problemas());
+        $c->assertSee('Guardar y consumir muestra')
+            ->assertDontSee('Al guardar:')
+            ->assertDontSee('Finalizar la orden M3175')
+            ->assertDontSee('Eliminar la muestra del programa');
+    }
+
+    public function test_en_programa_el_encabezado_sigue_con_sus_acciones(): void
+    {
+        $this->autenticar();
+        $this->sembrarTelarConOrden();
+        $this->ordenEnProcesoConSaldo(5);
+
+        Livewire::test(Captura::class)->set('telarId', '101')
+            ->assertSee('TOALLA EN PROCESO')
+            ->assertDontSee('En producción en el telar')
+            ->assertSeeHtml('id="accionGuardar"');
+    }
+
     public function test_la_tabla_muestra_el_saldo_de_cada_orden(): void
     {
         $this->autenticar();

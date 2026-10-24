@@ -79,7 +79,8 @@
                                 <span class="text-xs font-bold uppercase tracking-wide text-amber-900">
                                     {{-- El banner mira al telar destino cuando hay cambio: hay que decirlo,
                                          o se lee como que la orden ya se movio. --}}
-                                    {{ $this->hayCambioTelar ? 'En proceso en el destino' : 'En proceso' }}
+                                    {{-- En Muestras es la orden de producción del telar: la muestra no está en proceso. --}}
+                                    {{ $esMuestras ? 'En producción en el telar' : ($this->hayCambioTelar ? 'En proceso en el destino' : 'En proceso') }}
                                 </span>
                                 <span wire:loading wire:target="telarId,telarDestino" class="ml-auto">
                                     <flux:icon.loading class="size-4 text-amber-700" />
@@ -98,6 +99,8 @@
                                 @endif
                             </div>
 
+                            {{-- Finalizar/Reprogramar es de la orden de Programa: guardar una muestra no la toca. --}}
+                            @unless ($esMuestras)
                             <div class="mt-3">
                                 <label for="accionGuardar" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-amber-900">Al guardar</label>
                                 <select wire:model.live="accion" id="accionGuardar"
@@ -109,6 +112,7 @@
                                     <option value="reprogramar_final">Reprogramar al final</option>
                                 </select>
                             </div>
+                            @endunless
                         </div>
                     @endif
                 </div>

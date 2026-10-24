@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Desarrolladores;
 
-use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TejCatMatrizDesarrolladores;
 use App\Services\Planeacion\CatalogosMaterialesLMatService;
@@ -100,12 +99,6 @@ class Captura extends Component
     private function moduloSysRoles(): string
     {
         return $this->modo === 'muestras' ? 'Desarrolladores Muestras' : 'Desarrolladores';
-    }
-
-    /** @return class-string<ReqProgramaTejido> */
-    private function modeloPrograma(): string
-    {
-        return $this->modo === 'muestras' ? Muestras::class : ReqProgramaTejido::class;
     }
 
     private function consultas(): ConsultasDesarrolladorService
@@ -237,6 +230,9 @@ class Captura extends Component
      * La orden que el telar tiene en curso. Antes salian dos fetch en paralelo sin
      * abortar, asi que al cambiar de telar rapido un banner viejo podia pisar al nuevo.
      * Como propiedad calculada se resuelve una sola vez por render.
+     *
+     * Siempre de Programa, tambien en Muestras: las muestras no estan en proceso (owner,
+     * 23-oct-2026); lo que teje el telar es la orden de produccion.
      */
     #[Computed]
     public function ordenEnProceso(): ?array
@@ -247,8 +243,7 @@ class Captura extends Component
             return null;
         }
 
-        $modelo = $this->modeloPrograma();
-        $orden = $modelo::query()
+        $orden = ReqProgramaTejido::query()
             ->where('NoTelarId', $telar)
             ->where('EnProceso', 1)
             ->select('NoProduccion', 'NombreProducto', 'FechaInicio', 'SaldoMarbete')
@@ -335,14 +330,15 @@ class Captura extends Component
     }
 
     /**
-     * Guardar puede, de un solo toque, finalizar la orden, moverla a otro telar y
-     * -en muestras- borrar el registro. Cuando alguna de esas dos cosas pasa, se pide
-     * una confirmacion explicita; el guardado corriente sigue siendo un toque.
+     * Guardar puede, de un solo toque, finalizar la orden y moverla a otro telar. Cuando la
+     * mueve se pide una confirmacion explicita; el guardado corriente sigue siendo un toque.
+     * En muestras igual que en programa (owner, 23-oct-2026): el boton "Guardar y consumir
+     * muestra" ya dice que la muestra sale del programa.
      */
     #[Computed]
     public function requiereConfirmacion(): bool
     {
-        return $this->hayCambioTelar || $this->modo === 'muestras';
+        return $this->hayCambioTelar;
     }
 
     /** Lo que va a ocurrir al guardar, en una frase, para la franja de confirmacion. */
@@ -352,18 +348,17 @@ class Captura extends Component
         $fila = $this->filaSeleccionada;
         $puntos = [];
 
-        $puntos[] = match ($this->accion) {
-            'reprogramar_siguiente' => 'Reprogramar la orden '.($fila['NoProduccion'] ?? '').' al siguiente turno',
-            'reprogramar_final' => 'Enviar la orden '.($fila['NoProduccion'] ?? '').' al final del programa',
-            default => 'Finalizar la orden '.($fila['NoProduccion'] ?? ''),
-        };
+        // Finalizar/Reprogramar es de la orden de programa: una muestra solo se consume.
+        if ($this->modo === 'programa') {
+            $puntos[] = match ($this->accion) {
+                'reprogramar_siguiente' => 'Reprogramar la orden '.($fila['NoProduccion'] ?? '').' al siguiente turno',
+                'reprogramar_final' => 'Enviar la orden '.($fila['NoProduccion'] ?? '').' al final del programa',
+                default => 'Finalizar la orden '.($fila['NoProduccion'] ?? ''),
+            };
+        }
 
         if ($this->hayCambioTelar) {
             $puntos[] = 'Mover el registro del telar '.$this->telarId.' al telar '.$this->telarDestinoNombre;
-        }
-
-        if ($this->modo === 'muestras') {
-            $puntos[] = 'Eliminar la muestra del programa (no se puede deshacer)';
         }
 
         return $puntos;
@@ -1043,10 +1038,14 @@ class Captura extends Component
         }
     }
 
-    /** La orden que se va a finalizar (la que esta en proceso) aun tiene mas de 2 marbetes. */
+    /**
+     * La orden que se va a finalizar (la que esta en proceso) aun tiene mas de 2 marbetes. Solo en
+     * Programa: guardar una muestra no finaliza la orden de produccion del telar.
+     */
     public function requiereAlertaSaldo(): bool
     {
-        return $this->accion === 'finalizar'
+        return $this->modo === 'programa'
+            && $this->accion === 'finalizar'
             && ! $this->saldoRevisado
             && ($this->ordenEnProceso['saldoMarbete'] ?? 0) > self::SALDO_MARBETE_ALERTA;
     }

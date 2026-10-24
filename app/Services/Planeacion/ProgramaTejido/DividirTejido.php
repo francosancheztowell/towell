@@ -374,6 +374,12 @@ class DividirTejido
         $observaciones = self::textoDe($destino, 'observaciones');
         $nuevo->Observaciones = $observaciones !== null ? StringTruncator::truncate('Observaciones', $observaciones) : $nuevo->Observaciones;
         $nuevo->PorcentajeSegundos = self::porcentajeDe($destino) ?? $nuevo->PorcentajeSegundos;
+        // Aplicación de la fila nueva: "NA" (NINGUNA) = sin aplicación, como en Duplicar y la grilla.
+        // Antes no se mandaba y la parte heredaba la del original.
+        $aplicacion = self::textoDe($destino, 'aplicacion');
+        if ($aplicacion !== null) {
+            $nuevo->AplicacionId = $aplicacion === 'NA' ? null : StringTruncator::truncate('AplicacionId', $aplicacion);
+        }
     }
 
     /** Fechas (al final de la cola del telar destino), cambio de hilo y fórmulas de la parte nueva. */

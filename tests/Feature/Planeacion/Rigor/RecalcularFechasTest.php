@@ -257,9 +257,12 @@ class RecalcularFechasTest extends TestCase
             ->assertOk()->assertJsonPath('ok', true);
 
         $this->assertSame($antes, $programa());
+        // Muestras no tiene en proceso (owner, 23-oct-2026): se limpia el 1 de las muestras 1 y 4 y la
+        // 1 no arranca en now(): conserva su inicio (06:30) y la 2 sigue al terminar sus 10 h.
+        $this->assertSame(0, DB::table('MuestrasPrograma')->where('EnProceso', 1)->count());
         $fila = DB::table('MuestrasPrograma')->where('Id', 2)->first();
-        $this->assertSame('2026-09-10 18:00:00', $fila->FechaInicio);
-        $this->assertSame('2026-09-10 20:00:00', $fila->FechaFinal);
+        $this->assertSame('2026-08-01 16:30:00', $fila->FechaInicio);
+        $this->assertSame('2026-08-01 18:30:00', $fila->FechaFinal);
     }
 
     public function test_regenera_las_lineas_diarias_de_los_registros_recalculados(): void

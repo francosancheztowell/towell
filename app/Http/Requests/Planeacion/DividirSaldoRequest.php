@@ -39,6 +39,7 @@ class DividirSaldoRequest extends FormRequest
             'destinos.*.custName' => 'nullable|string|max:255',
             'destinos.*.itemId' => 'nullable|string|max:100',
             'destinos.*.inventSizeId' => 'nullable|string|max:100',
+            'destinos.*.aplicacion' => 'nullable|string|max:255',
             'destinos.*.registro_id' => 'nullable|integer',
             'destinos.*.es_existente' => 'nullable|boolean',
             'destinos.*.es_nuevo' => 'nullable|boolean',
