@@ -73,9 +73,9 @@ test('el árbol agrupa Empresa > Tipo > Cliente > OC con Towel primero y suma ca
     const cliente = arbol[0]!.children[0]!.children[0]!
     assert.equal(cliente.level, 'cliente')
     assert.equal(cliente.orders, 2)
-    assert.deepEqual(cliente.children.map((nodo) => nodo.value), ['6100157353.', 'HZC-276'])
+    assert.deepEqual(cliente.children.map((nodo) => nodo.value), ['HZC-276', '6100157353.'], 'la OC creada más reciente va primero')
 
-    const oc = cliente.children[0]!
+    const oc = cliente.children[1]!
     assert.equal(oc.created, '01/10/2026')
     assert.deepEqual(oc.lines.map((l) => l.nombre), ['TOALLA BAÑO', 'TOALLA FACIAL AM RESORTS VI'])
     assert.deepEqual(oc.totals, { cantidad: 6000, entregado: 6000, pendiente: 0, importe: 65100 })
@@ -102,6 +102,20 @@ test('filtra por artículo, tamaño, color y código de barras', () => {
         assert.equal(matchesLine(fac!, filtros), false, key)
         assert.ok(matchesLine(alb!, filtros), key)
     }
+})
+
+test('las OCs y sus líneas van de la creada más reciente a la más antigua, no por fecha de factura', () => {
+    const lineas = decodePedidos(payload([
+        linea({ oc: 'A-100', creado: '15/09/2026', facturado: '20/10/2026' }),
+        linea({ oc: 'B-200', creado: '03/10/2026', facturado: '' }),
+        linea({ oc: 'C-300', creado: '28/09/2026', facturado: '22/10/2026' }),
+        linea({ oc: 'D-400', articulo: '1', nombre: 'A VIEJA', creado: '01/08/2026', facturado: '23/10/2026' }),
+        linea({ oc: 'D-400', articulo: '2', nombre: 'Z NUEVA', creado: '05/10/2026', facturado: '06/10/2026' }),
+    ]))
+    const cliente = buildTree(lineas)[0]!.children[0]!.children[0]!
+    assert.deepEqual(cliente.children.map((nodo) => nodo.value), ['D-400', 'B-200', 'C-300', 'A-100'])
+    assert.deepEqual(cliente.children[0]!.lines.map((l) => l.nombre), ['Z NUEVA', 'A VIEJA'])
+    assert.equal(cliente.children[0]!.created, '')
 })
 
 test('el tipo de pedido sigue el orden de negocio: CE, CE HT, RS y al final 2das / 3ra', () => {

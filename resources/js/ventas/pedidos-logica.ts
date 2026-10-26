@@ -101,10 +101,19 @@ const compareValues = (level: Level, a: string, b: string) => {
     return collator.compare(a, b);
 };
 
-/** Artículos por nombre; las líneas del mismo artículo, por fecha de factura (dd/mm/aaaa). */
+/** dd/mm/aaaa → aaaammdd, comparable como texto; sin fecha → '' (queda al final en orden descendente). */
 const dateKey = (date: string) => date.split('/').reverse().join('');
+
+/** Líneas de la creada más reciente a la más antigua; empates por nombre, artículo y fecha de factura. */
 const compareLines = (a: PedidoLinea, b: PedidoLinea) =>
-    collator.compare(a.nombre, b.nombre) || collator.compare(a.articulo, b.articulo) || dateKey(a.facturado).localeCompare(dateKey(b.facturado));
+    dateKey(b.creado).localeCompare(dateKey(a.creado))
+    || collator.compare(a.nombre, b.nombre) || collator.compare(a.articulo, b.articulo) || dateKey(a.facturado).localeCompare(dateKey(b.facturado));
+
+/** Fecha de creación más reciente de un grupo (aaaammdd). */
+const latestCreated = (lines: PedidoLinea[]) => lines.reduce((max, line) => {
+    const key = dateKey(line.creado);
+    return key > max ? key : max;
+}, '');
 
 export const buildTree = (lines: PedidoLinea[], depth = 0, parentId = ''): TreeNode[] => {
     const level = LEVELS[depth]!;
@@ -115,8 +124,14 @@ export const buildTree = (lines: PedidoLinea[], depth = 0, parentId = ''): TreeN
         if (bucket) bucket.push(line); else groups.set(key, [line]);
     });
 
+    // Las OCs van de la creada más reciente a la más antigua; los demás niveles, por orden de negocio.
+    const compareGroups = level === 'oc'
+        ? ([a, linesA]: [string, PedidoLinea[]], [b, linesB]: [string, PedidoLinea[]]) =>
+            latestCreated(linesB).localeCompare(latestCreated(linesA)) || compareValues(level, a, b)
+        : ([a]: [string, PedidoLinea[]], [b]: [string, PedidoLinea[]]) => compareValues(level, a, b);
+
     return [...groups.entries()]
-        .sort(([a], [b]) => compareValues(level, a, b))
+        .sort(compareGroups)
         .map(([value, groupLines]) => {
             const id = `${parentId}/${value}`;
             const isOrder = level === 'oc';
