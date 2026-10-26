@@ -9,6 +9,8 @@ use App\Models\Ventas\TwHistPedidosModel;
 use App\Models\Ventas\TwHistPronosModel;
 use App\Models\Ventas\TwHistVtasModel;
 use App\Repositories\Ventas\PvVsOcReportRepository;
+use App\Services\Ventas\PedidosHistoricosPayloadBuilder;
+use App\Services\Ventas\VentasDatosCache;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -106,6 +108,57 @@ class VentasComparaPorAnioTest extends TestCase
 
         $this->assertTrue(Cache::has('ventas:compara:v9:1760890000:2025'));
         $this->assertFalse(Cache::has('ventas:compara:v9:0:2025'));
+    }
+
+    public function test_con_version_publicada_la_cache_no_vence_por_tiempo(): void
+    {
+        Cache::forever('ventas:datos:version', '1760890000');
+        $cache = app(VentasDatosCache::class);
+        $this->assertSame(['2026', '2025', '2024'], $cache->comparaAnios());
+
+        $this->insertar(TwHistVtasModel::class, '2023', 1);
+        $this->travel(3)->days();
+
+        $this->assertSame(['2026', '2025', '2024'], $cache->comparaAnios());
+    }
+
+    public function test_sin_version_publicada_la_cache_sigue_venciendo_por_tiempo(): void
+    {
+        $cache = app(VentasDatosCache::class);
+        $this->assertSame(['2026', '2025', '2024'], $cache->comparaAnios());
+
+        $this->insertar(TwHistVtasModel::class, '2023', 1);
+        $this->travel(2)->days();
+
+        $this->assertSame(['2026', '2025', '2024', '2023'], $cache->comparaAnios());
+    }
+
+    public function test_olvidar_borra_solo_las_llaves_de_esa_version(): void
+    {
+        $cache = app(VentasDatosCache::class);
+        foreach (['100', '200'] as $version) {
+            $cache->comparaAnios($version);
+            $cache->compara('2025', $version);
+            Cache::forever($cache->clave('pedidos', 'anios', $version), ['2026']);
+            Cache::forever($cache->clave('pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION, '2026', $version), 'gz');
+            Cache::forever($cache->clave('historico', 'payload', $version), ['rows' => []]);
+        }
+
+        $cache->olvidar('100');
+
+        $claves = fn (string $version): array => [
+            $cache->clave('compara:v9', 'anios', $version),
+            $cache->clave('compara:v9', '2025', $version),
+            $cache->clave('pedidos', 'anios', $version),
+            $cache->clave('pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION, '2026', $version),
+            $cache->clave('historico', 'payload', $version),
+        ];
+        foreach ($claves('100') as $clave) {
+            $this->assertFalse(Cache::has($clave), $clave);
+        }
+        foreach ($claves('200') as $clave) {
+            $this->assertTrue(Cache::has($clave), $clave);
+        }
     }
 
     public function test_endpoint_compara_rechaza_un_anio_invalido(): void

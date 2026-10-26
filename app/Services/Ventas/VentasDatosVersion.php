@@ -24,6 +24,9 @@ final class VentasDatosVersion
 
     private const CLAVE_ESTADO = 'ventas:datos:marcas';
 
+    /** Marcas "estables" imposibles: ninguna lectura real coincide, así que cuenta como cambio. */
+    private const SIN_PUBLICAR = ['(sin versión publicada)' => null];
+
     public function __construct(private readonly VentasMarcasEscrituraRepository $marcas) {}
 
     public function actual(): string
@@ -43,7 +46,13 @@ final class VentasDatosVersion
     public function sincronizar(int $ahora, callable $calentar): ?string
     {
         $anterior = Cache::get(self::CLAVE_ESTADO);
-        [$estado, $publicar] = self::decidir(is_array($anterior) ? $anterior : null, $this->marcas->marcas(), $ahora);
+        $anterior = is_array($anterior) ? $anterior : null;
+        if (! Cache::has(self::CLAVE_VERSION) && ($anterior['estables'] ?? null) !== self::SIN_PUBLICAR) {
+            // Sin versión (primer arranque o `php artisan optimize:clear` en cada deploy): se trata como un
+            // cambio, así se publica tras la calma aunque las tablas no se vuelvan a escribir.
+            $anterior = ['estables' => self::SIN_PUBLICAR, 'vistas' => null, 'desde' => null];
+        }
+        [$estado, $publicar] = self::decidir($anterior, $this->marcas->marcas(), $ahora);
 
         if (! $publicar) {
             Cache::forever(self::CLAVE_ESTADO, $estado);

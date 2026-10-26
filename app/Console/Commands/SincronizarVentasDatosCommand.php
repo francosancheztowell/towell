@@ -20,7 +20,11 @@ final class SincronizarVentasDatosCommand extends Command
 
     public function handle(VentasDatosVersion $version, VentasDatosCache $cache): int
     {
+        $anterior = $version->actual();
         $publicada = $version->sincronizar(now()->getTimestamp(), fn (string $nueva) => $cache->calentar($nueva));
+        if ($publicada !== null && $publicada !== $anterior) {
+            $cache->olvidar($anterior);
+        }
 
         $this->info($publicada === null
             ? "Sin cambios que publicar (versión {$version->actual()})."
