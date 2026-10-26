@@ -82,6 +82,31 @@ class VentasDatosVersionTest extends TestCase
         $this->assertSame('200', $version->sincronizar(200, fn () => null));
     }
 
+    public function test_sin_version_publicada_publica_tras_la_calma_aunque_las_marcas_no_cambien(): void
+    {
+        // Lo que deja `php artisan optimize:clear` en cada deploy: ni versión ni estado en caché.
+        $marcas = ['dbo.TwHistoricosPedidos' => '2026-10-19 10:09:45.970'];
+        $this->lecturas = [$marcas, $marcas, $marcas];
+        $version = app(VentasDatosVersion::class);
+
+        $this->assertNull($version->sincronizar(0, fn () => null));
+        $this->assertNull($version->sincronizar(60, fn () => null));
+        $this->assertSame('120', $version->sincronizar(VentasDatosVersion::CALMA_SEGUNDOS, fn () => null));
+        $this->assertSame('120', $version->actual());
+    }
+
+    public function test_con_version_publicada_y_sin_cambios_no_vuelve_a_publicar(): void
+    {
+        $marcas = ['dbo.TwHistoricosPedidos' => 'a'];
+        $this->lecturas = [$marcas, $marcas];
+        Cache::forever('ventas:datos:version', '50');
+        $version = app(VentasDatosVersion::class);
+
+        $this->assertNull($version->sincronizar(100, fn () => null));
+        $this->assertNull($version->sincronizar(100 + VentasDatosVersion::CALMA_SEGUNDOS, fn () => null));
+        $this->assertSame('50', $version->actual());
+    }
+
     public function test_el_endpoint_de_version_no_se_cachea(): void
     {
         Cache::forever('ventas:datos:version', '1760890000');

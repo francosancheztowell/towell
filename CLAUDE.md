@@ -157,7 +157,8 @@ Uses `dompdf/dompdf` (v3.1). PDF controllers/views are in `app/Http/Controllers/
 - **Observers**: `ReqProgramaTejidoObserver` and `AtaMontadoTelasObserver` (both registered in AppServiceProvider)
 - **Artisan Commands**: `OptimizeModuleImagesCommand`, `RecalcularFechasProduccionCommand`
 - **Middleware**: `NoCacheHtmlResponses`, `ProgramaTejidoContext` (in addition to `SetSqlContextInfo`). HTTPS is the web server's job, not the app's.
-- **Redis**: `predis/predis` v3.3 configured as cache/queue driver
+- **Cache**: production is a single Windows server without Redis: cache and session use `file`, the queue uses `database` (`config/cache.php`). `predis/predis` is installed but unused. `npm run update` (deploy) runs `optimize:clear`, which wipes the whole cache.
+- **Ventas data cache**: `VentasDatosCache` keys carry the data version published by `ventas:sincronizar-datos` (scheduled every minute). With a published version the entries don't expire by time; the command warms the new version and forgets the old one. Version `0` (scheduler not running) falls back to `Cache::flexible` 15 min / 24 h.
 
 ## Important Conventions
 
