@@ -211,6 +211,19 @@ class VentasComparaPorAnioTest extends TestCase
         $this->assertNotSame($this->guardado(self::PEDIDOS, '2025', '100'), $this->guardado(self::PEDIDOS, '2025', '200'));
     }
 
+    public function test_el_boton_no_hace_el_completo_diario_aunque_ya_toque(): void
+    {
+        $this->travelTo('2026-10-15 10:00:00');
+        $cache = app(VentasDatosCache::class);
+        $cache->calentar('100');
+
+        $this->insertar(TwHistPedidosModel::class, '2025', 3);
+        $this->travel(25)->hours();
+        $cache->calentar('200', '100', completoSiVencio: false);
+
+        $this->assertSame($this->guardado(self::PEDIDOS, '2025', '100'), $this->guardado(self::PEDIDOS, '2025', '200'));
+    }
+
     public function test_un_anio_que_la_version_anterior_no_tenia_se_construye(): void
     {
         $this->travelTo('2026-10-15 10:00:00');

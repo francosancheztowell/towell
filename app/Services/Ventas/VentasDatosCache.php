@@ -85,10 +85,11 @@ final class VentasDatosCache
      * Deja listo todo lo que pide la página para una versión, antes de publicarla. Con $anterior solo
      * reconstruye los años de los últimos MESES_RECIENTES y copia los demás de esa versión; sin ella,
      * o si la última reconstrucción completa tiene más de COMPLETO_CADA_SEGUNDOS, reconstruye todo.
+     * El botón Actualizar pasa $completoSiVencio = false: esa reconstrucción la deja al comando.
      */
-    public function calentar(string $version, ?string $anterior = null): void
+    public function calentar(string $version, ?string $anterior = null, bool $completoSiVencio = true): void
     {
-        $copiarDe = $this->todoVencido($anterior) ? null : $anterior;
+        $copiarDe = $this->todoVencido($anterior, $completoSiVencio) ? null : $anterior;
         $desde = now()->startOfMonth()->subMonths(self::MESES_RECIENTES - 1)->year;
 
         foreach ($this->comparaAnios($version) as $anio) {
@@ -154,12 +155,14 @@ final class VentasDatosCache
             : Cache::remember($clave, self::TTL_CON_VERSION, $construir);
     }
 
-    private function todoVencido(?string $anterior): bool
+    private function todoVencido(?string $anterior, bool $completoSiVencio): bool
     {
+        if ($anterior === null || $anterior === VentasDatosVersion::INICIAL) {
+            return true;
+        }
         $completo = Cache::get(self::CLAVE_COMPLETO);
 
-        return $anterior === null || $anterior === VentasDatosVersion::INICIAL || ! is_int($completo)
-            || now()->getTimestamp() - $completo >= self::COMPLETO_CADA_SEGUNDOS;
+        return $completoSiVencio && (! is_int($completo) || now()->getTimestamp() - $completo >= self::COMPLETO_CADA_SEGUNDOS);
     }
 
     /** Copia un año anterior a $desde de la versión $de a la nueva; false si toca reconstruirlo. */

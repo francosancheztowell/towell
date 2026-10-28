@@ -20,6 +20,9 @@ class VentasDatosVersionTest extends TestCase
     /** @var list<array<string, string|null>> */
     private array $lecturas = [];
 
+    /** Lo que devuelve segundosDesdeUltimaEscritura() del repositorio falso. */
+    public ?int $segundosSinEscribir = 3600;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,6 +36,11 @@ class VentasDatosVersionTest extends TestCase
             public function marcas(): array
             {
                 return $this->test->siguienteLectura();
+            }
+
+            public function segundosDesdeUltimaEscritura(): ?int
+            {
+                return $this->test->segundosSinEscribir;
             }
         });
     }
@@ -107,6 +115,84 @@ class VentasDatosVersionTest extends TestCase
         $this->assertSame('50', $version->actual());
     }
 
+    public function test_actualizar_sin_cambios_responde_al_dia_sin_calentar(): void
+    {
+        $marcas = ['dbo.TwHistoricosPedidos' => 'a'];
+        $this->publicadas('50', $marcas);
+        $this->lecturas = [$marcas];
+
+        $resultado = app(VentasDatosVersion::class)->publicarAhora(100, fn () => $this->fail('no debía calentar'));
+
+        $this->assertSame(['estado' => 'al_dia', 'version' => '50'], $resultado);
+    }
+
+    public function test_actualizar_con_cambios_publica_sin_esperar_la_calma(): void
+    {
+        $this->publicadas('50', ['dbo.TwHistoricosPedidos' => 'a']);
+        $nuevas = ['dbo.TwHistoricosPedidos' => 'b'];
+        $this->lecturas = [$nuevas, $nuevas];
+        $this->segundosSinEscribir = 60;
+        $version = app(VentasDatosVersion::class);
+        $calentadas = [];
+
+        $resultado = $version->publicarAhora(1000, function (string $nueva) use (&$calentadas): void {
+            $calentadas[] = $nueva;
+        });
+
+        $this->assertSame(['estado' => 'publicada', 'version' => '1000'], $resultado);
+        $this->assertSame(['1000'], $calentadas);
+        $this->assertSame('1000', $version->actual());
+        $this->assertNull($version->sincronizar(1060, fn () => $this->fail('el comando no debe volver a publicar')));
+    }
+
+    public function test_actualizar_mientras_la_carga_escribe_no_publica(): void
+    {
+        $this->publicadas('50', ['dbo.TwHistoricosPedidos' => 'a']);
+        $this->lecturas = [['dbo.TwHistoricosPedidos' => 'b']];
+        $this->segundosSinEscribir = VentasDatosVersion::CALMA_BOTON_SEGUNDOS - 1;
+        $version = app(VentasDatosVersion::class);
+
+        $resultado = $version->publicarAhora(1000, fn () => $this->fail('no debía calentar'));
+
+        $this->assertSame(['estado' => 'cargando', 'version' => '50'], $resultado);
+        $this->assertSame('50', $version->actual());
+    }
+
+    public function test_actualizar_sin_version_publicada_publica(): void
+    {
+        $this->lecturas = [['dbo.TwHistoricosPedidos' => 'a']];
+
+        $resultado = app(VentasDatosVersion::class)->publicarAhora(1000, fn () => null);
+
+        $this->assertSame(['estado' => 'publicada', 'version' => '1000'], $resultado);
+    }
+
+    public function test_actualizar_en_el_mismo_segundo_que_la_version_vigente_no_la_repite(): void
+    {
+        $this->publicadas('1000', ['dbo.TwHistoricosPedidos' => 'a']);
+        $this->lecturas = [['dbo.TwHistoricosPedidos' => 'b']];
+
+        $resultado = app(VentasDatosVersion::class)->publicarAhora(1000, fn () => null);
+
+        $this->assertSame(['estado' => 'publicada', 'version' => '1001'], $resultado);
+    }
+
+    public function test_el_endpoint_actualizar_responde_el_estado(): void
+    {
+        $marcas = ['dbo.TwHistoricosPedidos' => 'a'];
+        $this->publicadas('50', $marcas);
+        $this->lecturas = [$marcas];
+
+        $this->actingAs($this->usuario())->postJson(route('ventas.datos.actualizar'))
+            ->assertOk()
+            ->assertExactJson(['estado' => 'al_dia', 'version' => '50']);
+    }
+
+    public function test_sin_acceso_no_se_puede_actualizar(): void
+    {
+        $this->actingAs($this->usuario(false))->postJson(route('ventas.datos.actualizar'))->assertForbidden();
+    }
+
     public function test_el_endpoint_de_version_no_se_cachea(): void
     {
         Cache::forever('ventas:datos:version', '1760890000');
@@ -120,6 +206,17 @@ class VentasDatosVersionTest extends TestCase
     public function test_sin_acceso_no_hay_version(): void
     {
         $this->actingAs($this->usuario(false))->getJson(route('ventas.datos.version'))->assertForbidden();
+    }
+
+    /**
+     * Deja una versión publicada con las marcas que la originaron, como tras una sincronización.
+     *
+     * @param  array<string, string|null>  $marcas
+     */
+    private function publicadas(string $version, array $marcas): void
+    {
+        Cache::forever('ventas:datos:version', $version);
+        Cache::forever('ventas:datos:marcas', ['estables' => $marcas, 'vistas' => $marcas, 'desde' => null]);
     }
 
     private function usuario(bool $acceso = true): Usuario

@@ -7,12 +7,20 @@
     data-compara-anios-url="{{ route('ventas.datos.compara.anios', ['v' => $versionDatos]) }}"
     data-version-url="{{ route('ventas.datos.version') }}"
     data-datos-version="{{ $versionDatos }}"
+    data-actualizar-url="{{ route('ventas.datos.actualizar') }}"
 >
     {{-- Aviso de datos nuevos (datos-version.ts): aparece cuando se publica otra versión de los datos. --}}
     <div class="pvoc-datos-nuevos" role="status" data-pvoc-datos-nuevos hidden>
         <i class="fa-solid fa-rotate" aria-hidden="true"></i>
         <span>Hay información nueva de Ventas.</span>
         <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-datos-recargar>Actualizar</button>
+    </div>
+    {{-- Botón Actualizar datos (datos-version.ts): publica ya lo que se cargó, sin esperar al comando. --}}
+    <div class="pvoc-actualizar">
+        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-actualizar title="Traer la información que se cargó en los últimos minutos">
+            <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+            <span data-pvoc-actualizar-texto>Actualizar datos</span>
+        </button>
     </div>
     {{-- Sidebar de secciones y subsecciones (sidebar.ts); se oculta con su botón y se recuerda por navegador. --}}
     <div class="pvoc-layout">

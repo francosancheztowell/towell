@@ -388,3 +388,6 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .pvoc-datos-nuevos { display: flex; align-items: center; gap: .6rem; border-bottom: 1px solid #bfdbfe; background: #eff6ff; padding: .4rem .75rem; color: #1e3a8a; font-size: .85rem; font-weight: 700; }
 .pvoc-datos-nuevos[hidden] { display: none; }
 .pvoc-datos-nuevos .pvoc-button { margin-left: auto; }
+.pvoc-actualizar { display: flex; justify-content: flex-end; padding: .25rem .75rem 0; }
+.pvoc-actualizar .pvoc-button { gap: .4rem; }
+.pvoc-actualizar .pvoc-button:disabled { cursor: progress; opacity: .7; }

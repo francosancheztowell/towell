@@ -7,7 +7,7 @@ import { bindRowSelection, clearRowSelection } from './row-selection';
 import { PANEL_LAYOUT, closingKpis, columnCount, expectedCompliance, mexicoToday, rowClass, type Panel, type Series } from './compara';
 import { bindColumnResize, colgroupHtml, columnKeys, createWidthStore, resizeHandle, tableAttributes } from './column-resize';
 import { bindLabelScroll, labelScrollBar } from './label-scroll';
-import { bindDataVersionWatch } from './datos-version';
+import { bindDataVersionWatch, bindRefreshButton } from './datos-version';
 import { bindSidebar } from './sidebar';
 import { bindZoom } from './zoom';
 
@@ -203,6 +203,7 @@ document.querySelectorAll<HTMLElement>('[data-ventas-pvoc-dashboard]').forEach(a
     // Pestañas y ventas históricas no dependen del payload PV vs OC: funcionan aunque éste falle.
     bindSidebar(root, HISTORY_SECTIONS);
     bindDataVersionWatch(root);
+    bindRefreshButton(root);
     bindFilterPanel(root);
     // Zoom tipo Excel para las tablas de Compara; "Ajustar" mide la tabla de la subsección visible.
     const comparaPanel = root.querySelector<HTMLElement>('[data-pvoc-panel="summary"]');
