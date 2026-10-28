@@ -31,6 +31,17 @@ final class VentasDatosCache
 
     private const COMPARA = 'compara:v9';
 
+    /**
+     * Las cargas solo tocan los últimos meses: al publicar se reconstruyen los años de esos meses y
+     * los demás se copian de la versión anterior, así la versión nueva sale en segundos y no en minutos.
+     */
+    private const MESES_RECIENTES = 3;
+
+    /** Cada cuánto se reconstruye todo, por si alguna carga tocó un mes más viejo. */
+    private const COMPLETO_CADA_SEGUNDOS = 24 * 60 * 60;
+
+    private const CLAVE_COMPLETO = 'ventas:datos:completo';
+
     public function __construct(
         private readonly VentasDatosVersion $version,
         private readonly PvVsOcPayloadBuilder $compara,
@@ -70,16 +81,31 @@ final class VentasDatosCache
         return $this->recordar($this->formatoPedidos(), $anio, $version, fn (): string => $this->pedidos->build($anio));
     }
 
-    /** Construye todo lo que pide la página para una versión, antes de publicarla. */
-    public function calentar(string $version): void
+    /**
+     * Deja listo todo lo que pide la página para una versión, antes de publicarla. Con $anterior solo
+     * reconstruye los años de los últimos MESES_RECIENTES y copia los demás de esa versión; sin ella,
+     * o si la última reconstrucción completa tiene más de COMPLETO_CADA_SEGUNDOS, reconstruye todo.
+     */
+    public function calentar(string $version, ?string $anterior = null): void
     {
+        $copiarDe = $this->todoVencido($anterior) ? null : $anterior;
+        $desde = now()->startOfMonth()->subMonths(self::MESES_RECIENTES - 1)->year;
+
         foreach ($this->comparaAnios($version) as $anio) {
-            $this->compara($anio, $version);
+            if (! $this->copiar(self::COMPARA, $anio, $copiarDe, $version, $desde)) {
+                $this->compara($anio, $version);
+            }
         }
         foreach ($this->pedidosAnios($version) as $anio) {
-            $this->pedidos($anio, $version);
+            if (! $this->copiar($this->formatoPedidos(), $anio, $copiarDe, $version, $desde)) {
+                $this->pedidos($anio, $version);
+            }
         }
         $this->historico($version);
+
+        if ($copiarDe === null) {
+            Cache::forever(self::CLAVE_COMPLETO, now()->getTimestamp());
+        }
     }
 
     /**
@@ -126,6 +152,29 @@ final class VentasDatosCache
         return $version === VentasDatosVersion::INICIAL
             ? Cache::flexible($clave, self::TTL_SIN_VERSION, $construir)
             : Cache::remember($clave, self::TTL_CON_VERSION, $construir);
+    }
+
+    private function todoVencido(?string $anterior): bool
+    {
+        $completo = Cache::get(self::CLAVE_COMPLETO);
+
+        return $anterior === null || $anterior === VentasDatosVersion::INICIAL || ! is_int($completo)
+            || now()->getTimestamp() - $completo >= self::COMPLETO_CADA_SEGUNDOS;
+    }
+
+    /** Copia un año anterior a $desde de la versión $de a la nueva; false si toca reconstruirlo. */
+    private function copiar(string $seccion, string $anio, ?string $de, string $a, int $desde): bool
+    {
+        if ($de === null || (int) $anio >= $desde) {
+            return false;
+        }
+        $valor = Cache::get($this->clave($seccion, $anio, $de));
+        if ($valor === null) {
+            return false;
+        }
+        Cache::put($this->clave($seccion, $anio, $a), $valor, self::TTL_CON_VERSION);
+
+        return true;
     }
 
     private function formatoPedidos(): string
