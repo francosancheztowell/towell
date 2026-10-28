@@ -32,21 +32,27 @@ export const bindDataVersionWatch = (root: HTMLElement) => {
 };
 
 /**
- * Botón "Actualizar datos": pide al servidor publicar ya lo que se cargó, sin esperar la calma del
- * comando (VentasDatosController::actualizar). Si hay otra versión recarga; si no, avisa por qué.
+ * Botones "Actualizar datos" (uno en cada panel de filtros): piden al servidor publicar ya lo que se
+ * cargó, sin esperar la calma del comando (VentasDatosController::actualizar). Si hay otra versión
+ * recarga; si no, avisa por qué. Mientras uno trabaja, todos quedan deshabilitados.
  */
 export const bindRefreshButton = (root: HTMLElement) => {
     const url = root.dataset.actualizarUrl;
     const actual = root.dataset.datosVersion;
-    const boton = root.querySelector<HTMLButtonElement>('[data-pvoc-actualizar]');
-    const texto = boton?.querySelector<HTMLElement>('[data-pvoc-actualizar-texto]');
-    if (!url || !actual || !boton || !texto) return;
-    const etiqueta = texto.textContent ?? '';
+    const botones = [...root.querySelectorAll<HTMLButtonElement>('[data-pvoc-actualizar]')];
+    if (!url || !actual || botones.length === 0) return;
 
-    boton.addEventListener('click', async () => {
-        boton.disabled = true;
-        boton.setAttribute('aria-busy', 'true');
-        texto.textContent = 'Actualizando…';
+    const ocupado = (si: boolean) => {
+        botones.forEach((boton) => {
+            boton.disabled = si;
+            boton.toggleAttribute('aria-busy', si);
+            const texto = boton.querySelector<HTMLElement>('[data-pvoc-actualizar-texto]');
+            if (texto) texto.textContent = si ? 'Actualizando…' : 'Actualizar datos';
+        });
+    };
+
+    const actualizar = async () => {
+        ocupado(true);
         try {
             const respuesta = respuestaActualizar(await http.post<Actualizacion>(url), actual);
             if (respuesta.accion === 'recargar') {
@@ -57,8 +63,8 @@ export const bindRefreshButton = (root: HTMLElement) => {
         } catch {
             notify.error('No se pudo actualizar la información de Ventas. Intenta de nuevo.');
         }
-        boton.disabled = false;
-        boton.removeAttribute('aria-busy');
-        texto.textContent = etiqueta;
-    });
+        ocupado(false);
+    };
+
+    botones.forEach((boton) => boton.addEventListener('click', actualizar));
 };
