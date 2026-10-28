@@ -7,6 +7,7 @@ namespace App\Repositories\Ventas;
 use App\Models\Ventas\TwHistPedidosModel;
 use App\Models\Ventas\TwHistPronosModel;
 use App\Models\Ventas\TwHistVtasModel;
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -29,12 +30,12 @@ class VentasMarcasEscrituraRepository
      */
     public function marcas(): array
     {
-        $tablas = array_map(static fn (string $modelo): string => (new $modelo)->getTable(), self::MODELOS);
+        $tablas = $this->tablas();
         $marcas = array_fill_keys($tablas, null);
 
         // SQL crudo a propósito: es una vista de sistema (DMV) que el ORM no modela. Los nombres van
         // como parámetros a OBJECT_ID(); una tabla heap aparece con index_id 0.
-        $filas = DB::connection((new TwHistVtasModel)->getConnectionName())->select(
+        $filas = $this->conexion()->select(
             'SELECT o.tabla, MAX(s.last_user_update) AS ultima
                FROM (SELECT ? AS tabla UNION ALL SELECT ? UNION ALL SELECT ?) o
                LEFT JOIN sys.dm_db_index_usage_stats s
@@ -48,5 +49,33 @@ class VentasMarcasEscrituraRepository
         }
 
         return $marcas;
+    }
+
+    /**
+     * Segundos desde la última escritura en cualquiera de las tablas, con el reloj de SQL Server
+     * (el del servidor web puede no coincidir); null si no hubo escrituras desde el último reinicio.
+     */
+    public function segundosDesdeUltimaEscritura(): ?int
+    {
+        // SQL crudo por el mismo motivo que marcas(): la DMV no tiene modelo.
+        $fila = $this->conexion()->selectOne(
+            'SELECT DATEDIFF(second, MAX(last_user_update), GETDATE()) AS segundos
+               FROM sys.dm_db_index_usage_stats
+              WHERE database_id = DB_ID() AND object_id IN (OBJECT_ID(?), OBJECT_ID(?), OBJECT_ID(?))',
+            $this->tablas(),
+        );
+
+        return $fila === null || $fila->segundos === null ? null : (int) $fila->segundos;
+    }
+
+    /** @return list<string> */
+    private function tablas(): array
+    {
+        return array_map(static fn (string $modelo): string => (new $modelo)->getTable(), self::MODELOS);
+    }
+
+    private function conexion(): ConnectionInterface
+    {
+        return DB::connection((new TwHistVtasModel)->getConnectionName());
     }
 }

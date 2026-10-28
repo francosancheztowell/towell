@@ -1,4 +1,6 @@
 import { http } from '../utils/http';
+import { notify } from '../utils/notifications';
+import { respuestaActualizar, type Actualizacion } from './actualizar-logica';
 
 /** Cada cuánto se pregunta si hay una versión nueva de los datos (el comando corre cada minuto). */
 const INTERVALO_MS = 60_000;
@@ -27,4 +29,36 @@ export const bindDataVersionWatch = (root: HTMLElement) => {
             // Sin conexión o sesión vencida: el banner global ya avisa; se reintenta el siguiente minuto.
         }
     }, INTERVALO_MS);
+};
+
+/**
+ * Botón "Actualizar datos": pide al servidor publicar ya lo que se cargó, sin esperar la calma del
+ * comando (VentasDatosController::actualizar). Si hay otra versión recarga; si no, avisa por qué.
+ */
+export const bindRefreshButton = (root: HTMLElement) => {
+    const url = root.dataset.actualizarUrl;
+    const actual = root.dataset.datosVersion;
+    const boton = root.querySelector<HTMLButtonElement>('[data-pvoc-actualizar]');
+    const texto = boton?.querySelector<HTMLElement>('[data-pvoc-actualizar-texto]');
+    if (!url || !actual || !boton || !texto) return;
+    const etiqueta = texto.textContent ?? '';
+
+    boton.addEventListener('click', async () => {
+        boton.disabled = true;
+        boton.setAttribute('aria-busy', 'true');
+        texto.textContent = 'Actualizando…';
+        try {
+            const respuesta = respuestaActualizar(await http.post<Actualizacion>(url), actual);
+            if (respuesta.accion === 'recargar') {
+                window.location.reload();
+                return;
+            }
+            notify[respuesta.tipo](respuesta.texto);
+        } catch {
+            notify.error('No se pudo actualizar la información de Ventas. Intenta de nuevo.');
+        }
+        boton.disabled = false;
+        boton.removeAttribute('aria-busy');
+        texto.textContent = etiqueta;
+    });
 };

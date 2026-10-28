@@ -95,6 +95,29 @@ final class VentasDatosController extends Controller
         return response()->json(['version' => $version->actual()], 200, ['Cache-Control' => 'no-store']);
     }
 
+    /**
+     * Botón Actualizar: publica ya los datos nuevos sin esperar la calma del comando y responde
+     * { estado: "al_dia" | "cargando" | "publicada", version }. Solo recalcula los años recientes:
+     * la reconstrucción completa diaria la hace el comando, para que nadie espere un minuto aquí.
+     */
+    public function actualizar(VentasDatosVersion $version): JsonResponse
+    {
+        $this->autorizar();
+        // El calentado parcial tarda segundos, pero si la base va lenta no debe cortarlo el límite de PHP.
+        set_time_limit(180);
+
+        $anterior = $version->actual();
+        $resultado = $version->publicarAhora(
+            now()->getTimestamp(),
+            fn (string $nueva) => $this->cache->calentar($nueva, $anterior, completoSiVencio: false),
+        );
+        if ($resultado['version'] !== $anterior) {
+            $this->cache->olvidar($anterior);
+        }
+
+        return response()->json($resultado, 200, ['Cache-Control' => 'no-store']);
+    }
+
     private function gzip(string $contenido): Response
     {
         return response($contenido, 200, [

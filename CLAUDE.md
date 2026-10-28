@@ -158,7 +158,7 @@ Uses `dompdf/dompdf` (v3.1). PDF controllers/views are in `app/Http/Controllers/
 - **Artisan Commands**: `OptimizeModuleImagesCommand`, `RecalcularFechasProduccionCommand`
 - **Middleware**: `NoCacheHtmlResponses`, `ProgramaTejidoContext` (in addition to `SetSqlContextInfo`). HTTPS is the web server's job, not the app's.
 - **Cache**: production is a single Windows server without Redis: cache and session use `file`, the queue uses `database` (`config/cache.php`). `predis/predis` is installed but unused. `npm run update` (deploy) runs `optimize:clear`, which wipes the whole cache.
-- **Ventas data cache**: `VentasDatosCache` keys carry the data version published by `ventas:sincronizar-datos` (scheduled every minute). With a published version the entries don't expire by time; the command warms the new version and forgets the old one. Version `0` (scheduler not running) falls back to `Cache::flexible` 15 min / 24 h.
+- **Ventas data cache**: `VentasDatosCache` keys carry the data version published by `ventas:sincronizar-datos` (scheduled every minute). With a published version the entries don't expire by time; the command warms the new version and forgets the old one. Loads only touch recent months, so a warm rebuilds the years of the last 3 months and copies older years from the previous version; a full rebuild runs once a day and after a deploy. The page's "Actualizar datos" button (`POST /ventas/datos/actualizar`) publishes right away without the calm (partial warm only, refuses while a load wrote < 20 s ago); the command and the button share a cache lock so only one warm runs at a time. Version `0` (scheduler not running) falls back to `Cache::flexible` 15 min / 24 h.
 
 ## Important Conventions
 

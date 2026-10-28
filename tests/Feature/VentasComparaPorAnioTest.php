@@ -8,7 +8,9 @@ use App\Models\Sistema\Usuario;
 use App\Models\Ventas\TwHistPedidosModel;
 use App\Models\Ventas\TwHistPronosModel;
 use App\Models\Ventas\TwHistVtasModel;
+use App\Repositories\Ventas\PedidosHistoricosRepository;
 use App\Repositories\Ventas\PvVsOcReportRepository;
+use App\Repositories\Ventas\VentasHistoricasRepository;
 use App\Services\Ventas\PedidosHistoricosPayloadBuilder;
 use App\Services\Ventas\VentasDatosCache;
 use Illuminate\Database\Schema\Blueprint;
@@ -24,6 +26,8 @@ use Tests\TestCase;
 class VentasComparaPorAnioTest extends TestCase
 {
     private const CONEXION = 'sqlsrv_Reportes_Towell';
+
+    private const PEDIDOS = 'pedidos:v'.PedidosHistoricosPayloadBuilder::VERSION;
 
     protected function setUp(): void
     {
@@ -161,6 +165,79 @@ class VentasComparaPorAnioTest extends TestCase
         }
     }
 
+    public function test_tras_una_carga_reconstruye_los_anios_recientes_y_copia_los_demas(): void
+    {
+        $this->travelTo('2026-10-15 10:00:00');
+        $cache = app(VentasDatosCache::class);
+        $cache->calentar('100');
+
+        $this->insertar(TwHistVtasModel::class, '2026', 5);
+        $this->insertar(TwHistPedidosModel::class, '2025', 3);
+        $this->travel(1)->hours();
+        $cache->calentar('200', '100');
+
+        $this->assertNotSame($this->guardado('compara:v9', '2026', '100'), $this->guardado('compara:v9', '2026', '200'), '2026 está en los últimos meses');
+        $this->assertNotNull($this->guardado('compara:v9', '2025', '200'));
+        $this->assertSame($this->guardado('compara:v9', '2025', '100'), $this->guardado('compara:v9', '2025', '200'), '2025 se copia');
+        $this->assertSame($this->guardado(self::PEDIDOS, '2025', '100'), $this->guardado(self::PEDIDOS, '2025', '200'));
+    }
+
+    public function test_de_enero_a_marzo_tambien_reconstruye_el_anio_anterior(): void
+    {
+        $this->travelTo('2026-02-10 10:00:00');
+        $cache = app(VentasDatosCache::class);
+        $cache->calentar('100');
+
+        $this->insertar(TwHistPedidosModel::class, '2025', 3);
+        $this->insertar(TwHistPedidosModel::class, '2024', 3);
+        $this->travel(1)->hours();
+        $cache->calentar('200', '100');
+
+        $this->assertNotSame($this->guardado(self::PEDIDOS, '2025', '100'), $this->guardado(self::PEDIDOS, '2025', '200'), 'diciembre de 2025 entra en los últimos meses');
+        $this->assertSame($this->guardado(self::PEDIDOS, '2024', '100'), $this->guardado(self::PEDIDOS, '2024', '200'), '2024 se copia');
+    }
+
+    public function test_una_vez_al_dia_reconstruye_todo_por_si_una_carga_toco_un_mes_viejo(): void
+    {
+        $this->travelTo('2026-10-15 10:00:00');
+        $cache = app(VentasDatosCache::class);
+        $cache->calentar('100');
+
+        $this->insertar(TwHistPedidosModel::class, '2025', 3);
+        $this->travel(25)->hours();
+        $cache->calentar('200', '100');
+
+        $this->assertNotSame($this->guardado('compara:v9', '2025', '100'), $this->guardado('compara:v9', '2025', '200'));
+        $this->assertNotSame($this->guardado(self::PEDIDOS, '2025', '100'), $this->guardado(self::PEDIDOS, '2025', '200'));
+    }
+
+    public function test_el_boton_no_hace_el_completo_diario_aunque_ya_toque(): void
+    {
+        $this->travelTo('2026-10-15 10:00:00');
+        $cache = app(VentasDatosCache::class);
+        $cache->calentar('100');
+
+        $this->insertar(TwHistPedidosModel::class, '2025', 3);
+        $this->travel(25)->hours();
+        $cache->calentar('200', '100', completoSiVencio: false);
+
+        $this->assertSame($this->guardado(self::PEDIDOS, '2025', '100'), $this->guardado(self::PEDIDOS, '2025', '200'));
+    }
+
+    public function test_un_anio_que_la_version_anterior_no_tenia_se_construye(): void
+    {
+        $this->travelTo('2026-10-15 10:00:00');
+        $cache = app(VentasDatosCache::class);
+        $cache->calentar('100');
+
+        $this->insertar(TwHistPedidosModel::class, '2023', 2);
+        $this->travel(1)->hours();
+        $cache->calentar('200', '100');
+
+        $this->assertNotNull($this->guardado('compara:v9', '2023', '200'));
+        $this->assertNotNull($this->guardado(self::PEDIDOS, '2023', '200'));
+    }
+
     public function test_endpoint_compara_rechaza_un_anio_invalido(): void
     {
         $this->actingAs($this->usuarioConAcceso())
@@ -195,19 +272,33 @@ class VentasComparaPorAnioTest extends TestCase
         $this->actingAs($usuario)->getJson(route('ventas.datos.compara', ['anio' => '2025']))->assertForbidden();
     }
 
+    /** Lo guardado en caché para una sección, año y versión, sin construirlo si falta. */
+    private function guardado(string $seccion, string $anio, string $version): mixed
+    {
+        return Cache::get(app(VentasDatosCache::class)->clave($seccion, $anio, $version));
+    }
+
     private function crearTabla(string $tabla): void
     {
-        Schema::connection(self::CONEXION)->create($tabla, function (Blueprint $table) use ($tabla): void {
-            foreach (PvVsOcReportRepository::DIMENSIONES as $dimension) {
+        // Columnas de Compara, Pedidos Históricos y Ventas históricas: calentar() construye las tres.
+        $pedidos = [TwHistPedidosModel::COLUMNA_ANIO, TwHistPedidosModel::COLUMNA_MES, TwHistPedidosModel::COLUMNA_SEMANA];
+        $dimensiones = array_diff(array_unique([
+            ...PvVsOcReportRepository::DIMENSIONES,
+            ...PedidosHistoricosRepository::DIMENSIONES,
+            ...VentasHistoricasRepository::DIMENSIONES,
+        ]), $pedidos);
+
+        Schema::connection(self::CONEXION)->create($tabla, function (Blueprint $table) use ($tabla, $dimensiones, $pedidos): void {
+            foreach ($dimensiones as $dimension) {
                 $table->string($dimension)->nullable();
             }
-            foreach (PvVsOcReportRepository::MEDIDAS as $medida) {
+            foreach ([...PvVsOcReportRepository::MEDIDAS, 'ENTREGADOQTY', 'PENDIENTEQTY'] as $medida) {
                 $table->decimal($medida, 18, 2)->default(0);
             }
             if ($tabla === (new TwHistPedidosModel)->getTable()) {
-                $table->string(TwHistPedidosModel::COLUMNA_ANIO)->nullable();
-                $table->string(TwHistPedidosModel::COLUMNA_MES)->nullable();
-                $table->string(TwHistPedidosModel::COLUMNA_SEMANA)->nullable();
+                foreach ($pedidos as $columna) {
+                    $table->string($columna)->nullable();
+                }
             }
         });
     }
