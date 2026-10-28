@@ -226,10 +226,10 @@ class VentasDatosVersionTest extends TestCase
         $usuario->idusuario = $acceso ? 999221 : 999222;
 
         app()->instance('permisos.roles', collect([
-            mb_strtolower($modulo) => (object) ['idrol' => 77, 'modulo' => $modulo],
+            mb_strtolower($modulo) => (object) ['idrol' => 202, 'modulo' => $modulo],
         ]));
         app()->instance('permisos.usuario.'.$usuario->idusuario, collect([
-            77 => (object) ['acceso' => (int) $acceso, 'crear' => 0, 'modificar' => 0, 'eliminar' => 0, 'registrar' => 0],
+            202 => (object) ['acceso' => (int) $acceso, 'crear' => 0, 'modificar' => 0, 'eliminar' => 0, 'registrar' => 0],
         ]));
 
         return $usuario;

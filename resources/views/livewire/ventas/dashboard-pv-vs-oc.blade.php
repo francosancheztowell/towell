@@ -15,13 +15,6 @@
         <span>Hay información nueva de Ventas.</span>
         <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-datos-recargar>Actualizar</button>
     </div>
-    {{-- Botón Actualizar datos (datos-version.ts): publica ya lo que se cargó, sin esperar al comando. --}}
-    <div class="pvoc-actualizar">
-        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-actualizar title="Traer la información que se cargó en los últimos minutos">
-            <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
-            <span data-pvoc-actualizar-texto>Actualizar datos</span>
-        </button>
-    </div>
     {{-- Sidebar de secciones y subsecciones (sidebar.ts); se oculta con su botón y se recuerda por navegador. --}}
     <div class="pvoc-layout">
     <aside class="pvoc-sidebar is-collapsed" data-pvoc-sidebar aria-label="Secciones de Ventas">
@@ -112,6 +105,7 @@
                 </div>
                 <div class="pvoc-filter-fields" data-ph-slicers>@include('livewire.ventas.partials.cargando')</div>
                 <div class="pvoc-filter-panel-footer">
+                    @include('livewire.ventas.partials.boton-actualizar')
                     <button type="button" class="pvoc-button pvoc-button-small" data-ph-clear-all>Limpiar filtros</button>
                 </div>
             </div>
@@ -139,6 +133,7 @@
                 </div>
                 <div class="pvoc-filter-fields" data-vh-slicers>@include('livewire.ventas.partials.cargando')</div>
                 <div class="pvoc-filter-panel-footer">
+                    @include('livewire.ventas.partials.boton-actualizar')
                     <button type="button" class="pvoc-button pvoc-button-small" data-vh-clear-all>Limpiar filtros</button>
                 </div>
             </div>
@@ -155,6 +150,7 @@
         </div>
         <div class="pvoc-filter-fields" data-pvoc-filters></div>
         <div class="pvoc-filter-panel-footer">
+            @include('livewire.ventas.partials.boton-actualizar')
             <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-clear>Limpiar filtros</button>
         </div>
     </div>
