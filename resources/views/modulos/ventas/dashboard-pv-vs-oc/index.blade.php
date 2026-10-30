@@ -1,7 +1,8 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
 @section('page-title')
-    <x-layout.page-title title="Plan de Ventas vs OC vs Real" />
+    {{-- Texto plano: el navbar pone el <h1>. sidebar.ts lo cambia por la subsección elegida. --}}
+    <span data-pvoc-page-title>Plan de Ventas vs OC vs Real</span>
 @endsection
 
 @section('navbar-right')

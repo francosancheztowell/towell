@@ -1,4 +1,5 @@
 import { escapeHtml } from '../utils/format';
+import { pageTitle } from './page-title';
 
 /**
  * Sidebar de secciones (Compara, Ventas históricas) y subsecciones. Una subsección puede tener su
@@ -38,6 +39,16 @@ export const bindSidebar = (root: HTMLElement, history: { id: string; title: str
 
     let activeTab = root.querySelector<HTMLElement>('[data-pvoc-panel]:not(.is-hidden)')?.dataset.pvocPanel ?? 'summary';
 
+    // El título del navbar (y el de la pestaña del navegador) sigue a la subsección elegida.
+    const titleElement = document.querySelector<HTMLElement>('[data-pvoc-page-title]');
+    const baseTitle = titleElement?.textContent?.trim() ?? '';
+    const setTitle = (sub: string, label: string) => {
+        if (!titleElement || baseTitle === '') return;
+        const title = pageTitle(sub, label, baseTitle);
+        titleElement.textContent = title;
+        document.title = `${title} · Towell`;
+    };
+
     const show = (button: HTMLElement) => {
         const tab = button.dataset.pvocNav ?? 'summary';
         const sub = button.dataset.pvocNavSub ?? '';
@@ -52,6 +63,7 @@ export const bindSidebar = (root: HTMLElement, history: { id: string; title: str
 
         const panel = root.querySelector<HTMLElement>(`[data-pvoc-panel="${tab}"]`);
         if (!panel) return;
+        setTitle(sub, button.textContent ?? '');
         if (tab === 'history') panel.dataset.vhRequested = sub;
         else {
             panel.querySelectorAll<HTMLElement>('[data-pvoc-subpanel]').forEach((subpanel) =>
